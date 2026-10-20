@@ -39,7 +39,8 @@ function simulate(base: number, k: number, seed: number) {
   let E = 0;
   for (let i = 0; i < N; i++) if (Math.min(0.97, base - 0.25 * (i - k)) >= 0.7) E = i;
   E = Math.max(E, levelIndex(FLOORS[termFor(k)]));
-  let reached = Math.abs(levelIndex(st.level) - E) <= 1;
+  // placement alone does not count: the engine must hold E±1 after at least one adaptive answer
+  let reached = false;
   let chain = 0;
   let maxChain = 0;
   for (let q = 0; q < 40; q++) {

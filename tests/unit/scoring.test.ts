@@ -21,6 +21,10 @@ describe('medals', () => {
 });
 
 describe('[A4] 칭찬 시스템', () => {
+  it('every praise pool has ≥8 lines so the 8-window never forces a repeat', () => {
+    for (const [cat, list] of Object.entries(ko.praise)) expect(list.length, cat).toBeGreaterThanOrEqual(8);
+  });
+
   it('≥40 praise lines', () => {
     const total = Object.values(ko.praise).reduce((n, list) => n + list.length, 0);
     expect(total).toBeGreaterThanOrEqual(40);
@@ -29,7 +33,7 @@ describe('[A4] 칭찬 시스템', () => {
   it('never repeats any of the last 8 lines (1000 picks, mixed categories)', () => {
     const rng = createRng('praise');
     const history: string[] = [];
-    const cats = ['correct', 'streak', 'retrySuccess', 'hintSuccess', 'strategy'] as const;
+    const cats = ['correct', 'streak', 'retrySuccess', 'hintSuccess', 'strategy', 'finish'] as const;
     for (let i = 0; i < 1000; i++) {
       const id = pickPraise(rng.pick(cats), PRAISE_POOL_SIZES, history, rng);
       expect(history.slice(-8)).not.toContain(id);

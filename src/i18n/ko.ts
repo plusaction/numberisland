@@ -23,6 +23,7 @@ export const ko = {
       '완벽해!',
     ],
     streak: [
+      '오늘 컨디션 최고!',
       '연속 정답!',
       '불꽃 같아!',
       '멈출 수 없어!',
@@ -32,6 +33,7 @@ export const ko = {
       '대단한 집중!',
     ],
     retrySuccess: [
+      '또 해 보니 됐다!',
       '끝까지 해봤구나!',
       '다시 해서 해냈어!',
       '포기 안 했네!',
@@ -41,6 +43,7 @@ export const ko = {
       '다시 생각했구나!',
     ],
     hintSuccess: [
+      '단서를 잘 봤어!',
       '힌트 잘 썼어!',
       '도움 받아 해냈어!',
       '똑똑하게 풀었어!',
@@ -50,6 +53,7 @@ export const ko = {
       '같이 해서 성공!',
     ],
     strategy: [
+      '좋은 방법이야!',
       '10 만들기 멋졌어!',
       '자리를 잘 봤어!',
       '거꾸로 생각 최고!',
@@ -59,6 +63,8 @@ export const ko = {
       '머리를 잘 썼어!',
     ],
     finish: [
+      '멋진 하루였어!',
+      '다음 모험도 기대돼!',
       '오늘도 해냈다!',
       '탐험 완료!',
       '친구들이 기뻐해!',
@@ -73,24 +79,26 @@ export const ko = {
     rescue: '같이 천천히 해요',
   },
   word: {
+    /** Nouns with the right Korean counter; only food can be "eaten". */
     nouns: [
-      '사과',
-      '구슬',
-      '별',
-      '조개',
-      '사탕',
-      '물고기',
-      '풍선',
-      '쿠키',
-      '연필',
-      '도토리',
-      '딸기',
-      '스티커',
+      { name: '사과', unit: '개', food: true },
+      { name: '구슬', unit: '개', food: false },
+      { name: '조개', unit: '개', food: false },
+      { name: '사탕', unit: '개', food: true },
+      { name: '물고기', unit: '마리', food: false },
+      { name: '풍선', unit: '개', food: false },
+      { name: '쿠키', unit: '개', food: true },
+      { name: '연필', unit: '자루', food: false },
+      { name: '도토리', unit: '개', food: false },
+      { name: '딸기', unit: '개', food: true },
+      { name: '스티커', unit: '장', food: false },
+      { name: '오리', unit: '마리', food: false },
     ],
-    JOIN: '{noun} {a}개, {b}개 더! 모두 몇 개?',
-    TAKE: '{noun} {a}개 중 {b}개 먹었어. 남은 건?',
-    COMPARE_MORE: '{noun} {a}개와 {b}개. 몇 개 더 많아?',
-    GROUPS: '{noun} {b}개씩 {count}묶음. 모두 몇 개?',
+    JOIN: '{noun} {a}{unit}, {b}{unit} 더! 모두 몇 {unit}?',
+    TAKE_FOOD: '{noun} {a}{unit} 중 {b}{unit} 먹었어. 남은 건?',
+    TAKE_GIVE: '{noun} {a}{unit} 중 {b}{unit} 친구 줬어. 남은 건?',
+    COMPARE_MORE: '{noun} {a}{unit}와 {b}{unit}. 몇 {unit} 더 많아?',
+    GROUPS: '{noun} {b}{unit}씩 {count}묶음. 모두 몇 {unit}?',
   },
   /** Parent report "이렇게 도와주세요" tips per skill/misconception (SPEC §13). */
   parentTips: {

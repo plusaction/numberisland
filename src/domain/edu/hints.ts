@@ -1,9 +1,9 @@
 /** 4-step hint plan (SPEC §9.5): visual → strategy → column steps → demo + retry with different numbers. */
 import type { LevelSpec } from '../curriculum/curriculum';
 import type { Rng } from '../rng/rng';
-import { columnSteps, digitAt, digitCount } from './arith';
-import { type Core, coreKey, generateCoreAvoiding } from './core';
-import type { ColumnStep, HintStep, Op, StrategyId, WorkedExample } from './types';
+import { columnSteps, digitAt, digitCount, partials } from './arith';
+import { type Core, generateCoreAvoiding, mathKey } from './core';
+import type { ColumnStep, HintStep, Op, StepCalc, StrategyId, WorkedExample } from './types';
 import { chooseRepresentation, visualFor } from './visual';
 
 function placeParts(n: number): number[] {
@@ -99,6 +99,71 @@ export function coreComputation(core: Core): { a: number; b: number; op: Op } {
   }
 }
 
+const calc = (a: number, b: number, op: Op): StepCalc => ({
+  mode: 'column',
+  a,
+  b,
+  op,
+  columns: columnSteps(a, b, op),
+});
+
+function digitColumns(x: number, y: number): ColumnStep[] {
+  const places = Math.max(digitCount(x), digitCount(y));
+  const cols: ColumnStep[] = [];
+  for (let p = 0; p < places; p++) {
+    cols.push({ place: p, top: digitAt(x, p), bottom: digitAt(y, p), carryIn: 0, digit: 0, carryOut: 0 });
+  }
+  return cols;
+}
+
+/** Step-3 calculations that fit each question form (every term, place-value compare, place build). */
+export function stepCalcs(core: Core): StepCalc[] {
+  switch (core.form) {
+    case 'EXPR':
+    case 'WORD': {
+      const parts = partials(core.operands, core.ops);
+      const out: StepCalc[] = [];
+      let acc = core.operands[0] ?? 0;
+      core.ops.forEach((op, i) => {
+        out.push(calc(acc, core.operands[i + 1] ?? 0, op));
+        acc = parts[i] ?? acc;
+      });
+      return out;
+    }
+    case 'COMPARE': {
+      const [x = 0, y = 0] = core.items?.map((i) => i.value) ?? [];
+      return [{ mode: 'compare', a: x, b: y, op: '-', columns: digitColumns(x, y) }];
+    }
+    case 'CLOSEST': {
+      const t = core.target ?? 0;
+      return (core.items ?? []).map((it) =>
+        it.value >= t ? calc(it.value, t, '-') : calc(t, it.value, '-'),
+      );
+    }
+    case 'PLACE': {
+      const n = core.target === undefined ? core.answer : (core.operands[0] ?? 0);
+      return [{ mode: 'place', a: n, b: 0, op: '+', columns: digitColumns(n, 0) }];
+    }
+    default: {
+      const { a, b, op } = coreComputation(core);
+      return [calc(a, b, op)];
+    }
+  }
+}
+
+/** Demo and retry must be the same kind of problem: same form, template, blank position and length. */
+export function sameShape(a: Core, b: Core): boolean {
+  const blank = (c: Core) =>
+    c.missingIndex === undefined ? 'n' : c.missingIndex < 0 ? 'r' : `o${c.missingIndex}`;
+  return (
+    a.form === b.form &&
+    a.word === b.word &&
+    blank(a) === blank(b) &&
+    a.ops.length === b.ops.length &&
+    (a.target === undefined) === (b.target === undefined)
+  );
+}
+
 function toExample(c: Core): WorkedExample {
   const ex: WorkedExample = { operands: c.operands, ops: c.ops, answer: c.answer, form: c.form };
   if (c.missingIndex !== undefined) ex.missingIndex = c.missingIndex;
@@ -112,17 +177,20 @@ export function buildHintPlan(
   exclude: ReadonlySet<string>,
 ): HintStep[] {
   const representation = chooseRepresentation(level, core, rng);
-  const { a, b, op } = coreComputation(core);
-  const columns: ColumnStep[] = columnSteps(a, b, op);
   const avoid = new Set(exclude);
-  avoid.add(coreKey(core));
-  const demoCore = generateCoreAvoiding(level.id, core.skill, rng.fork('demo'), avoid) ?? core;
-  avoid.add(coreKey(demoCore));
-  const retryCore = generateCoreAvoiding(level.id, core.skill, rng.fork('retry'), avoid) ?? demoCore;
+  avoid.add(mathKey(core));
+  // "different numbers" = the child must see other numbers, not just a reworded expression
+  const sig = (c: Core) => `${c.operands.join(',')}|${c.ops.join('')}`;
+  const like = (c: Core) => sameShape(c, core) && sig(c) !== sig(core);
+  const demoCore = generateCoreAvoiding(level.id, core.skill, rng.fork('demo'), avoid, 300, like) ?? core;
+  avoid.add(mathKey(demoCore));
+  const retryLike = (c: Core) => like(c) && sig(c) !== sig(demoCore);
+  const retryCore =
+    generateCoreAvoiding(level.id, core.skill, rng.fork('retry'), avoid, 300, retryLike) ?? demoCore;
   return [
     { level: 1, kind: 'visual', visual: visualFor(core, representation) },
     { level: 2, kind: 'strategy', ...strategyFor(core) },
-    { level: 3, kind: 'steps', columns },
+    { level: 3, kind: 'steps', calcs: stepCalcs(core) },
     { level: 4, kind: 'demo', example: toExample(demoCore), retry: toExample(retryCore) },
   ];
 }

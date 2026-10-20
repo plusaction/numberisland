@@ -13,6 +13,8 @@ export interface ArithSpec {
   maxResult: number;
   /** Operands are multiples of this (e.g. 100 for 1200+300). */
   multipleOf?: number;
+  /** Alternative multiple picked half the time (e.g. 10 for 1230+40 — 백·십 단위). */
+  multipleOfAlt?: number;
 }
 
 export interface LevelSpec {
@@ -279,8 +281,22 @@ export const CURRICULUM: readonly LevelSpec[] = [
     terms: 2,
     forms: ['EXPR'],
     representations: ['blocks', 'column'],
-    add: { a: [1000, 9800], b: [100, 900], minResult: 1100, maxResult: 9900, multipleOf: 100 },
-    sub: { a: [1100, 9900], b: [100, 900], minResult: 200, maxResult: 9800, multipleOf: 100 },
+    add: {
+      a: [1000, 9800],
+      b: [10, 900],
+      minResult: 1100,
+      maxResult: 9900,
+      multipleOf: 100,
+      multipleOfAlt: 10,
+    },
+    sub: {
+      a: [1100, 9900],
+      b: [10, 900],
+      minResult: 200,
+      maxResult: 9800,
+      multipleOf: 100,
+      multipleOfAlt: 10,
+    },
     challenge: false,
     verified: 'assumed',
     evidence: '2-2 네 자리 수 뛰어 세기와 연계한 몇백 단위 계산으로 가정',
@@ -332,7 +348,7 @@ export const CURRICULUM: readonly LevelSpec[] = [
     representations: ['numberline', 'dots', 'column'],
     add: { a: [100, 899], b: [11, 99], minResult: 111, maxResult: 998 },
     sub: { a: [110, 999], b: [11, 99], minResult: 11, maxResult: 988 },
-    three: { term: [10, 299], max: 999 },
+    three: { term: [10, 99], max: 299 },
     skipSteps: [2, 3, 4, 5, 6, 7, 8, 9],
     repeated: { base: [2, 9], count: [2, 9] },
     challenge: false,

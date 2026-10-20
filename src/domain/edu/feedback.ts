@@ -27,8 +27,11 @@ export const MISCONCEPTION_FEEDBACK: Record<MisconceptionTag, FeedbackSpec> = {
 };
 
 /** Feedback for any wrong value: tagged misconception or a gentle count-together fallback. */
-export function feedbackFor(tag: MisconceptionTag | undefined): FeedbackSpec {
-  return tag
+export function feedbackFor(tag: MisconceptionTag | undefined, magnitude = 0): FeedbackSpec {
+  const spec: FeedbackSpec = tag
     ? MISCONCEPTION_FEEDBACK[tag]
     : { animation: 'COUNT_TOGETHER', representation: 'dots', durationMs: 1200 };
+  // dots can only show ~20 things; bigger numbers switch to place-value blocks
+  if (spec.representation === 'dots' && magnitude > 20) return { ...spec, representation: 'blocks' };
+  return spec;
 }

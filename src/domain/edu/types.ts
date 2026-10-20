@@ -85,6 +85,17 @@ export interface VisualSpec {
   representation: Representation;
   /** Quantities to draw, one per operand (or the sequence/place parts). */
   quantities: number[];
+  /** Index of the quantity that is the unknown (□) — renderers must draw it as a mystery box. */
+  hidden?: number;
+}
+
+/** One written calculation shown in hint step 3. */
+export interface StepCalc {
+  mode: 'column' | 'compare' | 'place';
+  a: number;
+  b: number;
+  op: Op;
+  columns: ColumnStep[];
 }
 
 export type HintKind = 'visual' | 'strategy' | 'steps' | 'demo';
@@ -127,7 +138,7 @@ export interface WorkedExample {
 export type HintStep =
   | { level: 1; kind: 'visual'; visual: VisualSpec }
   | { level: 2; kind: 'strategy'; strategy: StrategyId; parts: number[] }
-  | { level: 3; kind: 'steps'; columns: ColumnStep[] }
+  | { level: 3; kind: 'steps'; calcs: StepCalc[] }
   | { level: 4; kind: 'demo'; example: WorkedExample; retry: WorkedExample };
 
 export type WordTemplate = 'JOIN' | 'TAKE' | 'COMPARE_MORE' | 'GROUPS';

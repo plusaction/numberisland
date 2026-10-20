@@ -46,5 +46,8 @@ export function chooseRepresentation(level: LevelSpec, core: Core, rng: Rng): Re
 }
 
 export function visualFor(core: Core, representation: Representation): VisualSpec {
-  return { representation, quantities: core.operands.slice() };
+  const spec: VisualSpec = { representation, quantities: core.operands.slice() };
+  const hides = core.form === 'MISSING' || core.form === 'SPLIT' || core.form === 'SEQUENCE';
+  if (hides && core.missingIndex !== undefined && core.missingIndex >= 0) spec.hidden = core.missingIndex;
+  return spec;
 }

@@ -178,7 +178,9 @@ export function buildChoices(
   }
 
   // Numeric 4-choice
-  const cap = Math.max(level.max * 2, answer + 100, 20);
+  // Plausible range: digit questions stay 0–9, others ≤ 1.5× the level ceiling.
+  const digitQuestion = core.form === 'PLACE' && core.target !== undefined;
+  const cap = digitQuestion ? 9 : Math.max(Math.ceil(level.max * 1.5), answer + 10, 12);
   // Plausible distractors only: bounded, and not absurdly small for big answers (no "0" for 110).
   const floor = answer >= 100 ? Math.floor(answer / 10) : 0;
   const isValid = (v: number) => Number.isInteger(v) && v >= floor && v <= cap && v !== answer;
@@ -195,7 +197,7 @@ export function buildChoices(
   const mistakes = [...all.filter(signature), ...rng.shuffle(all.filter((m) => !signature(m)))];
   // tagged conceptual mistakes first (but leave room for one off-by distractor when possible)
   for (const m of mistakes) if (m.tag && picked.length < 2) add(m);
-  const allowTen = answer >= 10 || level.max >= 20;
+  const allowTen = !digitQuestion && (answer >= 10 || level.max >= 20);
   const offs: Candidate[] = rng.shuffle([
     { value: answer + 1, tag: 'OFF_BY_ONE' },
     { value: answer - 1, tag: 'OFF_BY_ONE' },

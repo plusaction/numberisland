@@ -37,8 +37,9 @@ type CarryWant = boolean | null;
 
 function genAdd(rng: Rng, spec: ArithSpec, carry: CarryWant): [number, number] | null {
   for (let i = 0; i < 400; i++) {
-    const a = sample(rng, spec.a, spec.multipleOf);
-    const b = sample(rng, spec.b, spec.multipleOf);
+    const m = spec.multipleOfAlt && rng.chance(0.5) ? spec.multipleOfAlt : spec.multipleOf;
+    const a = sample(rng, spec.a, m);
+    const b = sample(rng, spec.b, m);
     const r = a + b;
     if (r < spec.minResult || r > spec.maxResult) continue;
     if (carry !== null && hasCarry(a, b) !== carry) continue;
@@ -49,8 +50,9 @@ function genAdd(rng: Rng, spec: ArithSpec, carry: CarryWant): [number, number] |
 
 function genSub(rng: Rng, spec: ArithSpec, borrow: CarryWant): [number, number] | null {
   for (let i = 0; i < 400; i++) {
-    const a = sample(rng, spec.a, spec.multipleOf);
-    const b = sample(rng, spec.b, spec.multipleOf);
+    const m = spec.multipleOfAlt && rng.chance(0.5) ? spec.multipleOfAlt : spec.multipleOf;
+    const a = sample(rng, spec.a, m);
+    const b = sample(rng, spec.b, m);
     if (b > a) continue;
     const r = a - b;
     if (r < spec.minResult || r > spec.maxResult) continue;
@@ -280,7 +282,8 @@ function genClosest(rng: Rng, level: LevelSpec): Core | null {
     const target = rng.int(Math.max(0, lo - 10), Math.min(level.max, hi + 10));
     const d1 = Math.abs(v1 - target);
     const d2 = Math.abs(v2 - target);
-    if (d1 === d2) continue;
+    // a real estimation: target is neither item and the closer one wins clearly
+    if (d1 === 0 || d2 === 0 || Math.abs(d1 - d2) < 3) continue;
     const items: CompareItem[] = [
       { operands: [f1.a, f1.b], ops: [f1.op], value: v1 },
       { operands: [f2.a, f2.b], ops: [f2.op], value: v2 },
@@ -337,7 +340,7 @@ function genSequence(rng: Rng, level: LevelSpec): Core | null {
   const span = step * (len - 1);
   const max = level.max;
   if (span > max) return null;
-  const small = step < 10 && max >= 100; // 곱셈구구 연계 (2~9씩)
+  const small = step >= 2 && step <= 9; // 곱셈구구 연계 (2~9씩)
   const ascending = small ? true : rng.chance(0.75);
   const startMax = max - span;
   const start = small
@@ -527,13 +530,41 @@ export function verifyCore(c: Core, level: LevelSpec): void {
     fail('borrow');
 }
 
-/** Generate a core with retries, avoiding the given keys. */
+/**
+ * Canonical "same math problem" key: 3+4 and 4+3 (or 3+4 vs 4+3 shown as a sum of the same pair)
+ * count as one problem for de-duplication and problem-space measurement.
+ */
+export function mathKey(c: Core): string {
+  const allAdd = c.ops.length > 0 && c.ops.every((o) => o === '+');
+  const pureExpr = c.form === 'EXPR' || (c.form === 'WORD' && c.word !== 'GROUPS');
+  const ops = allAdd && pureExpr ? c.operands.slice().sort((x, y) => x - y) : c.operands;
+  const items = c.items
+    ? c.items
+        .map((i) => `${i.operands.join(i.ops.join(''))}`)
+        .sort()
+        .join(';')
+    : '';
+  return [
+    c.skill,
+    c.form,
+    ops.join(','),
+    c.ops.join(''),
+    c.missingIndex ?? '',
+    c.target ?? '',
+    c.word ?? '',
+    items,
+    c.given ? c.given.operands.join(',') : '',
+  ].join('|');
+}
+
+/** Generate a core with retries, avoiding the given (math) keys and optionally matching a shape. */
 export function generateCoreAvoiding(
   levelId: LevelId,
   skill: SkillId,
   rng: Rng,
   avoid: ReadonlySet<string>,
   attempts = 60,
+  match?: (c: Core) => boolean,
 ): Core | null {
   const level = levelSpec(levelId);
   let fallback: Core | null = null;
@@ -541,7 +572,8 @@ export function generateCoreAvoiding(
     const c = generateCore(levelId, skill, rng);
     if (!c) continue;
     verifyCore(c, level);
-    if (!avoid.has(coreKey(c))) return c;
+    if (match && !match(c)) continue;
+    if (!avoid.has(mathKey(c))) return c;
     fallback ??= c;
   }
   return fallback;

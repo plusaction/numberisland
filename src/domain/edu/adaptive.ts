@@ -246,9 +246,10 @@ export function chooseNext(
   const roll = rng.float();
   const { mix } = settings;
   if (roll < mix.review) {
-    const due = dueCards(state.cards, day).filter(
-      (c) => levelIndex(c.id.split(':')[0] as LevelId) <= levelIndex(state.level),
-    );
+    const due = dueCards(state.cards, day).filter((c) => {
+      const lvl = c.id.split(':')[0] as LevelId;
+      return levelIndex(lvl) <= levelIndex(state.level) && isAllowed(levelSpec(lvl), settings);
+    });
     const card = due[0];
     if (card) {
       const [lvl, skill] = card.id.split(':') as [LevelId, SkillId];

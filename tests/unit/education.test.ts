@@ -32,6 +32,8 @@ describe('[E3] 오개념 기반 오답·피드백', () => {
       expect(seen.has(tag), tag).toBe(true);
       expect(MISCONCEPTION_FEEDBACK[tag].animation).toBeTruthy();
       expect(feedbackFor(tag).durationMs).toBeLessThanOrEqual(2000);
+      // dots cannot show big numbers
+      expect(feedbackFor(tag, 4321).representation).not.toBe('dots');
     }
   });
 
@@ -77,11 +79,27 @@ describe('[E4] 힌트 4단계', () => {
           x.missingIndex === q.missingIndex;
         expect(sameProblem(demo.example)).toBe(false);
         expect(sameProblem(demo.retry)).toBe(false);
-        // retry is a new problem for the child — its answer is computed, never pre-filled into the original
-        expect(demo.retry.answer).toBeGreaterThanOrEqual(0);
+        // same kind of problem: same form, same blank position, same number of terms
+        for (const ex of [demo.example, demo.retry]) {
+          expect(ex.form).toBe(q.form);
+          expect(ex.missingIndex).toBe(q.missingIndex);
+          expect(ex.ops.length).toBe(q.ops.length);
+        }
+        expect(
+          same(demo.retry.operands, demo.example.operands) &&
+            demo.retry.ops.join('') === demo.example.ops.join(''),
+        ).toBe(false);
         const steps = q.hintPlan[2];
         if (steps?.kind !== 'steps') throw new Error('no steps');
-        expect(steps.columns.length).toBeGreaterThan(0);
+        // step 3 fits the form: every operation of an expression, place-value compare, place build
+        if (q.form === 'EXPR' || q.form === 'WORD') expect(steps.calcs).toHaveLength(q.ops.length);
+        if (q.form === 'COMPARE') expect(steps.calcs[0]?.mode).toBe('compare');
+        if (q.form === 'PLACE') expect(steps.calcs[0]?.mode).toBe('place');
+        if (q.form === 'CLOSEST') expect(steps.calcs).toHaveLength(2);
+        for (const c of steps.calcs) {
+          expect(c.columns.length).toBeGreaterThan(0);
+          if (c.mode === 'column') expect(c.op === '+' ? c.a + c.b : c.a - c.b).toBeGreaterThanOrEqual(0);
+        }
       }
     }
   });
@@ -124,7 +142,7 @@ describe('[E6] 표현 다양성', () => {
 });
 
 /** Levels whose whole math space is smaller than 500 (documented in docs/GAPS.md). */
-const SMALL_SPACE: Record<string, number> = { L0_1: 400, A2: 420 };
+const SMALL_SPACE: Record<string, number> = { A2: 260 };
 
 describe('[E7] 문제 다양성', () => {
   it('unique problem space per level ≥ 500 (except documented small-space levels)', () => {

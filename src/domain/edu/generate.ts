@@ -5,7 +5,7 @@
 import { type LevelSpec, levelSpec } from '../curriculum/curriculum';
 import type { Rng } from '../rng/rng';
 import { digitCount } from './arith';
-import { type Core, coreKey, GenerationError, generateCoreAvoiding } from './core';
+import { type Core, GenerationError, generateCoreAvoiding, mathKey } from './core';
 import { buildChoices } from './distractors';
 import { buildHintPlan } from './hints';
 import type { LevelId, Question, QuestionForm, SkillId } from './types';
@@ -17,6 +17,7 @@ export {
   GenerationError,
   generateCore,
   generateCoreAvoiding,
+  mathKey,
   verifyCore,
   WORD_NOUN_COUNT,
 } from './core';
@@ -79,7 +80,7 @@ export function generateQuestion(args: GenerateArgs): Question {
     }
   }
   if (!core) throw new GenerationError(`cannot generate for ${level.id}`);
-  const key = coreKey(core);
+  const key = mathKey(core);
   const representation = chooseRepresentation(level, core, rng);
   const visual = visualFor(core, representation);
   const { choices, misconceptionMap } = buildChoices(core, level, rng);

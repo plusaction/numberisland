@@ -6,6 +6,10 @@ import { defineConfig } from 'vite';
 export default defineConfig({
   base: './',
   plugins: [react(), babel({ presets: [reactCompilerPreset()] }), tailwindcss()],
+  resolve: {
+    // One three.js instance: addons import 'three', we use the WebGPU build (which re-exports core).
+    alias: [{ find: /^three$/, replacement: 'three/webgpu' }],
+  },
   build: {
     target: 'es2023',
     sourcemap: false,

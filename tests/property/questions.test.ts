@@ -37,9 +37,12 @@ function oracle(q: Question): number {
       return vals.reduce((best, v) => (Math.abs(v - t) < Math.abs(best - t) ? v : best));
     }
     case 'SEQUENCE': {
-      const i = q.missingIndex as number;
-      const step = (q.operands[1] as number) - (q.operands[0] as number);
-      return (q.operands[0] as number) + step * i;
+      // derive the step only from the numbers the child can see
+      const mi = q.missingIndex as number;
+      const vis = q.operands.map((v, k) => [k, v] as const).filter(([k]) => k !== mi);
+      const [[i0, v0], [i1, v1]] = vis as [readonly [number, number], readonly [number, number]];
+      const step = (v1 - v0) / (i1 - i0);
+      return v0 + step * (mi - i0);
     }
     case 'PLACE':
       if (q.target === undefined) return q.operands.reduce((a, b) => a + b, 0);
@@ -65,7 +68,26 @@ describe('[E1] 정답·범위 무결성 — 전 레벨 × 1만 문항', () => {
           const values = q.choices.map((c) => c.value);
           expect(new Set(values).size).toBe(values.length);
           expect(values.filter((v) => v === q.answer)).toHaveLength(1);
-          for (const v of values) expect(v).toBeGreaterThanOrEqual(0);
+          for (const v of values) {
+            expect(v).toBeGreaterThanOrEqual(0);
+            // plausible: digit questions 0–9, otherwise ≤ 1.5× level ceiling (or just above the answer)
+            if (q.form === 'PLACE' && q.target !== undefined) expect(v).toBeLessThanOrEqual(9);
+            else expect(v).toBeLessThanOrEqual(Math.max(Math.ceil(level.max * 1.5), q.answer + 10, 12));
+          }
+          // the unknown is never drawn in the visual
+          if (
+            (q.form === 'MISSING' || q.form === 'SPLIT' || q.form === 'SEQUENCE') &&
+            (q.missingIndex ?? -1) >= 0
+          ) {
+            expect(q.visual.hidden).toBe(q.missingIndex);
+          }
+          if (q.form === 'CLOSEST') {
+            const t = q.target as number;
+            const [d1, d2] = (q.items ?? []).map((it) => Math.abs(it.value - t)) as [number, number];
+            expect(d1).toBeGreaterThan(0);
+            expect(d2).toBeGreaterThan(0);
+            expect(Math.abs(d1 - d2)).toBeGreaterThanOrEqual(3);
+          }
           expect(values.length).toBe(q.form === 'COMPARE' || q.form === 'CLOSEST' ? 2 : 4);
           // misconception map only references wrong choices and valid tags
           for (const [val, tag] of Object.entries(q.misconceptionMap)) {

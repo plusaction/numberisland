@@ -1,4 +1,4 @@
-import { CURRICULUM } from '../src/domain/curriculum/curriculum';
+import { CURRICULUM, levelSpec } from '../src/domain/curriculum/curriculum';
 import { generateQuestion } from '../src/domain/edu/generate';
 import { createRng } from '../src/domain/rng/rng';
 
@@ -12,8 +12,9 @@ const STATUS: Record<string, string> = {
 function sample(levelId: (typeof CURRICULUM)[number]['id']): string {
   const rng = createRng(`doc-${levelId}`);
   const out: string[] = [];
-  for (let i = 0; i < 3; i++) {
-    const q = generateQuestion({ level: levelId, rng });
+  // one example per skill so the parent sees every kind of problem in the level
+  for (const skill of levelSpec(levelId).skills) {
+    const q = generateQuestion({ level: levelId, skill, rng });
     const ops = q.ops;
     let text: string;
     if (q.form === 'COMPARE' || q.form === 'CLOSEST') {
