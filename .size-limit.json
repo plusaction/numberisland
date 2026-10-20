@@ -12,9 +12,21 @@
     "gzip": true
   },
   {
-    "name": "each stage chunk (gzip)",
-    "path": "dist/assets/{fishing,bomb,slime}-*.js",
-    "limit": "8 kB",
+    "name": "stage fishing (gzip)",
+    "path": "dist/assets/fishing-*.js",
+    "limit": "6 kB",
+    "gzip": true
+  },
+  {
+    "name": "stage bomb (gzip)",
+    "path": "dist/assets/bomb-*.js",
+    "limit": "6 kB",
+    "gzip": true
+  },
+  {
+    "name": "stage slime (gzip)",
+    "path": "dist/assets/slime-*.js",
+    "limit": "6 kB",
     "gzip": true
   }
 ]

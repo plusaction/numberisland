@@ -14,7 +14,7 @@
     "test": "vitest run",
     "test:e2e": "playwright test",
     "check:offline": "node tools/check-offline.mjs",
-    "check": "pnpm typecheck && pnpm lint && pnpm boundaries && pnpm test && pnpm build && pnpm check:offline",
+    "check": "pnpm typecheck && pnpm lint && pnpm boundaries && pnpm test && pnpm build && pnpm check:offline && pnpm size",
     "check:score": "tsx tools/score/check-score.ts",
     "curriculum:verify": "tsx tools/gen-curriculum-verify.ts",
     "images:requests": "tsx tools/gen-image-requests.ts",
