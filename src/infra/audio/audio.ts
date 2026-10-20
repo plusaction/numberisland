@@ -44,6 +44,12 @@ export class AudioEngine {
       if (!Ctor) return;
       const ctx = new Ctor({ latencyHint: 'interactive' });
       this.ctx = ctx;
+      // resume inside the user gesture (iOS Safari loses activation after the first await)
+      void ctx.resume();
+      document.addEventListener('visibilitychange', () => {
+        if (document.hidden) void ctx.suspend();
+        else void ctx.resume();
+      });
       const limiter = ctx.createDynamicsCompressor();
       limiter.threshold.value = -6;
       limiter.knee.value = 4;
@@ -78,7 +84,8 @@ export class AudioEngine {
         console.warn('[audio] worklet unavailable, voices use oscillators', err);
       }
     }
-    if (this.ctx.state !== 'running') await this.ctx.resume();
+    const state = this.ctx.state as string;
+    if (state !== 'running') await this.ctx.resume();
   }
 
   setVolumes(v: Partial<Volumes>) {
@@ -173,6 +180,8 @@ export class AudioEngine {
     const schedule = () => {
       const ctx = this.ctx;
       if (!ctx) return;
+      // after a throttled timer (background tab), skip missed steps instead of firing them all at once
+      if (next < ctx.currentTime) next = ctx.currentTime + 0.02;
       while (next < ctx.currentTime + 0.25) {
         const s = pattern[step % pattern.length];
         const swing = step % 2 === 1 ? preset.swing * stepDur : 0;

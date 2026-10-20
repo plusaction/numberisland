@@ -70,7 +70,7 @@ function shapePath(ctx: Ctx, g: Glyph, cx: number, cy: number): boolean {
   }
 }
 
-export function drawAtlas(ctx: Ctx, ink = '#2d2545') {
+export function drawAtlas(ctx: Ctx, ink = '#3b3355') {
   ctx.clearRect(0, 0, CELL_W * GLYPHS.length, CELL_H);
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
@@ -91,7 +91,8 @@ export function drawAtlas(ctx: Ctx, ink = '#2d2545') {
       return;
     }
     const text = g === '-' ? '−' : g;
-    ctx.lineWidth = 22;
+    // 16px keeps the counters of 0/6/8/9 open (22px filled them in)
+    ctx.lineWidth = 16;
     ctx.strokeText(text, cx, cy);
     ctx.fillText(text, cx, cy);
   });

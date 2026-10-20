@@ -56,7 +56,9 @@ export class InputManager {
     if (e.code === 'Insert' || e.code === 'Delete') this.numLockOff = true;
     const action = this.keymap[e.code];
     const inField = e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement;
-    if (!inField && PREVENT_DEFAULT.has(e.code) && action) e.preventDefault();
+    // Let focused buttons keep native Space/Enter activation (keyboard-only play, P9).
+    const onButton = e.target instanceof HTMLButtonElement && (e.code === 'Space' || e.code === 'Enter');
+    if (!inField && !onButton && PREVENT_DEFAULT.has(e.code) && action) e.preventDefault();
     if (!this.enabled || !action || inField) return;
     if (!e.repeat) {
       this.pressedQueue.add(action);
@@ -78,9 +80,12 @@ export class InputManager {
 
   private pollPads() {
     const pads = typeof navigator !== 'undefined' && navigator.getGamepads ? navigator.getGamepads() : [];
-    for (const pad of pads) {
-      if (!pad) continue;
-      const prefix = pad.index === 0 ? '' : 'p2.';
+    // players by connection order: a lone pad is always P1 whatever its index
+    const connected = [...pads].filter((p): p is Gamepad => !!p && p.connected);
+    const live = new Set<number>();
+    connected.forEach((pad, order) => {
+      live.add(pad.index);
+      const prefix = order === 0 ? '' : 'p2.';
       const now = new Set<Action>();
       for (const [btn, a] of PAD_BUTTONS) if (pad.buttons[btn]?.pressed) now.add(`${prefix}${a}` as Action);
       const [ax = 0, ay = 0] = pad.axes;
@@ -94,11 +99,18 @@ export class InputManager {
           this.pressedQueue.add(a);
           for (const l of this.listeners) l(a);
         }
-        this.held.add(a);
       }
-      for (const a of prev) if (!now.has(a)) this.held.delete(a);
       this.padPrev.set(pad.index, now);
-    }
+    });
+    // disconnected pads release everything they held
+    for (const idx of [...this.padPrev.keys()]) if (!live.has(idx)) this.padPrev.delete(idx);
+  }
+
+  /** Actions held by keyboard or any pad. */
+  private heldNow(): Set<Action> {
+    const out = new Set(this.held);
+    for (const s of this.padPrev.values()) for (const a of s) out.add(a);
+    return out;
   }
 
   /** Call once per simulation tick. */
@@ -106,7 +118,7 @@ export class InputManager {
     this.pollPads();
     const pressed = new Set(this.pressedQueue);
     this.pressedQueue.clear();
-    return { pressed, held: new Set(this.held) };
+    return { pressed, held: this.heldNow() };
   }
 
   rumble(player: 0 | 1, ms = 80) {

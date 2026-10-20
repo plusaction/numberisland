@@ -20,6 +20,14 @@ import { buildAtlasCanvas, CELL_H, CELL_W, GLYPHS, type Glyph } from './atlas';
 let atlas: CanvasTexture | null = null;
 const materials = new Map<string, SpriteNodeMaterial>();
 
+/** Re-upload the atlas after a renderer was recreated (device/context loss). */
+export async function refreshDigitAtlas(): Promise<void> {
+  if (!atlas) return;
+  const canvas = await buildAtlasCanvas();
+  atlas.image = canvas as HTMLCanvasElement;
+  atlas.needsUpdate = true;
+}
+
 export async function initDigitAtlas(): Promise<CanvasTexture> {
   if (atlas) return atlas;
   const canvas = await buildAtlasCanvas();
@@ -37,7 +45,8 @@ function glyphMaterial(g: Glyph, tint: string): SpriteNodeMaterial {
   if (!atlas) throw new Error('digit atlas not initialised');
   const idx = GLYPHS.indexOf(g);
   const n = GLYPHS.length;
-  const m = new SpriteNodeMaterial({ transparent: true, depthWrite: false });
+  // Numbers keep their exact palette colours: no tone mapping on glyphs (readability first).
+  const m = new SpriteNodeMaterial({ transparent: true, depthWrite: false, toneMapped: false });
   const t = texture(
     atlas,
     uv()
@@ -99,16 +108,17 @@ export class NumberLabel extends Group {
       s.position.set(-total / 2 + w * (i + 0.5), 0, 0);
       s.center.set(0.5, 0.5);
       this.add(s);
-      if (placeColors && digitsOnly && chars.length >= 2) {
+      // shape mark under every digit (also single digits) so colour is never the only cue (P9)
+      if (placeColors && digitsOnly) {
         const mark = new Sprite(
           glyphMaterial(
             PLACE_MARKS[Math.min(placeIdx, 3)] as Glyph,
             PLACE_COLORS[Math.min(placeIdx, 3)] as string,
           ),
         );
-        const ms = size * 0.32;
+        const ms = size * 0.5;
         mark.scale.set(ms * (CELL_W / CELL_H), ms, 1);
-        mark.position.set(-total / 2 + w * (i + 0.5), -size * 0.62, 0);
+        mark.position.set(-total / 2 + w * (i + 0.5), -size * 0.72, 0);
         this.add(mark);
       }
     });

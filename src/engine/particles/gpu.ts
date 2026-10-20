@@ -76,11 +76,11 @@ export function createGpuParticles(capacity: number): ParticleSystem {
   const spawn = Fn(() => {
     If(instanceIndex.lessThan(spawnCount), () => {
       const i = spawnStart.add(instanceIndex).mod(uint(capacity));
-      const seed = float(instanceIndex).add(spawnSeed);
+      const seed = float(instanceIndex).mul(4).add(spawnSeed);
       const r1 = hash(seed);
-      const r2 = hash(seed.add(17.3));
-      const r3 = hash(seed.add(41.7));
-      const r4 = hash(seed.add(73.1));
+      const r2 = hash(seed.add(1));
+      const r3 = hash(seed.add(2));
+      const r4 = hash(seed.add(3));
       const k = uint(spawnKind);
       const ang = r1.mul(Math.PI * 2);
       const sp = mix(perKind(k, speedMin), perKind(k, speedMax), r2);
@@ -150,7 +150,7 @@ export function createGpuParticles(capacity: number): ParticleSystem {
         spawnCount.value = burst.count;
         spawnKind.value = KIND_INDEX[burst.kind];
         spawnOrigin.value.set(burst.pos.x, burst.pos.y, burst.pos.z);
-        spawnSeed.value = (seedCounter++ % 997) * 13.37;
+        spawnSeed.value = ((seedCounter++ * 2654435761) % 1_000_003) * 4 + MAX_BURST * 8;
         head = (head + burst.count) % capacity;
         renderer.compute(spawn);
       }

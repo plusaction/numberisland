@@ -30,8 +30,8 @@ export class Spring {
 
 /** Volume-preserving squash/stretch scale from a spring value s (s>0 stretch up, s<0 squash). */
 export function squashScale(s: number): { x: number; y: number; z: number } {
-  const y = 1 + s;
-  const xz = 1 / Math.sqrt(Math.max(0.2, y));
+  const y = Math.max(0.2, 1 + s);
+  const xz = 1 / Math.sqrt(y);
   return { x: xz, y, z: xz };
 }
 

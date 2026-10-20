@@ -68,7 +68,6 @@ export const PREVENT_DEFAULT = new Set([
   'NumpadDecimal',
   'Insert',
   'Delete',
-  'Tab',
 ]);
 
 /** Cross layout for 4-choice answers: ↑ ← → ↓ map to choice slots 0..3. */

@@ -29,7 +29,7 @@ export interface Store {
 
 const LOG_LIMIT = 200;
 
-export async function openStore(factory?: IDBFactory): Promise<Store> {
+export async function openStore(): Promise<Store> {
   try {
     const db = await openDB(DB_NAME, DB_VERSION, {
       upgrade(d) {
@@ -37,7 +37,6 @@ export async function openStore(factory?: IDBFactory): Promise<Store> {
         if (!d.objectStoreNames.contains('meta')) d.createObjectStore('meta');
         if (!d.objectStoreNames.contains('logs')) d.createObjectStore('logs', { autoIncrement: true });
       },
-      ...(factory ? {} : {}),
     });
     try {
       await navigator.storage?.persist?.();
@@ -46,7 +45,7 @@ export async function openStore(factory?: IDBFactory): Promise<Store> {
     }
     return idbStore(db);
   } catch (err) {
-    console.warn('[storage] IndexedDB unavailable, using memory', err, factory ? '' : '');
+    console.warn('[storage] IndexedDB unavailable, using memory', err);
     return memoryStore();
   }
 }
@@ -82,10 +81,27 @@ function idbStore(db: IDBPDatabase): Store {
       return raw ? parseProfile(raw).profile : null;
     },
     async putProfile(p) {
-      const count = await db.count('profiles');
-      const exists = (await db.getKey('profiles', p.id)) !== undefined;
-      if (!exists && count >= MAX_PROFILES) throw new Error('max profiles');
-      await db.put('profiles', structuredClone(p));
+      // one transaction: check + write (two quick creates cannot exceed the limit)
+      const tx = db.transaction('profiles', 'readwrite');
+      const exists = (await tx.store.getKey(p.id)) !== undefined;
+      if (!exists) {
+        // unreadable records (newer app version, corrupt) do not take a slot from the child
+        const all = (await tx.store.getAll()) as unknown[];
+        const readable = all.filter((r) => {
+          try {
+            parseProfile(r);
+            return true;
+          } catch {
+            return false;
+          }
+        }).length;
+        if (readable >= MAX_PROFILES) {
+          tx.abort();
+          throw new Error('max profiles');
+        }
+      }
+      await tx.store.put(structuredClone(p));
+      await tx.done;
     },
     async deleteProfile(id) {
       await db.delete('profiles', id);
@@ -154,31 +170,52 @@ export function memoryStore(): Store {
   };
 }
 
-/** Debounced writer with immediate flush on pagehide / hidden tab. */
-export function createSaver(store: Store, delayMs = 500) {
+/** Debounced writer with immediate flush on pagehide / hidden tab. A failed write is kept and retried. */
+export function createSaver(store: Store, delayMs = 500, onError?: (err: unknown) => void) {
   let pending: Profile | null = null;
   let timer: ReturnType<typeof setTimeout> | null = null;
+  const schedule = (ms: number) => {
+    if (timer) clearTimeout(timer);
+    timer = setTimeout(() => void flush(), ms);
+  };
   const flush = async () => {
     if (timer) clearTimeout(timer);
     timer = null;
     const p = pending;
-    pending = null;
-    if (p) await store.putProfile(p);
+    if (!p) return;
+    try {
+      await store.putProfile(p);
+      if (pending === p) pending = null;
+    } catch (err) {
+      onError?.(err);
+      // keep `pending` (unless a newer snapshot replaced it) and retry later
+      schedule(Math.max(delayMs * 4, 2000));
+    }
   };
   const onHide = () => {
     if (document.visibilityState === 'hidden') void flush();
   };
+  const onPageHide = () => void flush();
   if (typeof window !== 'undefined') {
-    window.addEventListener('pagehide', () => void flush());
+    window.addEventListener('pagehide', onPageHide);
     document.addEventListener('visibilitychange', onHide);
   }
   return {
     save(p: Profile) {
       pending = p;
-      if (timer) clearTimeout(timer);
-      timer = setTimeout(() => void flush(), delayMs);
+      schedule(delayMs);
     },
     flush,
+    get pending() {
+      return pending;
+    },
+    dispose() {
+      if (timer) clearTimeout(timer);
+      if (typeof window !== 'undefined') {
+        window.removeEventListener('pagehide', onPageHide);
+        document.removeEventListener('visibilitychange', onHide);
+      }
+    },
   };
 }
 

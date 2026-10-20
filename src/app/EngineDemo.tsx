@@ -1,11 +1,12 @@
 import { useEffect, useRef, useState } from 'react';
 import { createFixedLoop, type FixedLoop } from '../engine/loop/fixed-loop';
+import { tierFromUrl } from '../engine/quality/quality';
 import { RenderWorld } from '../engine/world';
 import { buildEngineDemo } from '../scenes/demo/engine-demo';
 import { DebugHud } from '../ui/hud/DebugHud';
 
 export function EngineDemo() {
-  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const hostRef = useRef<HTMLDivElement>(null);
   const [world, setWorld] = useState<RenderWorld | null>(null);
   const loopRef = useRef<FixedLoop | null>(null);
 
@@ -13,12 +14,21 @@ export function EngineDemo() {
     let disposed = false;
     let cleanup = () => {};
     (async () => {
-      const canvas = canvasRef.current;
-      if (!canvas) return;
-      const tierParam = new URLSearchParams(location.search).get('tier');
+      const host = hostRef.current;
+      if (!host) return;
+      // engine-owned canvas (recovery may swap it; React must not own it)
+      const canvas = document.createElement('canvas');
+      canvas.className = 'block h-full w-full';
+      canvas.dataset.testid = 'world-canvas';
+      host.appendChild(canvas);
+      const tier = tierFromUrl();
       const w = await RenderWorld.create({
         canvas,
-        ...(tierParam ? { tier: tierParam as 'low', lockTier: true } : {}),
+        ...(tier ? { tier, lockTier: true } : {}),
+        onCanvasReplaced: (cv) => {
+          cv.className = canvas.className;
+          cv.dataset.testid = 'world-canvas';
+        },
       });
       if (disposed) {
         w.dispose();
@@ -37,6 +47,7 @@ export function EngineDemo() {
         loop.dispose();
         demo.dispose();
         w.dispose();
+        host.replaceChildren();
       };
     })();
     return () => {
@@ -47,7 +58,7 @@ export function EngineDemo() {
 
   return (
     <div className="fixed inset-0">
-      <canvas ref={canvasRef} className="block h-full w-full" data-testid="world-canvas" />
+      <div ref={hostRef} className="h-full w-full" />
       <DebugHud world={world} frameMs={() => loopRef.current?.frameMs ?? 0} />
     </div>
   );

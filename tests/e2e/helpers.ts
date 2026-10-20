@@ -1,9 +1,9 @@
-import type { Page, TestInfo } from '@playwright/test';
+import { expect, type Page, type TestInfo } from '@playwright/test';
 
 /** Append `renderer=webgl` for the webgl project. */
 export function url(info: TestInfo, path: string): string {
   if (info.project.name !== 'webgl') return path;
-  return path + (path.includes('?') ? '&' : '?') + 'renderer=webgl';
+  return `${path + (path.includes('?') ? '&' : '?')}renderer=webgl`;
 }
 
 export async function collectErrors(page: Page): Promise<string[]> {
@@ -36,4 +36,32 @@ export async function nonBlank(page: Page): Promise<boolean> {
       );
     return colours.size > 40;
   }, png.toString('base64'));
+}
+
+export async function startFresh(page: Page, path: string) {
+  await page.goto(path);
+  await page.evaluate(async () => {
+    const dbs = await indexedDB.databases();
+    await Promise.all(
+      dbs.map(
+        (d) =>
+          new Promise((r) => {
+            const req = indexedDB.deleteDatabase(d.name ?? '');
+            req.onsuccess = req.onerror = req.onblocked = () => r(null);
+          }),
+      ),
+    );
+  });
+  await page.reload();
+}
+
+export async function throughPlacement(page: Page) {
+  await page.getByText('모험 시작!').click();
+  for (let i = 0; i < 6; i++) {
+    if (await page.getByTestId('hub').isVisible()) break;
+    const btn = page.locator('[data-testid=choices] button').first();
+    if (await btn.isVisible()) await btn.click();
+    await page.waitForTimeout(150);
+  }
+  await expect(page.getByTestId('hub')).toBeVisible({ timeout: 30_000 });
 }

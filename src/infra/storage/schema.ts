@@ -1,9 +1,7 @@
 /** Valibot schema + migrations for saved profiles (SPEC §8.3). */
 import * as v from 'valibot';
-import { CURRICULUM } from '../../domain/curriculum/curriculum';
-import { createAdaptiveState } from '../../domain/edu/adaptive';
 import { LEVEL_IDS, SKILLS } from '../../domain/edu/types';
-import { defaultProfile, defaultSettings, PROFILE_VERSION, type Profile } from '../../domain/profile';
+import { defaultProfile, PROFILE_VERSION, type Profile } from '../../domain/profile';
 import { STAGE_IDS } from '../../domain/stage/types';
 
 const levelId = v.picklist(LEVEL_IDS);
@@ -119,23 +117,94 @@ export function parseProfile(input: unknown, now = new Date().toISOString()): Lo
   const first = v.safeParse(ProfileSchema, raw);
   if (first.success) return { profile: first.output as Profile, repaired };
 
-  // Field-by-field repair against defaults.
+  // Field-level repair: keep every valid piece, replace only what is broken (P2: progress never lost).
   const base = defaultProfile(
     typeof raw.id === 'string' && raw.id ? raw.id : `p-${Date.now()}`,
     '탐험대원',
     now,
   );
-  const fixed: Raw = { ...base };
-  for (const key of Object.keys(base) as (keyof Profile)[]) {
-    const field = (ProfileSchema.entries as Record<string, v.GenericSchema>)[key];
-    if (!field) continue;
-    const r = v.safeParse(field, raw[key]);
-    if (r.success) fixed[key] = r.output;
-    else repaired.push(`reset ${key}`);
-  }
-  if (repaired.includes('reset settings')) fixed.settings = defaultSettings();
-  if (repaired.includes('reset adaptive')) fixed.adaptive = createAdaptiveState(CURRICULUM[1]?.id ?? 'A1');
+  const fixed = repairEntries(
+    ProfileSchema.entries as Record<string, v.GenericSchema>,
+    raw,
+    base as unknown as Raw,
+    '',
+    repaired,
+  );
   const second = v.safeParse(ProfileSchema, fixed);
   if (!second.success) throw new Error('profile could not be repaired');
   return { profile: second.output as Profile, repaired };
+}
+
+type Schemaish = v.GenericSchema & {
+  type?: string;
+  entries?: Record<string, v.GenericSchema>;
+  item?: v.GenericSchema;
+  value?: v.GenericSchema;
+};
+
+/** Repair one value against its schema, recursing into objects, arrays (drop bad items) and records (per key). */
+function repairValue(
+  schema: v.GenericSchema,
+  value: unknown,
+  fallback: unknown,
+  path: string,
+  log: string[],
+): unknown {
+  const ok = v.safeParse(schema, value);
+  if (ok.success) return ok.output;
+  const sch = schema as Schemaish;
+  if (
+    sch.type === 'object' &&
+    sch.entries &&
+    value &&
+    typeof value === 'object' &&
+    fallback &&
+    typeof fallback === 'object'
+  ) {
+    return repairEntries(sch.entries, value as Raw, fallback as Raw, `${path}.`, log);
+  }
+  if (sch.type === 'array' && sch.item && Array.isArray(value)) {
+    const item = sch.item;
+    const kept = value.filter((x) => v.safeParse(item, x).success);
+    log.push(`dropped ${value.length - kept.length} bad ${path} item(s)`);
+    return kept.map((x) => v.parse(item, x));
+  }
+  if (
+    sch.type === 'record' &&
+    sch.value &&
+    value &&
+    typeof value === 'object' &&
+    fallback &&
+    typeof fallback === 'object'
+  ) {
+    const out: Raw = { ...(fallback as Raw) };
+    for (const [k, def] of Object.entries(fallback as Raw)) {
+      out[k] = repairValue(sch.value, (value as Raw)[k], def, `${path}.${k}`, log);
+    }
+    return out;
+  }
+  // numbers that went negative are clamped instead of wiped
+  if (typeof value === 'number' && Number.isFinite(value) && typeof fallback === 'number') {
+    const clamped = Math.max(0, value);
+    if (v.safeParse(schema, clamped).success) {
+      log.push(`clamped ${path}`);
+      return clamped;
+    }
+  }
+  log.push(`reset ${path}`);
+  return fallback;
+}
+
+function repairEntries(
+  entries: Record<string, v.GenericSchema>,
+  raw: Raw,
+  fallback: Raw,
+  prefix: string,
+  log: string[],
+): Raw {
+  const out: Raw = { ...fallback };
+  for (const [key, schema] of Object.entries(entries)) {
+    out[key] = repairValue(schema, raw[key], fallback[key], `${prefix}${key}`, log);
+  }
+  return out;
 }

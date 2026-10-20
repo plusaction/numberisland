@@ -43,13 +43,28 @@ export function createGovernor(backend: Backend, start?: Tier, locked = false): 
   let ema = 16.7;
   let slowFor = 0;
   let fastFor = 0;
+  let cooldown = 0;
+  /** Tiers we had to leave for being too slow: never upgrade back into them this session. */
+  const failed = new Set<Tier>();
+  const changed = (t: Tier) => {
+    gov.tier = t;
+    ema = 16.7;
+    slowFor = 0;
+    fastFor = 0;
+    cooldown = 10_000;
+    return t;
+  };
   const top = TIERS.indexOf(maxTier(backend));
   const gov: QualityGovernor = {
     tier: start ?? initialTier(backend),
     locked,
     sample(frameMs) {
-      ema = ema * 0.95 + frameMs * 0.05;
+      ema = ema * 0.9 + frameMs * 0.1;
       if (gov.locked) return null;
+      if (cooldown > 0) {
+        cooldown -= frameMs;
+        return null;
+      }
       const idx = TIERS.indexOf(gov.tier);
       if (ema > 24) {
         slowFor += frameMs;
@@ -62,17 +77,20 @@ export function createGovernor(backend: Backend, start?: Tier, locked = false): 
         fastFor = 0;
       }
       if (slowFor > 2000 && idx > 0) {
-        slowFor = 0;
-        gov.tier = TIERS[idx - 1] as Tier;
-        return gov.tier;
+        failed.add(gov.tier);
+        return changed(TIERS[idx - 1] as Tier);
       }
-      if (fastFor > 6000 && idx < top) {
-        fastFor = 0;
-        gov.tier = TIERS[idx + 1] as Tier;
-        return gov.tier;
-      }
+      const up = TIERS[idx + 1] as Tier | undefined;
+      if (fastFor > 6000 && idx < top && up && !failed.has(up)) return changed(up);
+      if (fastFor > 6000) fastFor = 0;
       return null;
     },
   };
   return gov;
+}
+
+/** `?tier=` from the URL, validated (unknown values are ignored). */
+export function tierFromUrl(search: string = globalThis.location?.search ?? ''): Tier | undefined {
+  const t = new URLSearchParams(search).get('tier');
+  return t && (TIERS as readonly string[]).includes(t) ? (t as Tier) : undefined;
 }

@@ -15,9 +15,17 @@ import {
 import { createRng } from '../domain/rng/rng';
 import { type Backend, createRenderer, type RendererHandle } from '../infra/render/renderer';
 import { createPost, type Post } from './fx/post';
+import { refreshDigitAtlas } from './numbers/number-label';
 import { PALETTE } from './palette';
 import { createParticles, type ParticleSystem } from './particles';
-import { createGovernor, type QualityGovernor, TIER_CONFIG, type Tier } from './quality/quality';
+import {
+  createGovernor,
+  maxTier,
+  type QualityGovernor,
+  TIER_CONFIG,
+  TIERS,
+  type Tier,
+} from './quality/quality';
 
 export interface WorldOptions {
   canvas: HTMLCanvasElement;
@@ -26,6 +34,8 @@ export interface WorldOptions {
   lockTier?: boolean;
   onBackendChange?: (b: Backend) => void;
   onRecovered?: () => void;
+  /** Rendering cannot continue at all (both backends failed): show the kid-safe error screen. */
+  onFatal?: (err: unknown) => void;
   /** Called when recovery swapped the canvas element (input listeners must re-attach). */
   onCanvasReplaced?: (canvas: HTMLCanvasElement) => void;
 }
@@ -54,6 +64,9 @@ export class RenderWorld {
   private post!: Post;
   private resizeObs: ResizeObserver | null = null;
   private recovering = false;
+  private particlesLost = false;
+  /** Both backends failed; frame() is a no-op. */
+  fatal = false;
   private disposed = false;
   drawCalls = 0;
 
@@ -102,7 +115,15 @@ export class RenderWorld {
       },
     });
     this.opts.onBackendChange?.(this.handle.backend);
-    this.governor ??= createGovernor(this.handle.backend, this.opts.tier, this.opts.lockTier ?? false);
+    // Governor is per backend: after a WebGPU → WebGL2 fallback the tier is clamped to what WebGL2 can do.
+    const prev = this.governor?.tier ?? this.opts.tier;
+    const top = maxTier(this.handle.backend);
+    const start = prev && TIERS.indexOf(prev) <= TIERS.indexOf(top) ? prev : top;
+    this.governor = createGovernor(
+      this.handle.backend,
+      prev ? start : undefined,
+      this.opts.lockTier ?? false,
+    );
     this.applyTier();
     this.resize();
     if (!this.resizeObs && typeof ResizeObserver !== 'undefined') {
@@ -119,6 +140,7 @@ export class RenderWorld {
       this.post?.dispose();
       this.scene.remove(this.particles.object);
       this.particles.dispose();
+      this.particlesLost = true;
       this.handle.dispose();
       // A canvas keeps its first context type forever: WebGPU → WebGL2 needs a fresh canvas element.
       const old = this.opts.canvas;
@@ -128,9 +150,29 @@ export class RenderWorld {
       this.resizeObs = null;
       this.opts.canvas = fresh;
       this.opts.onCanvasReplaced?.(fresh);
-      await this.boot(wasWebGPU || (this.opts.forceWebGL ?? false));
-      this.recoveries++;
+      try {
+        await this.boot(wasWebGPU || (this.opts.forceWebGL ?? false));
+      } catch (err) {
+        console.warn('[render] recovery failed, retrying on WebGL2', err);
+        try {
+          await this.boot(true);
+        } catch (err2) {
+          this.fatal = true;
+          this.opts.onFatal?.(err2);
+          return;
+        }
+      }
+      await refreshDigitAtlas();
+      // GPU resources belonged to the lost device: force every material/texture to re-upload.
+      this.scene.traverse((o) => {
+        const mat = (o as { material?: { dispose?: () => void; needsUpdate?: boolean } }).material;
+        if (mat) {
+          mat.dispose?.();
+          mat.needsUpdate = true;
+        }
+      });
       this.opts.onRecovered?.();
+      this.recoveries++;
     } finally {
       this.recovering = false;
     }
@@ -158,12 +200,16 @@ export class RenderWorld {
     this.sun.shadow.radius = cfg.shadows === 'soft' ? 4 : 1;
     this.post?.dispose();
     this.post = createPost(this.renderer, this.scene, this.camera, cfg);
-    if (this.particles) {
-      this.scene.remove(this.particles.object);
-      this.particles.dispose();
+    const wantGpu = this.backend === 'webgpu' && cfg.gpuParticles;
+    if (!this.particles || this.particlesLost || this.particles.gpu !== wantGpu) {
+      if (this.particles) {
+        this.scene.remove(this.particles.object);
+        this.particles.dispose();
+      }
+      this.particles = createParticles(cfg, this.backend === 'webgpu', createRng('particles'));
+      this.scene.add(this.particles.object);
+      this.particlesLost = false;
     }
-    this.particles = createParticles(cfg, this.backend === 'webgpu', createRng('particles'));
-    this.scene.add(this.particles.object);
   }
 
   resize() {
@@ -177,7 +223,7 @@ export class RenderWorld {
 
   /** Per-frame: particles + render + quality sampling. */
   frame(dt: number, frameMs: number) {
-    if (this.recovering) return;
+    if (this.recovering || this.fatal) return;
     this.particles.update(Math.min(dt, 1 / 20), this.renderer);
     this.post.render();
     const info = this.renderer.info as { render?: { drawCalls?: number; calls?: number } };

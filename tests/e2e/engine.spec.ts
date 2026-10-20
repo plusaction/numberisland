@@ -39,5 +39,27 @@ test('[S3] recovers after a simulated device/context loss', async ({ page }, inf
   await page.waitForTimeout(1500);
   // after a WebGPU loss we fall back to WebGL2; a WebGL loss re-creates WebGL2
   await expect(hud).toHaveAttribute('data-backend', 'webgl2');
+  const state = await page.evaluate(() => {
+    const w = (
+      globalThis as {
+        __world?: {
+          recoveries: number;
+          tier: string;
+          scene: { getObjectsByProperty(k: string, v: string): { visible: boolean }[] };
+        };
+      }
+    ).__world;
+    return {
+      recoveries: w?.recoveries ?? 0,
+      tier: w?.tier,
+      labels: w?.scene.getObjectsByProperty('name', 'number-label').filter((o) => o.visible).length ?? 0,
+      canvases: document.querySelectorAll('canvas').length,
+    };
+  });
+  expect(state.recoveries).toBeGreaterThanOrEqual(1);
+  expect(['low', 'balanced']).toContain(state.tier); // WebGL2 cannot run compute tiers
+  expect(state.labels).toBe(3); // numbers survive the renderer swap
+  expect(state.canvases).toBe(1);
+  await page.screenshot({ path: `docs/review/m2/recovered-${info.project.name}.png` });
   expect(await nonBlank(page)).toBe(true);
 });

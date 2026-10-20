@@ -1,26 +1,33 @@
 #!/usr/bin/env node
-// P1: fail the build if the bundle can reach the network (external URLs, fetch/XHR/WebSocket/EventSource/sendBeacon).
+// P1: fail the build if the bundle can reach the network.
+// Scans every text asset for absolute/protocol-relative URLs and network APIs; requires the CSP meta.
 import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { extname, join } from 'node:path';
 
 const DIST = process.argv[2] ?? 'dist';
-// Namespace/identifier URLs that never trigger a request.
+// Documentation links that appear in library error messages (text only, never requested). Host-anchored.
 const ALLOW = [
-  /^https?:\/\/www\.w3\.org\//,
-  /^https?:\/\/(www\.)?threejs\.org\//, // license comments / error message links (text only)
-  /^https?:\/\/react\.dev\//, // React error decoder links in messages (text only)
-  /^https?:\/\/reactjs\.org\//,
-  /^https?:\/\/(github\.com|gpuweb\.github\.io|developer\.mozilla\.org|tailwindcss\.com|opensource\.org|mths\.be)(\/|$)/, // comment/message links
-  /^https?:\/\/localhost/,
+  /^https?:\/\/www\.w3\.org(\/|$)/,
+  /^https?:\/\/(www\.)?threejs\.org(\/|$)/,
+  /^https?:\/\/react\.dev(\/|$)/,
+  /^https?:\/\/reactjs\.org(\/|$)/,
+  /^https?:\/\/(gpuweb\.github\.io|developer\.mozilla\.org|tailwindcss\.com|opensource\.org|mths\.be)(\/|$)/,
+  /^https?:\/\/github\.com\/mrdoob\/three\.js\/(issues|pull|wiki)\//, // three.js error-message links
+  /^https?:\/\/localhost(:\d+)?(\/|$)/,
 ];
 const NET_APIS = [
-  /\bnew\s+WebSocket\b/,
-  /\bnew\s+EventSource\b/,
-  /\bnavigator\.sendBeacon\b/,
-  /\bnew\s+XMLHttpRequest\b/,
+  [/\bWebSocket\s*\(/, 'WebSocket'],
+  [/\bEventSource\s*\(/, 'EventSource'],
+  [/sendBeacon/, 'sendBeacon'],
+  [/\bXMLHttpRequest\b/, 'XMLHttpRequest'],
+  [/\bRTCPeerConnection\b/, 'RTCPeerConnection'],
+  [/\bWebTransport\b/, 'WebTransport'],
+  [/\bfetch\(\s*["'`](?:https?:|wss?:|\/\/)/, 'fetch(absolute URL)'],
+  [/["'`]ht["'`]\s*\+\s*["'`]tps?:/, 'split protocol string'],
+  [/\bimport\(\s*["'`](?:https?:|\/\/)/, 'remote dynamic import'],
 ];
-// fetch is only permitted for same-origin relative assets (e.g. WASM/fonts) — any fetch with an absolute URL fails below.
-const FETCH_ABS = /\bfetch\(\s*["'`]https?:/;
+const CSS_REMOTE = [/url\(\s*["']?(?:https?:)?\/\/[^)]+\)/i, /@import\s+(?:url\()?\s*["']?(?:https?:)?\/\//i];
+const HTML_REMOTE = /<(script|link|img|iframe|source|video|audio)[^>]+(src|href)=["'](?:https?:)?\/\//i;
 
 function walk(dir) {
   return readdirSync(dir).flatMap((f) => {
@@ -39,25 +46,34 @@ try {
 const problems = [];
 let commentLinks = 0;
 for (const file of files) {
-  if (!['.js', '.mjs', '.css', '.html', '.json', '.webmanifest', '.svg'].includes(extname(file))) continue;
-  const src = readFileSync(file, 'utf8');
-  for (const m of src.matchAll(/https?:\/\/[^\s"'`)<>\\]+/g)) {
+  const ext = extname(file);
+  if (!['.js', '.mjs', '.css', '.html', '.json', '.webmanifest', '.svg'].includes(ext)) continue;
+  // normalise escaped slashes so "https:\/\/x" cannot hide
+  const src = readFileSync(file, 'utf8').replace(/\\\//g, '/');
+  for (const m of src.matchAll(/(?:https?|wss?):\/\/[^\s"'`)<>\\]+/g)) {
     const url = m[0];
     if (ALLOW.some((re) => re.test(url))) continue;
-    // A link inside a `// comment` line (e.g. shader source credits) is text, never a request.
+    // a link on a line that *starts* with `//` (shader-source credits inside template strings) is text
     const lineStart = src.lastIndexOf('\n', m.index) + 1;
     const before = src.slice(lineStart, m.index);
-    if (/^\s*\/\/|\/\*|^\s*\*/.test(before)) {
+    if (/^\s*\/\/[^"'`]*$/.test(before)) {
       commentLinks++;
       continue;
     }
     problems.push(`${file}: external URL ${url}`);
   }
-  for (const re of NET_APIS) if (re.test(src)) problems.push(`${file}: network API ${re}`);
-  if (FETCH_ABS.test(src)) problems.push(`${file}: fetch() with absolute URL`);
-  if (extname(file) === '.html' && /<(script|link)[^>]+(src|href)=["']https?:/i.test(src)) {
-    problems.push(`${file}: external <script>/<link>`);
-  }
+  for (const [re, name] of NET_APIS) if (re.test(src)) problems.push(`${file}: network API ${name}`);
+  if (ext === '.css' || ext === '.html')
+    for (const re of CSS_REMOTE) if (re.test(src)) problems.push(`${file}: remote CSS url/@import`);
+  if (ext === '.html' && HTML_REMOTE.test(src)) problems.push(`${file}: remote <script>/<link>/<img>`);
+}
+// CSP must ship with the page (runtime defence for anything a static scan misses)
+try {
+  const html = readFileSync(join(DIST, 'index.html'), 'utf8');
+  if (!/Content-Security-Policy/.test(html) || !/connect-src 'self'/.test(html))
+    problems.push("index.html: CSP meta with connect-src 'self' missing");
+} catch {
+  problems.push('index.html missing');
 }
 if (problems.length) {
   console.error(`[check-offline] FAIL (${problems.length})`);
