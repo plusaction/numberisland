@@ -130,12 +130,27 @@ export function nextStageQuestion(
     const pick = r.asked.pick;
     const level = stageLevel(question.level, usable, core.shift);
     const skills = levelSpec(level).skills.filter((s) => usable.includes(s));
-    if (level !== question.level || !usable.includes(question.skill) || (prefer && !prefer(question))) {
-      const skill = skills.includes(pick.skill) ? pick.skill : rng.pick(skills);
-      for (let i = 0; i < 20; i++) {
-        question = generateQuestion({ level, skill, rng, avoid: r.session.recentKeys });
-        if (!prefer || prefer(question)) break;
+    const fits = (x: Question) => usable.includes(x.skill) && (!prefer || prefer(x));
+    if (level !== question.level || !fits(question)) {
+      // try the adaptive skill first, then every usable skill of the level, then neighbouring levels
+      const order = [
+        ...new Set([...(skills.includes(pick.skill) ? [pick.skill] : []), ...rng.shuffle(skills)]),
+      ];
+      let found: Question | null = null;
+      const levels = [level, stageLevel(level, usable, -1), stageLevel(level, usable, 1)];
+      for (const lv of levels) {
+        const lvSkills = lv === level ? order : levelSpec(lv).skills.filter((sk) => usable.includes(sk));
+        for (const skill of lvSkills) {
+          for (let i = 0; i < 25 && !found; i++) {
+            const cand = generateQuestion({ level: lv, skill, rng, avoid: r.session.recentKeys });
+            if (fits(cand)) found = cand;
+          }
+          if (found) break;
+        }
+        if (found) break;
       }
+      if (!found) throw new Error(`no stage question for ${core.stage} at ${level}`);
+      question = found;
     }
     return {
       ...core,
