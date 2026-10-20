@@ -45,15 +45,15 @@ export const SFX: Record<SfxId, Note[]> = {
   'ui.tap': [{ at: 0, freq: 880, to: 990, dur: 0.06, wave: 'sine', gain: 0.25 }],
   'ui.back': [{ at: 0, freq: 660, to: 520, dur: 0.08, wave: 'sine', gain: 0.22 }],
   correct: [
-    { at: 0, freq: C5, dur: 0.12, wave: 'triangle', gain: 0.3 },
-    { at: 0.09, freq: E5, dur: 0.12, wave: 'triangle', gain: 0.3 },
-    { at: 0.18, freq: G5, dur: 0.22, wave: 'triangle', gain: 0.32 },
+    { at: 0, freq: C5, dur: 0.12, wave: 'triangle', gain: 0.26 },
+    { at: 0.09, freq: E5, dur: 0.12, wave: 'triangle', gain: 0.26 },
+    { at: 0.18, freq: G5, dur: 0.22, wave: 'triangle', gain: 0.28 },
   ],
   'correct.big': [
-    { at: 0, freq: C5, dur: 0.1, wave: 'triangle', gain: 0.3 },
-    { at: 0.08, freq: E5, dur: 0.1, wave: 'triangle', gain: 0.3 },
-    { at: 0.16, freq: G5, dur: 0.1, wave: 'triangle', gain: 0.3 },
-    { at: 0.24, freq: C6, dur: 0.35, wave: 'triangle', gain: 0.34 },
+    { at: 0, freq: C5, dur: 0.1, wave: 'triangle', gain: 0.26 },
+    { at: 0.08, freq: E5, dur: 0.1, wave: 'triangle', gain: 0.26 },
+    { at: 0.16, freq: G5, dur: 0.1, wave: 'triangle', gain: 0.26 },
+    { at: 0.24, freq: C6, dur: 0.35, wave: 'triangle', gain: 0.3 },
   ],
   'wrong.duck': [
     { at: 0, freq: 520, to: 760, dur: 0.12, wave: 'square', gain: 0.12 },

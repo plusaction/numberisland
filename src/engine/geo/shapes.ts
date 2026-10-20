@@ -1,5 +1,6 @@
 /** Procedural geometry kit (SPEC §7.1): everything is generated in code. */
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
+import { mergeVertices } from 'three/addons/utils/BufferGeometryUtils.js';
 import {
   type BufferAttribute,
   CapsuleGeometry,
@@ -21,7 +22,8 @@ export const ring = (radius: number, tube: number) => new TorusGeometry(radius, 
 
 /** Lumpy blob: icosphere with smooth seeded displacement (rocks, bushes, clouds). */
 export function blob(radius: number, rng: Rng, amount = 0.18, detail = 4) {
-  const g = new IcosahedronGeometry(radius, detail);
+  // merge duplicated vertices so displacement + normals stay smooth (no faceting)
+  const g = mergeVertices(new IcosahedronGeometry(radius, detail));
   const pos = g.getAttribute('position') as BufferAttribute;
   const k = [rng.float() * 6, rng.float() * 6, rng.float() * 6];
   for (let i = 0; i < pos.count; i++) {

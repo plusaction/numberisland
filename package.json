@@ -19,7 +19,8 @@
     "curriculum:verify": "tsx tools/gen-curriculum-verify.ts",
     "images:requests": "tsx tools/gen-image-requests.ts",
     "bench": "tsx tools/bench.ts",
-    "size": "size-limit"
+    "size": "size-limit",
+    "images:ingest": "tsx tools/ingest-images.ts"
   },
   "dependencies": {
     "@fontsource/fredoka": "5.3.0",

@@ -37,12 +37,20 @@ try {
   process.exit(1);
 }
 const problems = [];
+let commentLinks = 0;
 for (const file of files) {
   if (!['.js', '.mjs', '.css', '.html', '.json', '.webmanifest', '.svg'].includes(extname(file))) continue;
   const src = readFileSync(file, 'utf8');
   for (const m of src.matchAll(/https?:\/\/[^\s"'`)<>\\]+/g)) {
     const url = m[0];
     if (ALLOW.some((re) => re.test(url))) continue;
+    // A link inside a `// comment` line (e.g. shader source credits) is text, never a request.
+    const lineStart = src.lastIndexOf('\n', m.index) + 1;
+    const before = src.slice(lineStart, m.index);
+    if (/^\s*\/\/|\/\*|^\s*\*/.test(before)) {
+      commentLinks++;
+      continue;
+    }
     problems.push(`${file}: external URL ${url}`);
   }
   for (const re of NET_APIS) if (re.test(src)) problems.push(`${file}: network API ${re}`);
@@ -56,4 +64,6 @@ if (problems.length) {
   for (const p of [...new Set(problems)].slice(0, 50)) console.error(`  ${p}`);
   process.exit(1);
 }
-console.log(`[check-offline] OK — ${files.length} files, no external network references.`);
+console.log(
+  `[check-offline] OK — ${files.length} files, no external network references (${commentLinks} comment-only links ignored).`,
+);

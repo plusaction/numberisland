@@ -43,7 +43,7 @@ export function toyMaterial(
   const base = color(new Color(hex));
   m.colorNode = base;
   // soft clay: warm rim light + a touch of self-light so shadows never go muddy
-  m.emissiveNode = base.mul(0.12).add(color(PALETTE.cream).mul(rim(2.5).mul(opts.rimStrength ?? 0.28)));
+  m.emissiveNode = base.mul(0.06).add(color(PALETTE.cream).mul(rim(2.5).mul(opts.rimStrength ?? 0.22)));
   return m;
 }
 

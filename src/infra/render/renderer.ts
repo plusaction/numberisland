@@ -3,7 +3,14 @@
  * Handles WebGPU device loss / WebGL context loss by notifying the app, which recreates the renderer
  * (forcing WebGL2 after a WebGPU loss) and returns to the same screen (SPEC §6.5).
  */
-import { AgXToneMapping, PCFSoftShadowMap, SRGBColorSpace, WebGPURenderer } from 'three/webgpu';
+import {
+  ACESFilmicToneMapping,
+  AgXToneMapping,
+  PCFShadowMap,
+  SRGBColorSpace,
+  WebGPURenderer,
+} from 'three/webgpu';
+import { installWebGPUCompat } from './webgpu-compat';
 
 export type Backend = 'webgpu' | 'webgl2';
 
@@ -27,16 +34,19 @@ export function wantsForcedWebGL(search: string = globalThis.location?.search ??
 
 export async function createRenderer(opts: RendererOptions): Promise<RendererHandle> {
   const forceWebGL = opts.forceWebGL ?? wantsForcedWebGL();
+  installWebGPUCompat();
   const renderer = new WebGPURenderer({ canvas: opts.canvas, antialias: true, forceWebGL, alpha: false });
   await renderer.init();
   const backend: Backend = (renderer.backend as { isWebGPUBackend?: boolean }).isWebGPUBackend
     ? 'webgpu'
     : 'webgl2';
-  renderer.toneMapping = AgXToneMapping;
-  renderer.toneMappingExposure = 1.05;
+  // Tone mapping chosen by side-by-side comparison (DECISIONS D9); `?tm=agx` keeps the alternative for review.
+  const tm = new URLSearchParams(globalThis.location?.search ?? '').get('tm');
+  renderer.toneMapping = tm === 'agx' ? AgXToneMapping : ACESFilmicToneMapping;
+  renderer.toneMappingExposure = tm === 'agx' ? 1.05 : 0.95;
   renderer.outputColorSpace = SRGBColorSpace;
   renderer.shadowMap.enabled = true;
-  renderer.shadowMap.type = PCFSoftShadowMap;
+  renderer.shadowMap.type = PCFShadowMap; // soft look via shadow.radius (PCFSoft removed in r18x)
   renderer.setPixelRatio(Math.min(globalThis.devicePixelRatio || 1, opts.dprCap ?? 1.5));
 
   let lostFired = false;
