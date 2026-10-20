@@ -1,0 +1,98 @@
+{
+  "axes": {
+    "E": "교육성",
+    "G": "게임성",
+    "F": "흥미성",
+    "P": "지속성",
+    "A": "성취감·기대감",
+    "S": "안전·접근성·엔지니어링"
+  },
+  "stages": ["bomb", "zombie", "fishing", "slime", "escape", "pizza", "cardbattle", "race"],
+  "items": [
+    { "id": "E1", "axis": "E", "title": "정답·범위 무결성", "points": 15, "kind": "AUTO" },
+    {
+      "id": "E2a",
+      "axis": "E",
+      "title": "교과 정렬 문서화",
+      "points": 5,
+      "kind": "AUTO",
+      "files": ["docs/CURRICULUM_VERIFY.md"]
+    },
+    { "id": "E2b", "axis": "E", "title": "교과 정렬 사람 확인", "points": 5, "kind": "HUMAN" },
+    { "id": "E3", "axis": "E", "title": "오개념 기반 오답·피드백", "points": 12, "kind": "AUTO" },
+    { "id": "E4", "axis": "E", "title": "힌트 4단계", "points": 10, "kind": "AUTO" },
+    { "id": "E5", "axis": "E", "title": "적응 엔진 수렴", "points": 15, "kind": "AUTO" },
+    { "id": "E6", "axis": "E", "title": "표현 다양성", "points": 8, "kind": "AUTO" },
+    { "id": "E7", "axis": "E", "title": "문제 다양성", "points": 10, "kind": "AUTO" },
+    { "id": "E8", "axis": "E", "title": "부모 리포트·오답노트", "points": 10, "kind": "AUTO" },
+    { "id": "E9", "axis": "E", "title": "학습 효과 관찰", "points": 10, "kind": "HUMAN" },
+
+    {
+      "id": "G1",
+      "axis": "G",
+      "title": "규칙 결정성·해결 가능성",
+      "points": 15,
+      "kind": "AUTO",
+      "perStage": true
+    },
+    { "id": "G2", "axis": "G", "title": "입력 반응 ≤100ms", "points": 10, "kind": "AUTO", "perStage": true },
+    { "id": "G3", "axis": "G", "title": "의미 있는 선택", "points": 12, "kind": "AUTO", "perStage": true },
+    { "id": "G4", "axis": "G", "title": "난이도 곡선", "points": 12, "kind": "AUTO", "perStage": true },
+    { "id": "G5", "axis": "G", "title": "스테이지 개성", "points": 8, "kind": "REVIEW" },
+    { "id": "G6", "axis": "G", "title": "2P·협동 완성도", "points": 10, "kind": "AUTO" },
+    { "id": "G7", "axis": "G", "title": "조작 편의", "points": 8, "kind": "AUTO" },
+    { "id": "G8", "axis": "G", "title": "한 판 더", "points": 15, "kind": "HUMAN" },
+    { "id": "G9", "axis": "G", "title": "막힘 없음", "points": 10, "kind": "HUMAN" },
+
+    { "id": "F1", "axis": "F", "title": "아트 일관성", "points": 15, "kind": "REVIEW" },
+    { "id": "F2", "axis": "F", "title": "캐릭터 구별성", "points": 10, "kind": "AUTO" },
+    { "id": "F3", "axis": "F", "title": "모션·주스", "points": 12, "kind": "AUTO", "perStage": true },
+    { "id": "F4", "axis": "F", "title": "사운드", "points": 12, "kind": "AUTO" },
+    { "id": "F5", "axis": "F", "title": "유머·시그니처 순간", "points": 10, "kind": "REVIEW" },
+    { "id": "F6", "axis": "F", "title": "렌더 품질·성능", "points": 10, "kind": "AUTO", "gpu": true },
+    { "id": "F7", "axis": "F", "title": "UI 완성도", "points": 8, "kind": "AUTO" },
+    { "id": "F8", "axis": "F", "title": "아이 반응", "points": 13, "kind": "HUMAN" },
+    { "id": "F9", "axis": "F", "title": "캐릭터 호감", "points": 10, "kind": "HUMAN" },
+
+    { "id": "P1", "axis": "P", "title": "콘텐츠 볼륨", "points": 15, "kind": "AUTO" },
+    { "id": "P2", "axis": "P", "title": "진행 경제", "points": 12, "kind": "AUTO" },
+    { "id": "P3", "axis": "P", "title": "일일 루프", "points": 12, "kind": "AUTO" },
+    { "id": "P4", "axis": "P", "title": "데이터 안정성", "points": 10, "kind": "AUTO" },
+    { "id": "P5", "axis": "P", "title": "건강 장치", "points": 8, "kind": "AUTO" },
+    { "id": "P6", "axis": "P", "title": "장기 목표 구조", "points": 10, "kind": "AUTO" },
+    { "id": "P7", "axis": "P", "title": "재방문 의사", "points": 20, "kind": "HUMAN" },
+    { "id": "P8", "axis": "P", "title": "질리지 않음", "points": 13, "kind": "HUMAN" },
+
+    { "id": "A1", "axis": "A", "title": "결과 화면 3요소", "points": 15, "kind": "AUTO", "perStage": true },
+    { "id": "A2", "axis": "A", "title": "성장 가시화", "points": 12, "kind": "AUTO" },
+    { "id": "A3", "axis": "A", "title": "세리머니", "points": 12, "kind": "AUTO" },
+    { "id": "A4", "axis": "A", "title": "칭찬 시스템", "points": 8, "kind": "AUTO" },
+    { "id": "A5", "axis": "A", "title": "기대감 장치", "points": 15, "kind": "AUTO" },
+    { "id": "A6", "axis": "A", "title": "윤리 규칙 준수", "points": 8, "kind": "AUTO" },
+    { "id": "A7", "axis": "A", "title": "아이가 말하는 성취", "points": 15, "kind": "HUMAN" },
+    { "id": "A8", "axis": "A", "title": "기대 표현", "points": 15, "kind": "HUMAN" },
+
+    {
+      "id": "S1",
+      "axis": "S",
+      "title": "네트워크 0",
+      "points": 12,
+      "kind": "AUTO",
+      "files": ["tools/check-offline.mjs", "public/_headers"]
+    },
+    { "id": "S2", "axis": "S", "title": "접근성", "points": 15, "kind": "AUTO" },
+    { "id": "S3", "axis": "S", "title": "폴백 신뢰성", "points": 15, "kind": "AUTO", "gpuPart": 5 },
+    { "id": "S4", "axis": "S", "title": "테스트·타입", "points": 15, "kind": "AUTO" },
+    { "id": "S5", "axis": "S", "title": "성능·메모리", "points": 13, "kind": "AUTO", "gpuPart": 4 },
+    {
+      "id": "S6",
+      "axis": "S",
+      "title": "적대적 감사",
+      "points": 10,
+      "kind": "REVIEW",
+      "files": ["docs/AUDIT.md"]
+    },
+    { "id": "S7", "axis": "S", "title": "PWA·배포", "points": 10, "kind": "AUTO" },
+    { "id": "S8", "axis": "S", "title": "부모 게이트·데이터 보호", "points": 10, "kind": "AUTO" }
+  ]
+}
