@@ -1,0 +1,28 @@
+@import "tailwindcss";
+
+@theme {
+  --color-sand: #ffe9c7;
+  --color-sea: #7fd3e6;
+  --color-leaf: #8fd694;
+  --color-berry: #ff8fab;
+  --color-sun: #ffd166;
+  --color-ink: #3b3355;
+  --font-sans: "Pretendard Variable", Pretendard, system-ui, sans-serif;
+}
+
+@layer base {
+  html,
+  body,
+  #root {
+    height: 100%;
+    margin: 0;
+    overflow: hidden;
+    overscroll-behavior: none;
+    touch-action: none;
+    user-select: none;
+    -webkit-user-select: none;
+    background: var(--color-sand);
+    color: var(--color-ink);
+    font-family: var(--font-sans);
+  }
+}
