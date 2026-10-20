@@ -23,9 +23,23 @@ describe('quality governor', () => {
     for (let i = 0; i < 400 && !changed; i++) changed = g.sample(40);
     expect(changed).toBe('low');
     for (let i = 0; i < 4000; i++) g.sample(5);
-    expect(g.tier).toBe('balanced'); // WebGL2 cannot reach compute tiers
+    expect(g.tier).toBe('low'); // never upgrades back into a tier that was too slow
+    const w = createGovernor('webgl2', 'low');
+    for (let i = 0; i < 6000; i++) w.sample(5);
+    expect(w.tier).toBe('balanced'); // WebGL2 cannot reach compute tiers
     expect(TIER_CONFIG.balanced.gpuParticles).toBe(false);
   });
+  it('cooldown: no change within 10 s of the previous change', () => {
+    const g = createGovernor('webgpu', 'high');
+    let changes = 0;
+    let t = 0;
+    for (let i = 0; i < 2000; i++) {
+      if (g.sample(i % 2 ? 60 : 5)) changes++;
+      t += i % 2 ? 60 : 5;
+    }
+    expect(changes).toBeLessThanOrEqual(Math.ceil(t / 10_000));
+  });
+
   it('locked governor never changes', () => {
     const g = createGovernor('webgpu', 'ultra', true);
     for (let i = 0; i < 1000; i++) g.sample(60);
