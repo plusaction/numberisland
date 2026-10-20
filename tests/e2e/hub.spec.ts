@@ -36,7 +36,25 @@ test('[G7] hub: 8 portals selectable by keyboard, info card + medals, intro and 
 test('[P4] progress survives a reload (IndexedDB)', async ({ page }, info) => {
   await startFresh(page, url(info, '/'));
   await throughPlacement(page);
-  await page.waitForTimeout(800); // debounce 500 ms
+  // wait until the debounced save has really landed in IndexedDB (no fixed sleeps)
+  await expect
+    .poll(
+      () =>
+        page.evaluate(
+          () =>
+            new Promise<boolean>((res) => {
+              const r = indexedDB.open('numberisland');
+              r.onsuccess = () => {
+                const g = r.result.transaction('profiles').objectStore('profiles').getAll();
+                g.onsuccess = () =>
+                  res((g.result as { placementDone?: boolean }[]).some((x) => x.placementDone));
+              };
+              r.onerror = () => res(false);
+            }),
+        ),
+      { timeout: 20_000 },
+    )
+    .toBe(true);
   await page.reload();
   await expect(page.getByTestId('hub')).toBeVisible({ timeout: 30_000 });
 });
