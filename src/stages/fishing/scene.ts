@@ -153,7 +153,7 @@ export function createFishingScene(
     const ringIdx = f.lane % 2;
     const onRing = p.fish.filter((x) => x.lane % 2 === ringIdx);
     const k = onRing.findIndex((x) => x.id === id);
-    const ring = ringIdx === 0 ? 1.7 : 3.3;
+    const ring = ringIdx === 0 ? 2.0 : 3.7;
     const dir = ringIdx === 0 ? 1 : -1;
     const a =
       (k / Math.max(1, onRing.length)) * Math.PI * 2 +
