@@ -79,7 +79,7 @@ export function waterMaterial(
     .add(sin(p.y.mul(1.7).add(time.mul(1.1))).mul(0.035));
   m.positionNode = p.add(vec3(0, 0, wave.add(n.mul(0.05))));
   const edge = uv().sub(0.5).length().mul(2); // 0 centre → 1 rim (circular pond)
-  const foam = smoothstep(0.82, 0.93, edge.add(n.mul(0.05)));
+  const foam = smoothstep(0.9, 0.97, edge.add(n.mul(0.03))).mul(0.6);
   const sparkle = smoothstep(0.55, 0.75, n).mul(0.25);
   m.colorNode = mix(color(new Color(deep)), color(new Color(shallow)), edge.add(n.mul(0.2)).clamp(0, 1))
     .add(sparkle)

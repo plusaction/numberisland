@@ -1,4 +1,5 @@
 /** Pure stage contracts shared by stage rules, replays and the shell (SPEC §6.4). */
+import type { AdaptiveState } from '../edu/adaptive';
 import type { LevelId, SkillId } from '../edu/types';
 import type { Stars } from '../scoring/medals';
 
@@ -69,6 +70,8 @@ export interface RoundResult {
   answers: AnswerRecord[];
   /** Signature/fun counters for "새로 해낸 것" lines. */
   highlights: string[];
+  /** Adaptive state after the round (written back to the profile). */
+  adaptiveAfter?: AdaptiveState;
 }
 
 /**

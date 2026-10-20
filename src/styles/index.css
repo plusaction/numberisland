@@ -248,3 +248,118 @@
     transition-duration: 0.01ms;
   }
 }
+
+@layer components {
+  .stage-hud {
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+  }
+  .stage-hud > * {
+    pointer-events: auto;
+  }
+  .hud-top {
+    position: absolute;
+    top: 1rem;
+    left: 1rem;
+    right: 1rem;
+    display: flex;
+    gap: 0.75rem;
+    align-items: center;
+    pointer-events: none;
+  }
+  .hud-top > * {
+    pointer-events: auto;
+  }
+  .hud-goal {
+    position: absolute;
+    top: 6rem;
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    padding: 0.5rem 1.5rem;
+  }
+  .hud-bottom {
+    position: absolute;
+    right: 1.25rem;
+    bottom: 1.25rem;
+    display: flex;
+    gap: 0.75rem;
+  }
+  .dot {
+    width: 1rem;
+    height: 1rem;
+    border-radius: 999px;
+    border: 3px solid var(--color-ink);
+    background: white;
+  }
+  .dot-done {
+    background: var(--color-leaf);
+  }
+  .dot-now {
+    background: var(--color-sun);
+    transform: scale(1.25);
+  }
+  .toast {
+    position: absolute;
+    top: 40%;
+    left: 50%;
+    transform: translateX(-50%);
+    background: var(--color-cream);
+    border: 4px solid var(--color-ink);
+    border-radius: 1.5rem;
+    padding: 0.5rem 1.5rem;
+    font-size: 2.25rem;
+    font-weight: 800;
+    pointer-events: none;
+  }
+  .toast-good {
+    background: var(--color-sun);
+  }
+  .feedback {
+    position: absolute;
+    left: 1.25rem;
+    bottom: 1.25rem;
+    pointer-events: none;
+  }
+  .hint-panel {
+    position: absolute;
+    left: 50%;
+    bottom: 1.25rem;
+    transform: translateX(-50%);
+    width: min(44rem, calc(100vw - 2rem));
+  }
+  .hint-svg {
+    width: 100%;
+    max-height: 13rem;
+  }
+  .tutorial {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+  }
+  .tutorial > * {
+    pointer-events: auto;
+  }
+  .ghost-hand {
+    position: absolute;
+    font-size: 4rem;
+    transform: translate(-30%, -10%);
+    transition:
+      left 0.6s ease-in-out,
+      top 0.6s ease-in-out,
+      transform 0.15s;
+    filter: drop-shadow(0 4px 0 rgba(59, 51, 85, 0.5));
+    pointer-events: none;
+  }
+  .ghost-press {
+    transform: translate(-30%, -10%) scale(0.8);
+  }
+  .tutorial-skip {
+    position: absolute;
+    right: 1.25rem;
+    top: 1rem;
+  }
+}

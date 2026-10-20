@@ -137,6 +137,7 @@ export function applyRoundResult(
     },
     history,
     firsts: [...firsts],
+    ...(result.adaptiveAfter ? { adaptive: result.adaptiveAfter } : {}),
   };
   const rankAfter = rankFor(profile.trophies.total);
   return {

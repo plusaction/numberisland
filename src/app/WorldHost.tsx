@@ -5,6 +5,7 @@
 import { createContext, type ReactNode, useContext, useEffect, useRef, useState } from 'react';
 import { Raycaster, Vector2 } from 'three/webgpu';
 import { createFixedLoop, type FixedLoop } from '../engine/loop/fixed-loop';
+import { initDigitAtlas } from '../engine/numbers/number-label';
 import { tierFromUrl } from '../engine/quality/quality';
 import { RenderWorld } from '../engine/world';
 import { ko } from '../i18n/ko';
@@ -78,6 +79,7 @@ export function WorldHost({ children }: { children: ReactNode }) {
         return;
       }
       const w = world;
+      await initDigitAtlas();
       const loop = createFixedLoop({
         update: (dt) => controller?.update(dt, input.snapshot()),
         render: (_a, dt) => w.frame(dt, loop.frameMs),
