@@ -155,7 +155,7 @@ export function nextStageQuestion(
     return {
       ...core,
       session: r.session,
-      asked: { question, pick: { ...pick, level: question.level, skill: question.skill } },
+      asked: { question, pick: { ...pick, skill: question.skill } },
       puzzleHints: 0,
       puzzleWrong: 0,
       puzzleStart: core.tick,
@@ -276,3 +276,37 @@ export function bandOf(level: LevelId): 'A' | 'B' | 'C' {
 }
 
 export type { CarryPolicy };
+
+/**
+ * After hint step 4 (worked demo) the child retries a *new* problem of the same kind with different
+ * numbers (SPEC §9.5) — the answer is never filled in. Hints already used still count for the medal.
+ */
+export function sameKindQuestion(core: RoundCore, prefer?: (q: Question) => boolean): RoundCore {
+  const asked = core.asked;
+  if (!asked) return core;
+  const old = asked.question;
+  return withRng(core, (rng) => {
+    let q = old;
+    for (let i = 0; i < 60; i++) {
+      const cand = generateQuestion({
+        level: old.level,
+        skill: old.skill,
+        rng,
+        avoid: [...core.session.recentKeys, old.key],
+      });
+      const sameShape =
+        cand.form === old.form &&
+        cand.missingIndex === old.missingIndex &&
+        cand.ops.length === old.ops.length;
+      if (cand.key !== old.key && sameShape && (!prefer || prefer(cand))) {
+        q = cand;
+        break;
+      }
+    }
+    return {
+      ...core,
+      asked: { ...asked, question: q },
+      session: { ...core.session, recentKeys: [...core.session.recentKeys, q.key] },
+    };
+  }).value;
+}

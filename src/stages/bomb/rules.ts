@@ -3,6 +3,7 @@
  * SUM2 two wires sum to N · DIFF2 two wires differ by N · SUM3 three wires sum to N ·
  * PLACE one wire per place-value group (백·십·일 …) builds N. No timer (the fuse is decoration).
  */
+import { levelSpec } from '../../domain/curriculum/curriculum';
 import { digitAt, digitCount } from '../../domain/edu/arith';
 import type { Question, SkillId } from '../../domain/edu/types';
 import type { Rng } from '../../domain/rng/rng';
@@ -16,6 +17,7 @@ import {
   type RoundOptions,
   recordAttempt,
   roundSummary,
+  sameKindQuestion,
   takeHint,
   withRng,
 } from '../_shared/round';
@@ -54,10 +56,10 @@ export interface BombState {
   cut: number[];
   phase: BombPhase;
   phaseLeft: number;
-  lastWrong: { value: number; tag?: string } | null;
+  lastWrong: { value: number; made: number; tag?: string } | null;
 }
 
-export type BombAction = { t: 'cut'; id: number } | { t: 'hint' };
+export type BombAction = { t: 'cut'; id: number } | { t: 'hint' } | { t: 'retry' };
 
 export const DEFUSE_TICKS = 80;
 export const PUFF_TICKS = 60;
@@ -137,7 +139,7 @@ export function puzzleFromQuestion(q: Question, rng: Rng): BombPuzzle {
   const cands: number[] = [];
   for (const c of correct) for (const d of [1, -1, 10, -10, 2, -2, 100]) cands.push(c + d);
   for (const ch of q.choices) if (ch.value !== q.answer) cands.push(ch.value - (correct[1] ?? 0));
-  const max = Math.max(...correct) + 20;
+  const max = Math.min(levelSpec(q.level).max, Math.max(...correct) + 20);
   const want = Math.max(count, correct.length + 2);
   const push = (v: number) => {
     if (values.length < want && Number.isInteger(v) && v > 0 && v <= max && !used.has(v)) {
@@ -180,6 +182,14 @@ export function stepBomb(state: BombState, input: InputFrame<BombAction>): BombS
   let s: BombState = { ...state, core: { ...state.core, tick: state.core.tick + 1 } };
   for (const a of input.actions) {
     if (a.t === 'hint' && s.phase === 'play') s = { ...s, core: takeHint(s.core) };
+    if (a.t === 'retry' && s.phase === 'play' && s.core.puzzleHints >= 4) {
+      const core = sameKindQuestion(s.core, preferBomb);
+      const q = core.asked?.question;
+      if (q) {
+        const r = withRng(core, (rng) => puzzleFromQuestion(q, rng));
+        s = { ...s, core: r.core, puzzle: r.value, cut: [], lastWrong: null };
+      }
+    }
     if (a.t === 'cut' && s.phase === 'play' && s.puzzle) {
       const p = s.puzzle;
       const wire = p.wires.find((w) => w.id === a.id);
@@ -197,13 +207,14 @@ export function stepBomb(state: BombState, input: InputFrame<BombAction>): BombS
         if (selectionValid(p, cut)) {
           s = { ...s, core: recordAttempt(s.core, true, given), phase: 'defuse', phaseLeft: DEFUSE_TICKS };
         } else {
-          const tag = q?.misconceptionMap[given];
+          // the child cut wires (chose parts), so result-misconception tags do not apply
+          const tag = p.mode === 'PLACE' ? q?.misconceptionMap[given] : undefined;
           s = {
             ...s,
             core: recordAttempt(s.core, false, given, tag),
             phase: 'puff',
             phaseLeft: PUFF_TICKS,
-            lastWrong: tag ? { value: given, tag } : { value: given },
+            lastWrong: tag ? { value: given, made: given, tag } : { value: given, made: given },
           };
         }
       }

@@ -1,10 +1,10 @@
 /** Hosts a stage plugin: runtime + 3D scene + HUD + hints + tutorial + result hand-off. */
 import { AnimatePresence, motion } from 'motion/react';
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useStore } from 'zustand';
 import { useWorld } from '../../app/WorldHost';
 import type { GameStore } from '../../application/stores/game';
-import { applyRoundResult } from '../../domain/progression/progression';
+import { applyPartialRound, applyRoundResult } from '../../domain/progression/progression';
 import { createRng } from '../../domain/rng/rng';
 import { pickPraise, praiseCategory } from '../../domain/scoring/praise';
 import { PLAYABLE } from '../../domain/stage/types';
@@ -19,7 +19,8 @@ import { FeedbackOverlay } from '../hints/FeedbackOverlay';
 import { HintPanel } from '../hints/HintPanel';
 import { Tutorial } from './Tutorial';
 
-const today = () => Math.floor(Date.now() / 86_400_000);
+/** Local calendar day number (the child's device clock, e.g. Asia/Seoul). */
+const today = () => Math.floor((Date.now() - new Date().getTimezoneOffset() * 60_000) / 86_400_000);
 
 export function StageScreen({ store, reducedMotion }: { store: GameStore; reducedMotion: boolean }) {
   const api = useWorld();
@@ -65,7 +66,10 @@ export function StageScreen({ store, reducedMotion }: { store: GameStore; reduce
           new Date().toISOString(),
           PLAYABLE,
         );
-        window.setTimeout(() => store.getState().finishRound(result, outcome), 400);
+        // the child may have pressed "나가기" in the last 400 ms: then stay on the island
+        window.setTimeout(() => {
+          if (store.getState().screen === 'stage') store.getState().finishRound(result, outcome);
+        }, 400);
       },
     );
     rtRef.current = rt as StageRuntime<unknown, unknown>;
@@ -80,10 +84,19 @@ export function StageScreen({ store, reducedMotion }: { store: GameStore; reduce
     audio.playBgm(mod.bgm, seed);
     audio.duck(true);
     let lastCorrect = init.core.correct;
+    let lastHints = init.core.puzzleHints;
+    let lastSig = '';
     const rng = createRng(seed);
     const update = (s: typeof init) => {
-      const view = mod.hud(s);
-      setHud(view);
+      // re-render the HUD only when something it shows changed (state changes every tick)
+      const c = s.core;
+      const sig = `${s.phase}|${c.index}|${c.coins}|${c.correct}|${c.wrong}|${c.puzzleHints}|${(s as { puzzle?: unknown }).puzzle ? 1 : 0}|${(s as { undo?: unknown[] }).undo?.length ?? 0}|${(s as { slimes?: unknown[] }).slimes?.length ?? 0}`;
+      if (sig !== lastSig) {
+        lastSig = sig;
+        setHud(mod.hud(s));
+      }
+      if (c.puzzleHints > lastHints) setHintOpen(true); // keyboard H / pad X opens the panel too
+      lastHints = c.puzzleHints;
       if (s.core.correct > lastCorrect) {
         lastCorrect = s.core.correct;
         const cat = praiseCategory({
@@ -102,7 +115,13 @@ export function StageScreen({ store, reducedMotion }: { store: GameStore; reduce
     update(init);
     const unsub = rt.subscribe(update);
     if (!profile.tutorialSeen[selected]) setTutorial(true);
+    const offKeys = api.input.onAction((a) => {
+      if (a !== 'cancel' || store.getState().screen !== 'stage') return;
+      if (document.querySelector('[data-testid="hint-panel"]')) setHintOpen(false);
+      else exitRef.current();
+    });
     return () => {
+      offKeys();
       unsub();
       audio.duck(false);
       api.setController(null);
@@ -112,20 +131,31 @@ export function StageScreen({ store, reducedMotion }: { store: GameStore; reduce
 
   const exit = () => {
     audio.play('ui.back');
+    const rt = rtRef.current as StageRuntime<{ phase: string }, unknown> | null;
+    const p = store.getState().profile;
+    // keep what was learned in an unfinished round (P2: nothing is lost)
+    if (rt && mod && p && rt.state.phase !== 'done') {
+      store
+        .getState()
+        .setProfile(applyPartialRound(p, mod.rules.summary(rt.state), new Date().toISOString()));
+    }
     store.getState().go('hub');
   };
-  const finishTutorial = () => {
+  const exitRef = useRef(exit);
+  exitRef.current = exit;
+  const finishTutorial = useCallback(() => {
     setTutorial(false);
     const p = store.getState().profile;
     if (p) store.getState().setProfile({ ...p, tutorialSeen: { ...p.tutorialSeen, [selected]: true } });
     if (rtRef.current) rtRef.current.locked = false;
-  };
+  }, [store, selected]);
 
   if (!mod || !hud) return null;
   const q = hud.question;
   const core = hud.core;
   const openHint = () => {
-    rtRef.current?.dispatch(mod.hintAction);
+    // a hint step is only spent when the panel is not already showing an unread step
+    if (!hintOpen || core.puzzleHints === 0) rtRef.current?.dispatch(mod.hintAction);
     setHintOpen(true);
   };
   return (
@@ -204,6 +234,9 @@ export function StageScreen({ store, reducedMotion }: { store: GameStore; reduce
           q={q}
           given={hud.wrong.value}
           {...(hud.wrong.tag ? { tag: hud.wrong.tag } : {})}
+          {...(hud.wrong.made !== undefined && hud.target !== undefined
+            ? { made: hud.wrong.made, target: hud.target }
+            : {})}
         />
       )}
       {hintOpen && q && core.puzzleHints > 0 && (
@@ -211,7 +244,11 @@ export function StageScreen({ store, reducedMotion }: { store: GameStore; reduce
           q={q}
           level={core.puzzleHints}
           onMore={() => rtRef.current?.dispatch(mod.hintAction)}
-          onClose={() => setHintOpen(false)}
+          onClose={() => {
+            setHintOpen(false);
+            // after the worked demo: try again with new numbers (never auto-filled)
+            if (core.puzzleHints >= 4) rtRef.current?.dispatch(mod.retryAction);
+          }}
           pair={
             hud.hintMode === 'pair' && hud.target !== undefined
               ? { target: hud.target, op: hud.pairOp ?? '+' }

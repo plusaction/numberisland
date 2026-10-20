@@ -18,8 +18,12 @@ export const fishingModule: StageModule<FishingState, FishingAction> = {
   bgm: 'fishing',
   createScene: createFishingScene,
   keyboard: {
-    targets: (s) => s.puzzle?.fish.filter((f) => !f.caught).map((f) => f.id) ?? [],
-    confirm: (_s, id) => ({ action: { t: 'tap', id } }),
+    // the odd fish (id 1000) is reachable by keyboard too while it swims by
+    targets: (s) => [
+      ...(s.puzzle?.fish.filter((f) => !f.caught).map((f) => f.id) ?? []),
+      ...(s.odd ? [1000] : []),
+    ],
+    confirm: (_s, id) => ({ action: id === 1000 ? { t: 'odd' } : { t: 'tap', id } }),
   },
   hud: (s) => ({
     core: s.core,
@@ -34,4 +38,5 @@ export const fishingModule: StageModule<FishingState, FishingAction> = {
   solution: (s) =>
     s.puzzle ? (solveFishing(s.puzzle)[0] ?? []).map((id) => ({ t: 'tap' as const, id })) : [],
   hintAction: { t: 'hint' },
+  retryAction: { t: 'retry' },
 };

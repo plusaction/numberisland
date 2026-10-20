@@ -106,7 +106,8 @@ export function createBombScene(world: RenderWorld, ctx: StageCtx): StageScene<B
   let t = 0;
 
   const build = (s: BombState) => {
-    for (const w of wires.values()) for (const m of [w.whole, w.stubA, w.stubB, w.post]) disposeTree(m);
+    for (const w of wires.values())
+      for (const m of [w.whole, w.stubA, w.stubB, w.post, w.proxy]) disposeTree(m);
     for (const w of wires.values()) w.label.removeFromParent();
     wires.clear();
     proxies.length = 0;

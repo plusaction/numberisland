@@ -65,15 +65,17 @@ export function Dots({ quantities, hidden }: { quantities: number[]; hidden?: nu
 }
 
 export function TenFrame({ quantities, hidden }: { quantities: number[]; hidden?: number }) {
-  // fill frames left to right, each operand its own colour (10 만들기 shows where the frame completes)
-  const cells: { color: string; mystery?: boolean }[] = [];
+  // fill frames left to right, each operand its own colour (10 만들기 shows where the frame completes).
+  // The unknown is NOT drawn as cells (their count would reveal it): one "?" box follows the frames.
+  const cells: string[] = [];
   quantities.forEach((q, qi) => {
-    for (let i = 0; i < q; i++)
-      cells.push(qi === hidden ? { color: '#fff8ec', mystery: true } : { color: OPERAND[qi % 3] as string });
+    if (qi === hidden) return;
+    for (let i = 0; i < q; i++) cells.push(OPERAND[qi % 3] as string);
   });
   const frames = Math.max(1, Math.ceil(cells.length / 10));
+  const width = frames * 230 + (hidden !== undefined ? 70 : 0);
   return (
-    <svg viewBox={`0 0 ${frames * 230} 100`} className="hint-svg" role="img" aria-label="ten frame">
+    <svg viewBox={`0 0 ${width} 100`} className="hint-svg" role="img" aria-label="ten frame">
       {Array.from({ length: frames * 10 }, (_, i) => {
         const f = Math.floor(i / 10);
         const k = i % 10;
@@ -83,17 +85,11 @@ export function TenFrame({ quantities, hidden }: { quantities: number[]; hidden?
         return (
           <g key={i}>
             <rect x={x} y={y} width={40} height={40} fill="white" stroke={INK} strokeWidth={3} />
-            {c &&
-              (c.mystery ? (
-                <text x={x + 20} y={y + 30} textAnchor="middle" fontSize={26} fontWeight={800} fill={INK}>
-                  ?
-                </text>
-              ) : (
-                <circle cx={x + 20} cy={y + 20} r={14} fill={c.color} stroke={INK} strokeWidth={2} />
-              ))}
+            {c && <circle cx={x + 20} cy={y + 20} r={14} fill={c} stroke={INK} strokeWidth={2} />}
           </g>
         );
       })}
+      {hidden !== undefined && <Mystery x={frames * 230 + 10} y={30} />}
     </svg>
   );
 }
@@ -184,11 +180,14 @@ export function NumberLine({
   hop,
   op,
   hideEnd,
+  hideHop,
 }: {
   from: number;
   hop: number;
   op: Op;
   hideEnd?: boolean;
+  /** For "□ jump" questions the jump is the unknown: draw "?" instead of its size. */
+  hideHop?: boolean;
 }) {
   const end = op === '+' ? from + hop : from - hop;
   const lo = Math.min(from, end);
@@ -229,7 +228,7 @@ export function NumberLine({
       </text>
       <text x={(X(from) + X(end)) / 2} y={30} textAnchor="middle" fontSize={20} fontWeight={800} fill={INK}>
         {op === '+' ? '+' : '−'}
-        {hop}
+        {hideHop ? '?' : hop}
       </text>
       <text x={X(end)} y={106} textAnchor="middle" fontSize={20} fontWeight={800} fill={INK}>
         {hideEnd ? '?' : end}
@@ -339,8 +338,10 @@ export function RepresentationView({
     case 'numberline': {
       const [from = 0, hop = 0] = quantities;
       if (hidden === 0) return <Blocks quantities={quantities} hidden={0} />;
-      return (
-        <NumberLine from={from} hop={hop} op={ops[0] ?? '+'} hideEnd={hidden === undefined || hidden === 1} />
+      return hidden === 1 ? (
+        <NumberLine from={from} hop={hop} op={ops[0] ?? '+'} hideHop />
+      ) : (
+        <NumberLine from={from} hop={hop} op={ops[0] ?? '+'} hideEnd />
       );
     }
     case 'column': {

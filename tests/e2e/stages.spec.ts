@@ -33,8 +33,11 @@ for (const stage of ['fishing', 'bomb', 'slime'] as const) {
     }
     await expect(page.getByTestId('result')).toBeVisible({ timeout: 60_000 });
     await expect(page.getByTestId('result-stars')).toHaveAttribute('data-stars', /[1-3]/);
+    await expect(page.getByTestId('new-thing')).toBeVisible();
     await expect(page.getByTestId('new-thing')).not.toBeEmpty();
+    await expect(page.getByTestId('next-goal')).toBeVisible();
     await expect(page.getByTestId('next-goal')).not.toBeEmpty();
+    await page.waitForTimeout(2500); // let the star animation finish before the screenshot
     const latency = await page.evaluate(
       () =>
         (globalThis as { __stage?: { runtime: { latencyTicks: number[] } } }).__stage?.runtime.latencyTicks ??
@@ -60,5 +63,35 @@ test('[G7] exit is always available mid-round (P10)', async ({ page }, info) => 
   await page.getByTestId('go').click();
   await page.getByTestId('skip-tutorial').click();
   await page.getByTestId('exit').click();
+  await expect(page.getByTestId('hub')).toBeVisible();
+});
+
+test('[G7] tutorial plays to the end by itself and unlocks input (no skip)', async ({ page }, info) => {
+  test.setTimeout(180_000);
+  await startFresh(page, url(info, '/'));
+  await throughPlacement(page);
+  await page.getByTestId('start').click();
+  await page.getByTestId('go').click();
+  await expect(page.getByTestId('tutorial')).toBeVisible();
+  await expect(page.getByTestId('tutorial')).toHaveCount(0, { timeout: 60_000 });
+  const locked = await page.evaluate(
+    () => (globalThis as { __stage?: { runtime: { locked: boolean } } }).__stage?.runtime.locked,
+  );
+  expect(locked).toBe(false);
+});
+
+test('[G7] keyboard H opens the hint panel; Escape closes it, then leaves the stage', async ({
+  page,
+}, info) => {
+  await startFresh(page, url(info, '/'));
+  await throughPlacement(page);
+  await page.getByTestId('start').click();
+  await page.getByTestId('go').click();
+  await page.getByTestId('skip-tutorial').click();
+  await page.locator('body').press('KeyH');
+  await expect(page.getByTestId('hint-panel')).toBeVisible();
+  await page.locator('body').press('Escape');
+  await expect(page.getByTestId('hint-panel')).toHaveCount(0);
+  await page.locator('body').press('Escape');
   await expect(page.getByTestId('hub')).toBeVisible();
 });

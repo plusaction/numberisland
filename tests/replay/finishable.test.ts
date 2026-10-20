@@ -35,3 +35,26 @@ for (const [name, mod] of MODULES) {
     });
   });
 }
+
+describe('[E4] 힌트 4단계 후 다른 숫자로 재도전 (스테이지)', () => {
+  for (const [name, mod] of MODULES) {
+    it(`${name}: after 4 hints, retry swaps in a same-kind puzzle with new numbers and nothing is auto-solved`, () => {
+      // biome-ignore lint/suspicious/noExplicitAny: heterogenous module list
+      const m = mod as any;
+      for (let seed = 0; seed < 20; seed++) {
+        let s = m.rules.init(`retry-${seed}`, 'A3');
+        const before = s.core.asked.question;
+        let tick = 0;
+        for (let i = 0; i < 4; i++) s = m.rules.step(s, { tick: ++tick, actions: [m.hintAction] });
+        s = m.rules.step(s, { tick: ++tick, actions: [m.retryAction] });
+        const after = s.core.asked.question;
+        expect(after.key).not.toBe(before.key);
+        expect(after.form).toBe(before.form);
+        expect(after.skill).toBe(before.skill);
+        expect(s.phase).toBe('play');
+        expect(s.core.correct).toBe(0);
+        expect(s.core.hintsUsed).toBe(4);
+      }
+    });
+  }
+});

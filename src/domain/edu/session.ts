@@ -66,7 +66,9 @@ export function answerQuestion(
   const { state, event } = recordAnswer(
     s.adaptive,
     {
-      level: asked.question.level,
+      // promotion/demotion is judged at the engine's own level (pick.level), even when a stage or the
+      // hub's easier/harder choice served the question from a neighbouring level
+      level: asked.pick.level,
       skill: asked.question.skill,
       slot: asked.pick.slot,
       correct: result.correct,

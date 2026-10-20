@@ -51,5 +51,6 @@ export const slimeModule: StageModule<SlimeState, SlimeAction> = {
     return m ? [m] : [];
   },
   hintAction: { t: 'hint' },
+  retryAction: { t: 'retry' },
   undoAction: { t: 'undo' },
 };

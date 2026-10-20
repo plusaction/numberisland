@@ -47,9 +47,17 @@ export function WorldHost({ children }: { children: ReactNode }) {
       const ray = new Raycaster();
       const ndc = new Vector2();
       let world: RenderWorld | null = null;
+      // one finger at a time: the first pointer owns the gesture; capture keeps drags alive outside the canvas
+      let activePointer: number | null = null;
       const onPointer = (type: 'down' | 'move' | 'up') => (e: PointerEvent) => {
         if (!world || !controller?.pointer) return;
         const c = e.currentTarget as HTMLCanvasElement;
+        if (type === 'down') {
+          if (activePointer !== null) return;
+          activePointer = e.pointerId;
+          c.setPointerCapture?.(e.pointerId);
+        } else if (e.pointerId !== activePointer) return;
+        if (type === 'up') activePointer = null;
         const r = c.getBoundingClientRect();
         ndc.set(((e.clientX - r.left) / r.width) * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1);
         ray.setFromCamera(ndc, world.camera);
@@ -60,6 +68,7 @@ export function WorldHost({ children }: { children: ReactNode }) {
         cv.addEventListener('pointerdown', handlers.down);
         cv.addEventListener('pointermove', handlers.move);
         cv.addEventListener('pointerup', handlers.up);
+        cv.addEventListener('pointercancel', handlers.up);
       };
       attach(canvas);
       const tier = tierFromUrl();

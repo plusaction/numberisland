@@ -10,6 +10,7 @@ import {
   bombRules,
   needed,
   preferBomb,
+  selectionValid,
   solveBomb,
 } from '../../src/stages/bomb/rules';
 import {
@@ -60,7 +61,10 @@ describe('[G1:fishing] 낚시 해결 가능성·결정성', () => {
       const p = fishPuzzle(q, rng);
       expect(solveFishing(p).length, q.id).toBeGreaterThanOrEqual(1);
       expect(p.fish.length).toBeGreaterThanOrEqual(6);
-      for (const f of p.fish) expect(f.value).toBeGreaterThanOrEqual(0);
+      for (const f of p.fish) {
+        expect(f.value).toBeGreaterThanOrEqual(0);
+        expect(f.value, q.id).toBeLessThanOrEqual(levelSpec(q.level).max);
+      }
     }
   });
   it('replay of recorded input reproduces the exact final state', () => {
@@ -79,7 +83,21 @@ describe('[G1:bomb] 폭탄 해결 가능성·결정성', () => {
       const sols = solveBomb(p);
       expect(sols.length, q.id).toBeGreaterThanOrEqual(1);
       expect(p.wires.length).toBeGreaterThanOrEqual(needed(p));
-      for (const w of p.wires) expect(w.value).toBeGreaterThan(-1);
+      for (const w of p.wires) {
+        expect(w.value).toBeGreaterThanOrEqual(p.mode === 'PLACE' ? 0 : 1); // "0 tens" wires exist in PLACE
+        expect(w.value, q.id).toBeLessThanOrEqual(levelSpec(q.level).max);
+      }
+      // every non-solution cut set misses N (explicit, not only "a solution exists")
+      const ok = new Set(sols.map((x) => x.join(',')));
+      const k = needed(p);
+      const ids = p.wires.map((w) => w.id);
+      const all: number[][] = [];
+      const rec = (st: number, acc: number[]) => {
+        if (acc.length === k) return void all.push(acc);
+        for (let i = st; i < ids.length; i++) rec(i + 1, [...acc, ids[i] as number]);
+      };
+      rec(0, []);
+      for (const c of all) if (!ok.has(c.join(','))) expect(selectionValid(p, c)).toBe(false);
     }
   });
   it('replay reproduces the final state', () => {
@@ -98,6 +116,7 @@ describe('[G1:slime] 슬라임 해결 가능성·결정성', () => {
       const p = slimePuzzle(q, rng);
       const d = solveSlime(p.target, p.slimes);
       expect(d, q.id).not.toBeNull();
+      for (const sl of p.slimes) expect(sl.value, q.id).toBeLessThanOrEqual(levelSpec(q.level).max);
       expect(d as number).toBeGreaterThanOrEqual(1);
     }
   });

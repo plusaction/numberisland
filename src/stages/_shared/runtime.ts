@@ -18,8 +18,13 @@ export interface StageRuntime<S, A> extends SceneController {
   /** Freeze input (tutorial demo). */
   locked: boolean;
   screenPos(targetId: number): { x: number; y: number } | null;
-  /** Ticks between an input and the first state change it caused (G2 latency evidence). */
+  /** Ticks between an input and the simulation step that consumed it. */
   readonly latencyTicks: number[];
+  /**
+   * Wall-clock ms from an input to the scene sync that shows/plays its reaction (G2: input → visual/audio).
+   * Measured with performance.now() on the real frame loop.
+   */
+  readonly latencyMs: number[];
 }
 
 export function createStageRuntime<S extends { phase: string; core: RoundCore }, A>(
@@ -35,9 +40,13 @@ export function createStageRuntime<S extends { phase: string; core: RoundCore },
   const subs = new Set<(s: S) => void>();
   const frames: InputFrame<A>[] = [];
   const latency: number[] = [];
+  const latencyMs: number[] = [];
+  let pendingAt: number | null = null;
+  let consumedAt: number | null = null;
   const scene: StageScene<S, A> = mod.createScene(world, ctx);
   let cursor = 0;
   let held: number | null = null;
+  let heldPuzzle = init.core.index;
   let finished = false;
   let pendingSince: number | null = null;
 
@@ -50,11 +59,13 @@ export function createStageRuntime<S extends { phase: string; core: RoundCore },
     },
     frames,
     latencyTicks: latency,
+    latencyMs,
     locked: false,
     dispatch(a) {
       if (rt.locked || finished) return;
       queue.push(a);
       pendingSince ??= state.core.tick;
+      pendingAt ??= performance.now();
     },
     subscribe(fn) {
       subs.add(fn);
@@ -62,6 +73,11 @@ export function createStageRuntime<S extends { phase: string; core: RoundCore },
     },
     screenPos: (id) => scene.screenPos(state, id),
     update(_dt: number, input: ActionSnapshot) {
+      if (state.core.index !== heldPuzzle) {
+        // a slime held by keyboard never carries over into the next puzzle
+        held = null;
+        heldPuzzle = state.core.index;
+      }
       if (!rt.locked && !finished) {
         const targets = mod.keyboard.targets(state);
         const move = (d: number) => {
@@ -82,11 +98,15 @@ export function createStageRuntime<S extends { phase: string; core: RoundCore },
         if (input.pressed.has('undo') && mod.undoAction) rt.dispatch(mod.undoAction);
       }
       const actions = queue.splice(0, queue.length);
+      if (actions.length && pendingAt !== null) {
+        consumedAt = pendingAt;
+        pendingAt = null;
+      }
       const frame: InputFrame<A> = { tick: state.core.tick + 1, actions };
       if (actions.length) frames.push(frame);
       const before = state;
       state = mod.rules.step(state, frame);
-      if (pendingSince !== null && state !== before) {
+      if (pendingSince !== null && actions.length) {
         latency.push(state.core.tick - pendingSince);
         pendingSince = null;
       }
@@ -110,6 +130,10 @@ export function createStageRuntime<S extends { phase: string; core: RoundCore },
   rt.update = (dt, input) => {
     origUpdate(dt, input);
     scene.sync(state, prev, dt);
+    if (consumedAt !== null) {
+      latencyMs.push(performance.now() - consumedAt);
+      consumedAt = null;
+    }
     if (scene.setGlow)
       scene.setGlow(state.core.puzzleHints >= 3 && mod.glowTarget ? mod.glowTarget(state) : null);
     prev = state;

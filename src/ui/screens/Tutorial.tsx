@@ -2,7 +2,7 @@
  * Wordless tutorial (SPEC §11): a ghost hand shows the solution of the first puzzle twice (~15 s),
  * input stays locked meanwhile, then the child solves that same puzzle. Skippable at any time.
  */
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { ko } from '../../i18n/ko';
 import type { StageRuntime } from '../../stages/_shared/runtime';
 import type { AnyStageModule } from '../../stages/registry';
@@ -18,6 +18,9 @@ export function Tutorial({
   onDone(): void;
 }) {
   const [pos, setPos] = useState<{ x: number; y: number; press: boolean } | null>(null);
+  // keep the latest callback without restarting the demo when the parent re-renders
+  const doneRef = useRef(onDone);
+  doneRef.current = onDone;
   useEffect(() => {
     runtime.locked = true;
     const plan = mod.solution(runtime.state) as { id?: number; from?: number; to?: number }[];
@@ -28,8 +31,11 @@ export function Tutorial({
     }
     let i = 0;
     let loops = 0;
+    if (!targets.length) {
+      doneRef.current();
+      return;
+    }
     const timer = window.setInterval(() => {
-      if (!targets.length) return;
       const id = targets[i % targets.length] as number;
       const p = runtime.screenPos(id);
       if (p) setPos({ x: (p.x + 1) / 2, y: (1 - p.y) / 2, press: false });
@@ -38,14 +44,14 @@ export function Tutorial({
       if (i % targets.length === 0) loops++;
       if (loops >= 2) {
         window.clearInterval(timer);
-        window.setTimeout(onDone, 1400);
+        window.setTimeout(() => doneRef.current(), 1400);
       }
     }, 1600);
     return () => {
       window.clearInterval(timer);
       runtime.locked = false;
     };
-  }, [runtime, mod, onDone]);
+  }, [runtime, mod]);
   return (
     <div className="tutorial" data-testid="tutorial">
       <p className="toast">{ko.stageHud.watch}</p>

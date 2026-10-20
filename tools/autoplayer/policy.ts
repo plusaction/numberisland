@@ -14,9 +14,10 @@ export interface BotPolicy {
 }
 
 export const BOTS: Record<'p60' | 'p80' | 'p95', BotPolicy> = {
-  p60: { accuracy: 0.6, reactionTicks: 90, strategy: 'A' },
+  // same reaction time for every bot: differences in time/stars come only from accuracy (G4)
+  p60: { accuracy: 0.6, reactionTicks: 60, strategy: 'A' },
   p80: { accuracy: 0.8, reactionTicks: 60, strategy: 'A' },
-  p95: { accuracy: 0.95, reactionTicks: 40, strategy: 'A' },
+  p95: { accuracy: 0.95, reactionTicks: 60, strategy: 'A' },
 };
 
 /** Pick the correct option with policy accuracy, otherwise a random wrong one. */

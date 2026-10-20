@@ -168,3 +168,32 @@ export function recommendedStage(
   }
   return best;
 }
+
+/**
+ * Leaving mid-round keeps what was learned (adaptive state + answer log) but gives no clear reward.
+ * Nothing decreases (P2).
+ */
+export function applyPartialRound(before: Profile, result: RoundResult, nowIso: string): Profile {
+  let history = before.history;
+  for (const a of result.answers) {
+    history = pushHistory(history, {
+      qid: a.questionId,
+      skill: a.skill,
+      level: a.level,
+      correct: a.correct,
+      hints: a.hintsUsed,
+      ms: Math.round((a.ticks / 60) * 1000),
+      given: a.given,
+      answer: a.answer,
+      ...(a.misconception ? { misconception: a.misconception } : {}),
+      at: nowIso,
+      stage: result.stage,
+    });
+  }
+  return {
+    ...before,
+    history,
+    economy: { ...before.economy, coins: before.economy.coins + result.coins },
+    ...(result.adaptiveAfter ? { adaptive: result.adaptiveAfter } : {}),
+  };
+}

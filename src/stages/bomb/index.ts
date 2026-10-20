@@ -38,4 +38,5 @@ export const bombModule: StageModule<BombState, BombAction> = {
   glowTarget: (s) => (s.puzzle ? (solveBomb(s.puzzle)[0]?.[0] ?? null) : null),
   solution: (s) => (s.puzzle ? (solveBomb(s.puzzle)[0] ?? []).map((id) => ({ t: 'cut' as const, id })) : []),
   hintAction: { t: 'hint' },
+  retryAction: { t: 'retry' },
 };

@@ -41,7 +41,7 @@ export interface HudView {
   /** Ask the HUD to suggest undo (slime dead end). */
   stuck?: boolean;
   /** Wrong-try feedback to show (changes identity per try). */
-  wrong: { value: number; tag?: string } | null;
+  wrong: { value: number; made?: number; tag?: string } | null;
   /** Something good just happened (praise toast). */
   success: boolean;
   canUndo?: boolean;
@@ -64,6 +64,8 @@ export interface StageModule<S extends { phase: string; core: RoundCore }, A> {
   /** Actions that solve the current puzzle (tutorial ghost hand + bots). */
   solution(state: S): A[];
   hintAction: A;
+  /** Dispatched when the child closes hint step 4: same kind of puzzle, new numbers. */
+  retryAction: A;
   /** One correct item to glow at hint step 3+ (pair puzzles). */
   glowTarget?(state: S): number | null;
   undoAction?: A;

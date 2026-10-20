@@ -3,6 +3,7 @@
  * (a result below 0 bounces off). Goal: make one slime equal to the target. Undo is free and unlimited.
  * Puzzles are generated backwards from the target, so a solution always exists (verified by BFS).
  */
+import { levelSpec } from '../../domain/curriculum/curriculum';
 import type { Question, SkillId } from '../../domain/edu/types';
 import type { Rng } from '../../domain/rng/rng';
 import type { InputFrame, StageRules } from '../../domain/stage/types';
@@ -15,6 +16,7 @@ import {
   type RoundOptions,
   recordAttempt,
   roundSummary,
+  sameKindQuestion,
   takeHint,
   withRng,
 } from '../_shared/round';
@@ -58,7 +60,11 @@ export interface SlimeState {
   winner: number | null;
 }
 
-export type SlimeAction = { t: 'merge'; from: number; to: number } | { t: 'undo' } | { t: 'hint' };
+export type SlimeAction =
+  | { t: 'merge'; from: number; to: number }
+  | { t: 'undo' }
+  | { t: 'hint' }
+  | { t: 'retry' };
 
 export const WIN_TICKS = 75;
 const MAX_DEPTH = 6;
@@ -148,7 +154,8 @@ export function puzzleFromQuestion(q: Question, rng: Rng): SlimePuzzle {
   }
   const total = band === 'A' ? 5 : band === 'B' ? 6 : 7;
   const values: { value: number; minus: boolean }[] = parts.slice();
-  const near = (v: number) => Math.max(1, v + rng.pick([1, -1, 2, 10, -10]));
+  const ceiling = levelSpec(q.level).max;
+  const near = (v: number) => Math.min(ceiling, Math.max(1, v + rng.pick([1, -1, 2, 10, -10])));
   let guard = 0;
   while (values.length < total && guard++ < 50) {
     const base = rng.pick(parts);
@@ -164,7 +171,8 @@ export function puzzleFromQuestion(q: Question, rng: Rng): SlimePuzzle {
   }));
   // the target itself must not already be on the tray
   slimes.forEach((sl, i) => {
-    if (i >= parts.length && !sl.minus && sl.value === target) sl.value = target + 1;
+    if (i >= parts.length && !sl.minus && sl.value === target)
+      sl.value = target + 1 <= ceiling ? target + 1 : target - 1;
   });
   const steps = parts.length - 1;
   return { target, slimes, solutionSteps: steps };
@@ -221,6 +229,22 @@ export function stepSlime(state: SlimeState, input: InputFrame<SlimeAction>): Sl
     const puzzle = s.puzzle;
     if (s.phase !== 'play' || !puzzle) break;
     if (a.t === 'hint') s = { ...s, core: takeHint(s.core) };
+    if (a.t === 'retry' && s.core.puzzleHints >= 4) {
+      const core = sameKindQuestion(s.core, preferSlime);
+      const q = core.asked?.question;
+      if (q) {
+        const r = withRng(core, (rng) => puzzleFromQuestion(q, rng));
+        s = {
+          ...s,
+          core: r.core,
+          puzzle: r.value,
+          slimes: r.value.slimes,
+          undo: [],
+          stuckReported: false,
+          event: null,
+        };
+      }
+    }
     if (a.t === 'undo') {
       const prev = s.undo[s.undo.length - 1];
       if (prev)

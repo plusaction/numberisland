@@ -3,6 +3,7 @@
  * Tap two fish (or one for □) → reel in when right, splash back when wrong. Odd fish = free coins.
  */
 import { BALANCE } from '../../domain/balance';
+import { levelSpec } from '../../domain/curriculum/curriculum';
 import type { Op, Question, SkillId } from '../../domain/edu/types';
 import type { Rng } from '../../domain/rng/rng';
 import type { InputFrame, RoundResult, StageRules } from '../../domain/stage/types';
@@ -15,6 +16,7 @@ import {
   type RoundOptions,
   recordAttempt,
   roundSummary,
+  sameKindQuestion,
   takeHint,
   withRng,
 } from '../_shared/round';
@@ -69,13 +71,13 @@ export interface FishingState {
   odd: OddFish | null;
   nextOdd: number;
   oddCaught: number;
-  /** Last wrong pick (for the feedback overlay). */
-  lastWrong: { value: number; tag?: string } | null;
+  /** Last wrong pick (for the feedback overlay): picked value(s) → what they make vs the target. */
+  lastWrong: { value: number; made: number; tag?: string } | null;
   /** Fish ids reeled in this puzzle (signature moment). */
   reeled: number[];
 }
 
-export type FishingAction = { t: 'tap'; id: number } | { t: 'hint' } | { t: 'odd' };
+export type FishingAction = { t: 'tap'; id: number } | { t: 'hint' } | { t: 'odd' } | { t: 'retry' };
 
 export const REEL_TICKS = 70;
 export const BOUNCE_TICKS = 40;
@@ -136,7 +138,8 @@ export function puzzleFromQuestion(q: Question, rng: Rng): FishPuzzle {
   const cands: number[] = [];
   for (const c of q.choices) if (c.value !== q.answer) cands.push(c.value);
   for (const base of correct) for (const d of [1, -1, 10, -10, 2, 100, -100]) cands.push(base + d);
-  const max = Math.max(...correct, target) * 2 + 10;
+  // pieces never exceed the level's number ceiling (curriculum range)
+  const max = Math.min(levelSpec(q.level).max, Math.max(...correct, target) * 2 + 10);
   const push = (v: number) => {
     if (values.length < count && Number.isInteger(v) && v >= 0 && v <= max && !used.has(v)) {
       used.add(v);
@@ -179,6 +182,16 @@ function newPuzzle(s: FishingState): FishingState {
   };
 }
 
+/** New numbers, same kind of problem (after the hint-4 demo). */
+function retryPuzzle(s: FishingState): FishingState {
+  let core = sameKindQuestion(s.core, preferFishing);
+  const q = core.asked?.question;
+  if (!q) return s;
+  const r = withRng(core, (rng) => puzzleFromQuestion(q, rng));
+  core = r.core;
+  return { ...s, core, puzzle: r.value, picked: [], lastWrong: null };
+}
+
 export function initFishing(
   seed: number | string,
   level: Parameters<typeof initRound>[2],
@@ -215,7 +228,12 @@ function evaluate(s: FishingState): FishingState {
       : p.mode === 'sum'
         ? (vals[0] ?? 0) + (vals[1] ?? 0)
         : Math.abs((vals[0] ?? 0) - (vals[1] ?? 0));
-  const tag = q.misconceptionMap[given];
+  // what the picks make on the target panel (□ mode: the equation's result)
+  const k = p.known ?? 0;
+  const x = vals[0] ?? 0;
+  const made = p.mode === 'missing' ? (p.op === '+' ? x + k : p.blank === 0 ? x - k : k - x) : given;
+  // misconception tags only describe the *answer slot* (□ mode); in pair mode the child chose fish, not a result
+  const tag = p.mode === 'missing' ? q.misconceptionMap[given] : undefined;
   if (ok) {
     const core = recordAttempt(s.core, true, given);
     const fish = p.fish.map((f) => (s.picked.includes(f.id) ? { ...f, caught: true } : f));
@@ -235,7 +253,7 @@ function evaluate(s: FishingState): FishingState {
     core,
     phase: 'bounce',
     phaseLeft: BOUNCE_TICKS,
-    lastWrong: tag ? { value: given, tag } : { value: given },
+    lastWrong: tag ? { value: given, made, tag } : { value: given, made },
   };
 }
 
@@ -245,6 +263,7 @@ export function stepFishing(state: FishingState, input: InputFrame<FishingAction
   const tick = s.core.tick;
   for (const a of input.actions) {
     if (a.t === 'hint' && s.phase === 'play') s = { ...s, core: takeHint(s.core) };
+    if (a.t === 'retry' && s.phase === 'play' && s.core.puzzleHints >= 4) s = retryPuzzle(s);
     if (a.t === 'odd' && s.odd) {
       s = {
         ...s,

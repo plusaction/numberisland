@@ -167,3 +167,23 @@ describe('BKT / FSRS', () => {
     expect(good.due - 13).toBeGreaterThanOrEqual(2);
   });
 });
+
+describe('[E5] 난이도 선택(쉽게/어렵게)에서도 적응이 계속됨', () => {
+  it('perfect rounds with shift +1 or −1 still promote; misses with −1 still demote', async () => {
+    const { fishingModule } = await import('../../src/stages/fishing/index');
+    for (const shift of [-1, 1] as const) {
+      let adaptive = createAdaptiveState('A3');
+      for (let round = 0; round < 3; round++) {
+        let s = fishingModule.rules.init(`shift-${shift}-${round}`, adaptive.level, { shift, adaptive });
+        let tick = 0;
+        while (s.phase !== 'done' && tick < 20000)
+          s = fishingModule.rules.step(s, {
+            tick: ++tick,
+            actions: s.phase === 'play' ? fishingModule.solution(s) : [],
+          });
+        adaptive = s.core.session.adaptive;
+      }
+      expect(levelIndex(adaptive.level), `shift ${shift}`).toBeGreaterThan(levelIndex('A3'));
+    }
+  });
+});
