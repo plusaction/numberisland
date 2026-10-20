@@ -4,7 +4,7 @@ import { fmt, ko } from '../../i18n/ko';
 import { Button } from '../components/Button';
 import { SpeakButton } from '../components/SpeakButton';
 import { exprText } from '../question/format';
-import { Column, RepresentationView } from './Representations';
+import { Blocks, Column, RepresentationView } from './Representations';
 
 function StrategyLine({ step }: { step: Extract<HintStep, { kind: 'strategy' }> }) {
   const p = step.parts;
@@ -102,16 +102,40 @@ export function HintBody({ q, level }: { q: Question; level: number }) {
   }
 }
 
+/** Pair puzzles: target picture → strategy → glowing item in the scene → worked demo. Operands stay hidden. */
+function PairHint({ q, level, target, op }: { q: Question; level: number; target: number; op: '+' | '-' }) {
+  if (level <= 1)
+    return (
+      <div className="text-center">
+        <Blocks quantities={[target]} />
+        <p className="mt-2 text-2xl font-bold">{fmt(ko.hint.pair.target, { t: target })}</p>
+      </div>
+    );
+  if (level === 2)
+    return (
+      <div className="text-center">
+        <p className="text-2xl font-bold">{op === '+' ? ko.hint.pair.sumWay : ko.hint.pair.diffWay}</p>
+        <p className="question-main mt-2 text-4xl">
+          {op === '+' ? `${target} − ★ = ?` : `★ − ${target} = ?`}
+        </p>
+      </div>
+    );
+  if (level === 3) return <p className="text-center text-3xl font-extrabold">✨ {ko.hint.pair.glow}</p>;
+  return <HintBody q={q} level={4} />;
+}
+
 export function HintPanel({
   q,
   level,
   onMore,
   onClose,
+  pair,
 }: {
   q: Question;
   level: number;
   onMore(): void;
   onClose(): void;
+  pair?: { target: number; op: '+' | '-' } | undefined;
 }) {
   const title = ko.hint.step[Math.min(3, level - 1)] ?? ko.hint.title;
   return (
@@ -129,7 +153,11 @@ export function HintPanel({
         <SpeakButton text={title} />
       </div>
       <div className="mt-3">
-        <HintBody q={q} level={level} />
+        {pair ? (
+          <PairHint q={q} level={level} target={pair.target} op={pair.op} />
+        ) : (
+          <HintBody q={q} level={level} />
+        )}
       </div>
       <div className="mt-4 flex justify-end gap-3">
         {level < 4 && (

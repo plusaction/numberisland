@@ -22,6 +22,7 @@ export const GLYPHS = [
   '▬',
   '★',
   '◆',
+  'BADGE',
 ] as const;
 export type Glyph = (typeof GLYPHS)[number];
 export const CELL_W = 128;
@@ -57,6 +58,11 @@ function shapePath(ctx: Ctx, g: Glyph, cx: number, cy: number): boolean {
     case '★':
       star(ctx, cx, cy, 36);
       return true;
+    case 'BADGE':
+      // cream plate behind numbers (contrast on water, grass, sky)
+      ctx.beginPath();
+      ctx.roundRect(cx - 58, cy - 72, 116, 136, 40);
+      return true;
     case '◆':
       ctx.beginPath();
       ctx.moveTo(cx, cy - 36);
@@ -85,6 +91,10 @@ export function drawAtlas(ctx: Ctx, ink = '#3b3355') {
       ctx.lineWidth = g === '□' ? 12 : 14;
       if (g === '□') {
         ctx.fillStyle = 'rgba(255,255,255,0.35)';
+      }
+      if (g === 'BADGE') {
+        ctx.fillStyle = '#fff8ec';
+        ctx.lineWidth = 9;
       }
       ctx.stroke();
       ctx.fill();

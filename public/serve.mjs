@@ -37,4 +37,6 @@ createServer((req, res) => {
     'Referrer-Policy': 'no-referrer',
   });
   createReadStream(file).pipe(res);
-}).listen(port, '127.0.0.1', () => console.log(`숫자섬 탐험대: 브라우저에서 localhost:${port} 를 열어 주세요`));
+}).listen(port, '127.0.0.1', () =>
+  console.log(`숫자섬 탐험대: 브라우저에서 localhost:${port} 를 열어 주세요`),
+);

@@ -189,6 +189,12 @@ export const ko = {
     more: '더 알려줘',
     close: '알았어!',
     yourTurn: '이번엔 너 차례!',
+    pair: {
+      target: '목표는 {t}!',
+      sumWay: '★ 하나를 고르고 남은 수 찾기',
+      diffWay: '큰 수에서 목표만큼 빼 보기',
+      glow: '반짝이는 걸 봐!',
+    },
     strategy: {
       MAKE_TEN: '10을 먼저 만들어요',
       SPLIT_SUBTRAHEND: '나눠서 빼요',

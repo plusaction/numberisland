@@ -24,7 +24,8 @@ import { celebrate } from '../_shared/fx';
 import type { StageCtx, StageScene } from '../_shared/module';
 import { type BombAction, type BombState, DEFUSE_TICKS } from './rules';
 
-export const WIRE_COLORS = ['#ff6f91', '#ffc93c', '#4cc38a', '#4aa8ff', '#a77bff', '#ff9a52'];
+// green and blue are reserved for place value (일·십) — wires use other hues + patterns
+export const WIRE_COLORS = ['#ff6f91', '#ffc93c', '#a77bff', '#ff9a52', '#c98a5c', '#ff8fd0'];
 
 /** Wire material: colour + pattern (solid / stripes / dots) so colour is never the only cue (P9). */
 function wireMaterial(hex: string, pattern: number) {
@@ -59,7 +60,7 @@ export function createBombScene(world: RenderWorld, ctx: StageCtx): StageScene<B
   const root = new Group();
   root.name = 'stage-bomb';
   world.scene.add(root);
-  stageCamera(world, 12.5, 7.2, 40, 1.2);
+  stageCamera(world, 13, 6.6, 42, 2.2);
   root.add(baseDiorama(PALETTE.lavender, 7));
   const bench = new Mesh(roundedBox(11, 0.6, 7, 0.25), toyMaterial('#e8c9a0'));
   bench.position.y = 0.3;
@@ -99,6 +100,7 @@ export function createBombScene(world: RenderWorld, ctx: StageCtx): StageScene<B
   const hitStop = new HitStop();
   const shake = new Shake(!ctx.reducedMotion && ctx.shakeIntensity > 0);
   let cursorId: number | null = null;
+  let glowId: number | null = null;
   let giftT = 0;
   let slowmo = 0;
   let t = 0;
@@ -130,7 +132,7 @@ export function createBombScene(world: RenderWorld, ctx: StageCtx): StageScene<B
       const stubB = new Mesh(new TubeGeometry(stubCurveB, 12, 0.11, 10), mat);
       stubA.visible = stubB.visible = false;
       const groupColor =
-        w.group !== undefined ? (PLACE_COLORS[Math.min(3, w.group)] as string) : PALETTE.cream;
+        w.group !== undefined ? (PLACE_COLORS[Math.min(3, w.group)] as string) : PALETTE.peach;
       const post = new Mesh(roundedBox(0.9, 0.5, 0.7, 0.12), toyMaterial(groupColor));
       post.position.set(end.x, 0.85, end.z + 0.2);
       post.castShadow = true;
@@ -182,7 +184,9 @@ export function createBombScene(world: RenderWorld, ctx: StageCtx): StageScene<B
         w.stubA.visible = w.stubB.visible = cut;
         const lift = cursorId === id && !cut ? 0.15 + Math.sin(t * 6) * 0.06 : 0;
         w.label.position.y = 1.65 + lift;
-        w.post.scale.setScalar(cursorId === id ? 1.12 : 1);
+        const glow = glowId === id && !cut ? 1 + Math.abs(Math.sin(t * 4)) * 0.25 : 1;
+        w.post.scale.setScalar((cursorId === id ? 1.12 : 1) * glow);
+        if (glow > 1 && Math.floor(t * 6) % 4 === 0) world.particles.emit('sparkle', w.post.position, 2);
       }
       // bomb puff / defuse
       const s = squashScale(spring.update(vdt) * 0.08);
@@ -201,7 +205,7 @@ export function createBombScene(world: RenderWorld, ctx: StageCtx): StageScene<B
         world.particles.emit('sparkle', { x: 0.55, y: 3.95, z: -1.6 }, 1);
       const sh = shake.update(dt);
       world.camera.position.x = sh.x;
-      world.camera.position.y = 7.2 + sh.y;
+      world.camera.position.y = 6.6 + sh.y;
     },
     pointer(p: PointerInfo, _state, emit) {
       if (p.type !== 'down') return;
@@ -216,6 +220,9 @@ export function createBombScene(world: RenderWorld, ctx: StageCtx): StageScene<B
     },
     setCursor(id) {
       cursorId = id;
+    },
+    setGlow(id) {
+      glowId = id;
     },
     dispose() {
       for (const w of wires.values()) w.label.removeFromParent();

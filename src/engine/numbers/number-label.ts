@@ -67,18 +67,24 @@ export interface NumberLabelOptions {
   placeColors?: boolean;
   /** Draw this char position as □ (missing term). */
   hideIndex?: number;
+  /** Cream plate behind the number (default on): readable on any background. */
+  badge?: boolean;
 }
 
 export class NumberLabel extends Group {
   private text = '';
   private opts: Required<Omit<NumberLabelOptions, 'hideIndex'>> & { hideIndex?: number };
+  private badgeSprite: Sprite | null = null;
 
   constructor(value: number | string, opts: NumberLabelOptions = {}) {
     super();
+    const badge = opts.badge ?? true;
     this.opts = {
       size: opts.size ?? 0.6,
-      tint: opts.tint ?? PALETTE.white,
+      // on a cream badge plain digits are ink-coloured; without a badge they stay white
+      tint: opts.tint ?? (badge ? PALETTE.ink : PALETTE.white),
       placeColors: opts.placeColors ?? false,
+      badge,
     };
     if (opts.hideIndex !== undefined) this.opts.hideIndex = opts.hideIndex;
     this.name = 'number-label';
@@ -97,15 +103,26 @@ export class NumberLabel extends Group {
     const { size, tint, placeColors } = this.opts;
     const w = size * (CELL_W / CELL_H) * 0.78;
     const chars = text.split('') as Glyph[];
-    const total = chars.length * w;
+    // tighter spacing so "15" reads as one number, not "1 5"
+    const step = w * 0.86;
+    const total = chars.length * step;
     const digitsOnly = /^\d+$/.test(text);
+    if (this.opts.badge) {
+      const b = new Sprite(glyphMaterial('BADGE', PALETTE.white));
+      b.scale.set(total + size * 0.55, size * 1.55, 1);
+      b.position.set(0, placeColors && digitsOnly ? -size * 0.18 : 0, 0);
+      b.renderOrder = 1;
+      this.badgeSprite = b;
+      this.add(b);
+    }
     chars.forEach((ch, i) => {
       const placeIdx = chars.length - 1 - i;
       const g: Glyph = this.opts.hideIndex === i ? '□' : GLYPHS.includes(ch) ? ch : '?';
       const tintColor = placeColors && digitsOnly ? (PLACE_COLORS[Math.min(placeIdx, 3)] as string) : tint;
       const s = new Sprite(glyphMaterial(g, tintColor));
       s.scale.set(size * (CELL_W / CELL_H), size, 1);
-      s.position.set(-total / 2 + w * (i + 0.5), 0, 0);
+      s.position.set(-total / 2 + step * (i + 0.5), 0, 0);
+      s.renderOrder = 2;
       s.center.set(0.5, 0.5);
       this.add(s);
       // shape mark under every digit (also single digits) so colour is never the only cue (P9)
@@ -116,9 +133,10 @@ export class NumberLabel extends Group {
             PLACE_COLORS[Math.min(placeIdx, 3)] as string,
           ),
         );
-        const ms = size * 0.5;
+        const ms = size * 0.42;
         mark.scale.set(ms * (CELL_W / CELL_H), ms, 1);
-        mark.position.set(-total / 2 + w * (i + 0.5), -size * 0.72, 0);
+        mark.position.set(-total / 2 + step * (i + 0.5), -size * 0.66, 0);
+        mark.renderOrder = 2;
         this.add(mark);
       }
     });

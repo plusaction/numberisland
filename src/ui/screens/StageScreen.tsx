@@ -212,6 +212,11 @@ export function StageScreen({ store, reducedMotion }: { store: GameStore; reduce
           level={core.puzzleHints}
           onMore={() => rtRef.current?.dispatch(mod.hintAction)}
           onClose={() => setHintOpen(false)}
+          pair={
+            hud.hintMode === 'pair' && hud.target !== undefined
+              ? { target: hud.target, op: hud.pairOp ?? '+' }
+              : undefined
+          }
         />
       )}
       {tutorial && rtRef.current && <Tutorial runtime={rtRef.current} mod={mod} onDone={finishTutorial} />}

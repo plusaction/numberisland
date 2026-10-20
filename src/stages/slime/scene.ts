@@ -1,7 +1,7 @@
 /** ④ 슬라임 합체 diorama: jelly tray, drag-to-merge, overshoot squash on merge (signature). */
 import { Group, Mesh, Plane, Vector3 } from 'three/webgpu';
 import { HitStop, Shake, Spring, squashScale } from '../../engine/fx/juice';
-import { ball, roundedBox } from '../../engine/geo/shapes';
+import { ball, ring, roundedBox } from '../../engine/geo/shapes';
 import { NumberLabel } from '../../engine/numbers/number-label';
 import { PALETTE } from '../../engine/palette';
 import { addOutline, type JellyMaterial, jellyMaterial, toyMaterial } from '../../engine/tsl/materials';
@@ -47,13 +47,13 @@ export function createSlimeScene(world: RenderWorld, ctx: StageCtx): StageScene<
   world.scene.add(root);
   stageCamera(world, 11, 10, 40);
   root.add(baseDiorama(PALETTE.mint, 7.2));
-  const tray = new Mesh(roundedBox(11, 0.5, 6.4, 0.4), toyMaterial('#fff1f6'));
+  const tray = new Mesh(roundedBox(11, 0.5, 6.4, 0.4), toyMaterial(PALETTE.lavender));
   tray.position.y = 0.25;
   tray.receiveShadow = true;
   addOutline(tray, 0.04);
   root.add(tray);
   for (let s = 0; s < 8; s++) {
-    const pad = new Mesh(roundedBox(1.6, 0.06, 1.6, 0.3), toyMaterial('#ffe0ea'));
+    const pad = new Mesh(roundedBox(1.6, 0.06, 1.6, 0.3), toyMaterial('#d9cdfb'));
     pad.position.copy(SLOT_POS(s)).setY(0.52);
     root.add(pad);
   }
@@ -77,11 +77,23 @@ export function createSlimeScene(world: RenderWorld, ctx: StageCtx): StageScene<
     const body = new Mesh(ball(1, 40), jelly.material);
     body.castShadow = true;
     addOutline(body, 0.035);
-    const eyeL = new Mesh(ball(0.09, 12), toyMaterial(PALETTE.ink));
-    eyeL.position.set(-0.22, 0.25, 0.85);
-    const eyeR = eyeL.clone();
-    eyeR.position.x = 0.22;
-    body.add(eyeL, eyeR);
+    // friendly face: big eyes with highlights, small smile, blush
+    const face = new Group();
+    for (const x of [-0.28, 0.28]) {
+      const eye = new Mesh(ball(0.17, 16), toyMaterial(PALETTE.ink));
+      eye.position.set(x, 0.22, 0.86);
+      const shine = new Mesh(ball(0.06, 10), toyMaterial(PALETTE.white));
+      shine.position.set(x + 0.05, 0.3, 1.0);
+      const blush = new Mesh(ball(0.1, 12), toyMaterial('#ff9fb8'));
+      blush.position.set(x * 1.55, 0.0, 0.84);
+      blush.scale.set(1, 0.6, 0.4);
+      face.add(eye, shine, blush);
+    }
+    const mouth = new Mesh(ring(0.12, 0.03), toyMaterial(PALETTE.ink));
+    mouth.position.set(0, -0.05, 0.95);
+    mouth.scale.set(1, 0.7, 1);
+    face.add(mouth);
+    body.add(face);
     const label = new NumberLabel(minus ? `-${value}` : value, {
       size: 0.68,
       placeColors: !minus,

@@ -110,6 +110,8 @@ export function createStageRuntime<S extends { phase: string; core: RoundCore },
   rt.update = (dt, input) => {
     origUpdate(dt, input);
     scene.sync(state, prev, dt);
+    if (scene.setGlow)
+      scene.setGlow(state.core.puzzleHints >= 3 && mod.glowTarget ? mod.glowTarget(state) : null);
     prev = state;
   };
   void world;

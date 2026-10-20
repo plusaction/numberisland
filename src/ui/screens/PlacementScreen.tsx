@@ -10,6 +10,7 @@ import { audio } from '../../infra/audio/audio';
 import { SpeakButton } from '../components/SpeakButton';
 import { ChoiceCross } from '../question/ChoiceCross';
 import { questionText } from '../question/format';
+import { PlaceDigits } from '../question/PlaceDigits';
 
 export function PlacementScreen({
   settings,
@@ -42,7 +43,11 @@ export function PlacementScreen({
         <p className="text-xl">{ko.welcome.meetHint}</p>
         {text.pre && <p className="mt-4 text-3xl font-bold">{text.pre}</p>}
         <p className="question-main mt-4" data-testid="question-main">
-          {text.main}
+          {question.form === 'PLACE' && question.target !== undefined ? (
+            <PlaceDigits n={question.operands[0] ?? 0} place={question.target} />
+          ) : (
+            text.main
+          )}
         </p>
         {text.prompt !== text.main && (
           <p className="mt-2 text-2xl font-bold" data-testid="question-prompt">

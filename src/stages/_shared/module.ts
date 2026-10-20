@@ -20,6 +20,8 @@ export interface StageScene<S, A> {
   screenPos(state: S, targetId: number): { x: number; y: number } | null;
   /** Keyboard cursor highlight (null = none). */
   setCursor(targetId: number | null, held: number | null): void;
+  /** Hint step ≥3 in "pair" puzzles: make one correct item glow (null = none). */
+  setGlow?(targetId: number | null): void;
   dispose(): void;
 }
 
@@ -43,6 +45,13 @@ export interface HudView {
   /** Something good just happened (praise toast). */
   success: boolean;
   canUndo?: boolean;
+  /**
+   * 'pair': the child must *find* the operands (fishing sum/diff, bomb). The hint ladder then shows the
+   * target, a strategy and a glowing item — never the operands themselves.
+   */
+  hintMode?: 'standard' | 'pair';
+  target?: number;
+  pairOp?: '+' | '-';
 }
 
 export interface StageModule<S extends { phase: string; core: RoundCore }, A> {
@@ -55,5 +64,7 @@ export interface StageModule<S extends { phase: string; core: RoundCore }, A> {
   /** Actions that solve the current puzzle (tutorial ghost hand + bots). */
   solution(state: S): A[];
   hintAction: A;
+  /** One correct item to glow at hint step 3+ (pair puzzles). */
+  glowTarget?(state: S): number | null;
   undoAction?: A;
 }

@@ -27,7 +27,10 @@ export const fishingModule: StageModule<FishingState, FishingAction> = {
     goal: goal(s),
     wrong: s.phase === 'bounce' ? s.lastWrong : null,
     success: s.phase === 'reel',
+    hintMode: s.puzzle && s.puzzle.mode !== 'missing' ? 'pair' : 'standard',
+    ...(s.puzzle ? { target: s.puzzle.target, pairOp: s.puzzle.mode === 'diff' ? '-' : '+' } : {}),
   }),
+  glowTarget: (s) => (s.puzzle ? (solveFishing(s.puzzle)[0]?.[0] ?? null) : null),
   solution: (s) =>
     s.puzzle ? (solveFishing(s.puzzle)[0] ?? []).map((id) => ({ t: 'tap' as const, id })) : [],
   hintAction: { t: 'hint' },

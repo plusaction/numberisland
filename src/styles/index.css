@@ -363,3 +363,17 @@
     top: 1rem;
   }
 }
+
+@layer components {
+  .place-asked {
+    outline: 5px dashed var(--color-ink);
+    outline-offset: 2px;
+    background: white;
+    animation: asked-pulse 1.2s ease-in-out infinite;
+  }
+  @keyframes asked-pulse {
+    50% {
+      transform: scale(1.08);
+    }
+  }
+}

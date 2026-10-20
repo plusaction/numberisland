@@ -1,6 +1,6 @@
 /**
  * 4-choice cross layout (↑ ← → ↓) matching arrow keys / WASD (SPEC §8.1); 2 choices use ← →.
- * Shapes ◆ ● ▲ ■ mark each slot so colour is never the only cue.
+ * A small arrow in each slot tells keyboard players which key picks it.
  */
 import { useEffect } from 'react';
 import type { Choice } from '../../domain/edu/types';
@@ -15,7 +15,8 @@ const SLOT_KEYS: Record<string, number> = {
   ArrowDown: 3,
   KeyS: 3,
 };
-const SHAPES = ['▲', '◆', '●', '■'];
+// small arrows show which key picks the slot (no pad-like symbols, no clash with place-value marks)
+const ARROWS = ['↑', '←', '→', '↓'];
 const POS = [
   'col-start-2 row-start-1',
   'col-start-1 row-start-2',
@@ -66,7 +67,7 @@ export function ChoiceCross({
           className={`toy-btn choice-btn ${two ? '' : POS[i]} ${shake === c.value ? 'animate-wiggle' : ''}`}
         >
           <span aria-hidden="true" className="choice-shape">
-            {SHAPES[two ? (i === 0 ? 1 : 2) : i]}
+            {ARROWS[two ? (i === 0 ? 1 : 2) : i]}
           </span>
           <span className="choice-num">{c.display ? c.display.replaceAll('-', '−') : c.value}</span>
         </button>

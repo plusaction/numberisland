@@ -87,6 +87,7 @@ export function createFishingScene(
   let puzzleRef: FishingState['puzzle'] = null;
   const proxies: Mesh[] = [];
   let cursorId: number | null = null;
+  let glowId: number | null = null;
   const hitStop = new HitStop();
   const shake = new Shake(!ctx.reducedMotion && ctx.shakeIntensity > 0);
   let t = 0;
@@ -243,6 +244,10 @@ export function createFishingScene(
           v.group.position.y += picked ? 0.35 : 0;
           v.group.visible = true;
           if (cursorId === id && !picked) v.group.position.y += 0.15 + Math.sin(t * 6) * 0.08;
+          if (glowId === id && !picked) {
+            v.group.scale.multiplyScalar(1 + Math.abs(Math.sin(t * 4)) * 0.25);
+            if (Math.floor(t * 6) % 4 === 0) world.particles.emit('sparkle', v.group.position, 2);
+          }
         }
       }
       // fishing line to the picked fish
@@ -293,6 +298,9 @@ export function createFishingScene(
     },
     setCursor(id) {
       cursorId = id;
+    },
+    setGlow(id) {
+      glowId = id;
     },
     dispose() {
       for (const v of fishViews.values()) disposeTree(v.group);
