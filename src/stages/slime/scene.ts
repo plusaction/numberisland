@@ -68,6 +68,7 @@ export function createSlimeScene(world: RenderWorld, ctx: StageCtx): StageScene<
   const shake = new Shake(!ctx.reducedMotion && ctx.shakeIntensity > 0);
   let cursorId: number | null = null;
   let heldId: number | null = null;
+  let glowId: number | null = null;
   let lastEventTick = -1;
   let t = 0;
 
@@ -194,6 +195,10 @@ export function createSlimeScene(world: RenderWorld, ctx: StageCtx): StageScene<
         v.label.position.y = r * 1.05 + 0.55;
         if (state.phase === 'win' && state.winner === id && !ctx.reducedMotion)
           v.group.position.y += Math.abs(Math.sin(t * 7)) * 0.4;
+        if (glowId === id) {
+          v.group.position.y += 0.2 + Math.abs(Math.sin(t * 4)) * 0.2;
+          if (Math.floor(t * 6) % 4 === 0) world.particles.emit('sparkle', v.group.position, 2);
+        }
       }
       const sh = shake.update(dt);
       world.camera.position.x = sh.x;
@@ -235,6 +240,9 @@ export function createSlimeScene(world: RenderWorld, ctx: StageCtx): StageScene<
     setCursor(id, held) {
       cursorId = id;
       heldId = held;
+    },
+    setGlow(id) {
+      glowId = id;
     },
     dispose() {
       disposeTree(root);

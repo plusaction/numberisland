@@ -122,6 +122,21 @@ describe('[E4] 힌트 4단계', () => {
   });
 });
 
+describe('[E4] 전략 힌트의 역연산이 정확함', () => {
+  it('INVERSE_OP "x ± y" always equals the missing value (a − □ = c ⇒ a − c, □ − b = c ⇒ c + b)', () => {
+    for (const level of CURRICULUM) {
+      const rng = createRng(`inv-${level.id}`);
+      for (let i = 0; i < 600; i++) {
+        const q = generateQuestion({ level: level.id, rng });
+        const st = q.hintPlan[1];
+        if (st?.kind !== 'strategy' || st.strategy !== 'INVERSE_OP') continue;
+        const [x = 0, y = 0, sign = -1] = st.parts;
+        expect(sign < 0 ? x - y : x + y, q.id).toBe(q.answer);
+      }
+    }
+  });
+});
+
 describe('[E6] 표현 다양성', () => {
   it('all 5 representations exist; every band uses ≥2', () => {
     const used = new Map<string, Set<Representation>>();

@@ -45,7 +45,14 @@ export const slimeModule: StageModule<SlimeState, SlimeAction> = {
     wrong: null, // bounce/dead-end feedback is the wobble + the undo suggestion
     success: s.phase === 'win',
     canUndo: s.undo.length > 0,
+    // the slimes to merge are the question's parts → use the pair ladder (target, strategy, glowing slime)
+    hintMode: 'pair',
+    ...(s.puzzle ? { target: s.puzzle.target, pairOp: '+' as const } : {}),
   }),
+  glowTarget: (s) => {
+    const m = nextGoodMove(s);
+    return m && m.t === 'merge' ? m.from : null;
+  },
   solution: (s) => {
     const m = nextGoodMove(s);
     return m ? [m] : [];

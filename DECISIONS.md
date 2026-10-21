@@ -14,3 +14,4 @@
 | D10 | 2026-10-20 | 그림자 = **PCFShadowMap + shadow.radius**(three r18x에서 PCFSoftShadowMap 제거) | WebGPURenderer 경고로 확인. VSM은 WebGL2 폴백 비용·아티팩트로 제외 |
 | D11 | 2026-10-20 | three r186의 `swizzle:'rgba'` 텍스처 뷰 기본값을 거부하는 구형 Chrome용 호환 shim(`infra/render/webgpu-compat.ts`) | Chrome 141에서 매 프레임 TypeError 확인. 기본 swizzle 제거는 무손실 |
 | D12 | 2026-10-20 | `check-offline`은 `//` 주석 줄 안의 링크(셰이더 출처 표기)를 무시하고 개수만 보고 | 요청을 만들지 않는 텍스트. fetch/XHR/WebSocket/외부 script·link·CSS url()은 계속 실패 처리 |
+| D13 | 2026-10-21 | 첫 시도 오답이 **현재 레벨 이하의 리뷰 문제**에서 나와도 강등 증거로 계산, 연속 오답 중에는 도전(+1) 문제를 내지 않음 | 계속 틀리는 아이에게 리뷰·도전만 뽑혀 'current' 오답이 쌓이지 않아 강등이 일어나지 않던 결함(테스트 `[E5] 쉽게(−1)에서 계속 틀리면 강등`) |

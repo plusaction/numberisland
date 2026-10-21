@@ -38,14 +38,23 @@ for (const stage of ['fishing', 'bomb', 'slime'] as const) {
     await expect(page.getByTestId('next-goal')).toBeVisible();
     await expect(page.getByTestId('next-goal')).not.toBeEmpty();
     await page.waitForTimeout(2500); // let the star animation finish before the screenshot
-    const latency = await page.evaluate(
-      () =>
-        (globalThis as { __stage?: { runtime: { latencyTicks: number[] } } }).__stage?.runtime.latencyTicks ??
-        [],
+    const lat = await page.evaluate(() => {
+      const rt = (globalThis as { __stage?: { runtime: { latencyTicks: number[]; latencyMs: number[] } } })
+        .__stage?.runtime;
+      return { ticks: rt?.latencyTicks ?? [], ms: rt?.latencyMs ?? [] };
+    });
+    expect(lat.ms.length).toBeGreaterThan(5);
+    // every input is consumed by the very next simulation step
+    expect(Math.max(...lat.ticks)).toBeLessThanOrEqual(2);
+    // wall clock from input to the scene sync that plays its sound/animation, measured on this machine.
+    // CPU-only SwiftShader frames are slow, so the ≤100 ms target itself is checked on real GPUs (pnpm bench);
+    // here we only guard against regressions (median ≤ 300 ms).
+    const sorted = lat.ms.slice().sort((x, y) => x - y);
+    const median = sorted[Math.floor(sorted.length / 2)] as number;
+    console.info(
+      `[latency:${stage}] median ${median.toFixed(0)} ms, max ${(sorted[sorted.length - 1] as number).toFixed(0)} ms`,
     );
-    expect(latency.length).toBeGreaterThan(0);
-    // input → state change within 6 simulation ticks (= 100 ms at 60 Hz)
-    expect(Math.max(...latency)).toBeLessThanOrEqual(6);
+    expect(median).toBeLessThanOrEqual(300);
     await page.screenshot({ path: `docs/review/m4/e2e-${stage}-result-${info.project.name}.png` });
     // the round was saved: back on the island the stage shows its stars
     await page.getByTestId('to-hub').click();
@@ -94,4 +103,27 @@ test('[G7] keyboard H opens the hint panel; Escape closes it, then leaves the st
   await expect(page.getByTestId('hint-panel')).toHaveCount(0);
   await page.locator('body').press('Escape');
   await expect(page.getByTestId('hub')).toBeVisible();
+});
+
+test('[E4] after hint 4 the new-numbers retry updates the goal shown to the child', async ({
+  page,
+}, info) => {
+  test.setTimeout(180_000);
+  await startFresh(page, url(info, '/'));
+  await throughPlacement(page);
+  await page.getByTestId('start').click(); // fishing is the default selection
+  await page.getByTestId('go').click();
+  await page.getByTestId('skip-tutorial').click();
+  await page.getByTestId('hint').click();
+  for (let i = 0; i < 3; i++) await page.getByTestId('hint-more').click();
+  await expect(page.getByTestId('hint-panel')).toHaveAttribute('data-level', '4');
+  const before = await page.getByTestId('goal').innerText();
+  await page.getByText('알았어!').click();
+  await expect(page.getByTestId('goal')).not.toHaveText(before);
+  const target = await page.evaluate(
+    () =>
+      (globalThis as { __stage?: { runtime: { state: { puzzle: { target: number } } } } }).__stage?.runtime
+        .state.puzzle.target,
+  );
+  await expect(page.getByTestId('goal')).toContainText(String(target));
 });

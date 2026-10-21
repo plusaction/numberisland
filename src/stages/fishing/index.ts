@@ -34,7 +34,9 @@ export const fishingModule: StageModule<FishingState, FishingAction> = {
     hintMode: s.puzzle && s.puzzle.mode !== 'missing' ? 'pair' : 'standard',
     ...(s.puzzle ? { target: s.puzzle.target, pairOp: s.puzzle.mode === 'diff' ? '-' : '+' } : {}),
   }),
-  glowTarget: (s) => (s.puzzle ? (solveFishing(s.puzzle)[0]?.[0] ?? null) : null),
+  // only pair puzzles glow one *part*; in □ mode the single fish is the answer itself, so no glow
+  glowTarget: (s) =>
+    s.puzzle && s.puzzle.mode !== 'missing' ? (solveFishing(s.puzzle)[0]?.[0] ?? null) : null,
   solution: (s) =>
     s.puzzle ? (solveFishing(s.puzzle)[0] ?? []).map((id) => ({ t: 'tap' as const, id })) : [],
   hintAction: { t: 'hint' },

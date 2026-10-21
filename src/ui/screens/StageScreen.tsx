@@ -90,7 +90,7 @@ export function StageScreen({ store, reducedMotion }: { store: GameStore; reduce
     const update = (s: typeof init) => {
       // re-render the HUD only when something it shows changed (state changes every tick)
       const c = s.core;
-      const sig = `${s.phase}|${c.index}|${c.coins}|${c.correct}|${c.wrong}|${c.puzzleHints}|${(s as { puzzle?: unknown }).puzzle ? 1 : 0}|${(s as { undo?: unknown[] }).undo?.length ?? 0}|${(s as { slimes?: unknown[] }).slimes?.length ?? 0}`;
+      const sig = `${s.phase}|${c.asked?.question.key ?? ''}|${c.index}|${c.coins}|${c.correct}|${c.wrong}|${c.puzzleHints}|${(s as { puzzle?: unknown }).puzzle ? 1 : 0}|${(s as { undo?: unknown[] }).undo?.length ?? 0}|${(s as { slimes?: unknown[] }).slimes?.length ?? 0}`;
       if (sig !== lastSig) {
         lastSig = sig;
         setHud(mod.hud(s));
@@ -117,7 +117,7 @@ export function StageScreen({ store, reducedMotion }: { store: GameStore; reduce
     if (!profile.tutorialSeen[selected]) setTutorial(true);
     const offKeys = api.input.onAction((a) => {
       if (a !== 'cancel' || store.getState().screen !== 'stage') return;
-      if (document.querySelector('[data-testid="hint-panel"]')) setHintOpen(false);
+      if (document.querySelector('[data-testid="hint-panel"]')) closeHintRef.current();
       else exitRef.current();
     });
     return () => {
@@ -133,6 +133,12 @@ export function StageScreen({ store, reducedMotion }: { store: GameStore; reduce
     audio.play('ui.back');
     const rt = rtRef.current as StageRuntime<{ phase: string }, unknown> | null;
     const p = store.getState().profile;
+    // finished in the last moment: hand the full result over (the result screen shows it)
+    if (rt && mod && p && rt.state.phase === 'done') {
+      const result = mod.rules.summary(rt.state);
+      store.getState().finishRound(result, applyRoundResult(p, result, new Date().toISOString(), PLAYABLE));
+      return;
+    }
     // keep what was learned in an unfinished round (P2: nothing is lost)
     if (rt && mod && p && rt.state.phase !== 'done') {
       store
@@ -141,6 +147,14 @@ export function StageScreen({ store, reducedMotion }: { store: GameStore; reduce
     }
     store.getState().go('hub');
   };
+  /** Closing the panel after step 4 (button, Esc or pad) always starts the new-numbers retry. */
+  const closeHint = () => {
+    setHintOpen(false);
+    const rt = rtRef.current as StageRuntime<{ core: { puzzleHints: number } }, unknown> | null;
+    if (mod && rt && rt.state.core.puzzleHints >= 4) rt.dispatch(mod.retryAction);
+  };
+  const closeHintRef = useRef(closeHint);
+  closeHintRef.current = closeHint;
   const exitRef = useRef(exit);
   exitRef.current = exit;
   const finishTutorial = useCallback(() => {
@@ -244,11 +258,7 @@ export function StageScreen({ store, reducedMotion }: { store: GameStore; reduce
           q={q}
           level={core.puzzleHints}
           onMore={() => rtRef.current?.dispatch(mod.hintAction)}
-          onClose={() => {
-            setHintOpen(false);
-            // after the worked demo: try again with new numbers (never auto-filled)
-            if (core.puzzleHints >= 4) rtRef.current?.dispatch(mod.retryAction);
-          }}
+          onClose={closeHint}
           pair={
             hud.hintMode === 'pair' && hud.target !== undefined
               ? { target: hud.target, op: hud.pairOp ?? '+' }

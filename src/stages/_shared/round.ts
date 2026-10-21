@@ -38,6 +38,8 @@ export interface RoundCore {
   index: number;
   asked: Asked | null;
   puzzleHints: number;
+  /** Hints spent on this puzzle before a "retry with new numbers" (still count for records/coins). */
+  hintCarry: number;
   puzzleWrong: number;
   puzzleStart: number;
   answers: AnswerRecord[];
@@ -69,6 +71,7 @@ export function initRound(
     index: 0,
     asked: null,
     puzzleHints: 0,
+    hintCarry: 0,
     puzzleWrong: 0,
     puzzleStart: 0,
     answers: [],
@@ -157,6 +160,7 @@ export function nextStageQuestion(
       session: r.session,
       asked: { question, pick: { ...pick, skill: question.skill } },
       puzzleHints: 0,
+      hintCarry: 0,
       puzzleWrong: 0,
       puzzleStart: core.tick,
     };
@@ -180,7 +184,7 @@ export function recordAttempt(
       session = answerQuestion(
         session,
         asked,
-        { correct: false, hintsUsed: core.puzzleHints },
+        { correct: false, hintsUsed: core.puzzleHints + core.hintCarry },
         core.day,
       ).session;
     const rec: AnswerRecord = {
@@ -188,7 +192,7 @@ export function recordAttempt(
       level: q.level,
       skill: q.skill,
       correct: false,
-      hintsUsed: core.puzzleHints,
+      hintsUsed: core.puzzleHints + core.hintCarry,
       given,
       answer: q.answer,
       ticks: core.tick - core.puzzleStart,
@@ -209,7 +213,7 @@ export function recordAttempt(
     session = answerQuestion(
       session,
       asked,
-      { correct: true, hintsUsed: core.puzzleHints },
+      { correct: true, hintsUsed: core.puzzleHints + core.hintCarry },
       core.day,
     ).session;
     answers = [
@@ -219,7 +223,7 @@ export function recordAttempt(
         level: q.level,
         skill: q.skill,
         correct: true,
-        hintsUsed: core.puzzleHints,
+        hintsUsed: core.puzzleHints + core.hintCarry,
         given,
         answer: q.answer,
         ticks: core.tick - core.puzzleStart,
@@ -234,7 +238,7 @@ export function recordAttempt(
     session,
     answers,
     correct: core.correct + 1,
-    coins: core.coins + coinsForAnswer(true, core.puzzleHints),
+    coins: core.coins + coinsForAnswer(true, core.puzzleHints + core.hintCarry),
     streak,
     highlights,
   };
@@ -298,7 +302,8 @@ export function sameKindQuestion(core: RoundCore, prefer?: (q: Question) => bool
         cand.form === old.form &&
         cand.missingIndex === old.missingIndex &&
         cand.ops.length === old.ops.length;
-      if (cand.key !== old.key && sameShape && (!prefer || prefer(cand))) {
+      // new numbers *and* a different answer, so the demo/old puzzle cannot be copied
+      if (cand.key !== old.key && cand.answer !== old.answer && sameShape && (!prefer || prefer(cand))) {
         q = cand;
         break;
       }
@@ -307,6 +312,9 @@ export function sameKindQuestion(core: RoundCore, prefer?: (q: Question) => bool
       ...core,
       asked: { ...asked, question: q },
       session: { ...core.session, recentKeys: [...core.session.recentKeys, q.key] },
+      // the new puzzle starts with a fresh hint ladder (no glowing answer); spent hints carry over
+      hintCarry: core.hintCarry + core.puzzleHints,
+      puzzleHints: 0,
     };
   }).value;
 }

@@ -40,9 +40,12 @@ export function strategyFor(core: Core): { strategy: StrategyId; parts: number[]
       return { strategy: 'MAKE_TEN', parts: core.operands.slice() };
     case 'MISSING_TERM':
     case 'RELATION': {
+      // parts = [x, y, sign] read as "x ± y = ?" — the inverse calculation that finds □
       const mi = core.missingIndex ?? 1;
-      const known = mi === 0 ? b : a;
-      return { strategy: 'INVERSE_OP', parts: [core.result, known, op === '+' ? -1 : 1] };
+      if (op === '+') return { strategy: 'INVERSE_OP', parts: [core.result, mi === 0 ? b : a, -1] }; // a + □ = c → c − a
+      if (mi === 1) return { strategy: 'INVERSE_OP', parts: [a, core.result, -1] }; // a − □ = c → a − c
+      if (mi === 0) return { strategy: 'INVERSE_OP', parts: [core.result, b, 1] }; // □ − b = c → c + b
+      return { strategy: 'INVERSE_OP', parts: [a, b, -1] };
     }
     case 'SKIP_COUNT':
       return { strategy: 'JUMP_STEP', parts: [core.target ?? 1] };

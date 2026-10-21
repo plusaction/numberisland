@@ -169,7 +169,7 @@ describe('BKT / FSRS', () => {
 });
 
 describe('[E5] 난이도 선택(쉽게/어렵게)에서도 적응이 계속됨', () => {
-  it('perfect rounds with shift +1 or −1 still promote; misses with −1 still demote', async () => {
+  it('perfect rounds with shift +1 or −1 still promote', async () => {
     const { fishingModule } = await import('../../src/stages/fishing/index');
     for (const shift of [-1, 1] as const) {
       let adaptive = createAdaptiveState('A3');
@@ -185,5 +185,26 @@ describe('[E5] 난이도 선택(쉽게/어렵게)에서도 적응이 계속됨',
       }
       expect(levelIndex(adaptive.level), `shift ${shift}`).toBeGreaterThan(levelIndex('A3'));
     }
+  });
+});
+
+describe('[E5] 쉽게(−1)에서 계속 틀리면 강등', () => {
+  it('a child missing every first try at shift −1 is demoted', async () => {
+    const { initRound, nextStageQuestion, recordAttempt, advancePuzzle } = await import(
+      '../../src/stages/_shared/round'
+    );
+    let core = initRound('fishing', 'demote', 'A4', { shift: -1, adaptive: createAdaptiveState('A4') });
+    for (let i = 0; i < 6; i++) {
+      core = nextStageQuestion(core, [
+        'ADD_NOCARRY',
+        'ADD_CARRY',
+        'SUB_NOBORROW',
+        'SUB_BORROW',
+        'MISSING_TERM',
+      ]);
+      core = recordAttempt(core, false, -1);
+      core = { ...advancePuzzle(core), done: false };
+    }
+    expect(levelIndex(core.session.adaptive.level)).toBeLessThan(levelIndex('A4'));
   });
 });

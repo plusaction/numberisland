@@ -152,7 +152,13 @@ export function recordAnswer(
     }
   }
 
-  if (input.slot === 'current' && input.level === state.level) {
+  // A miss on review content at or below the current level is also evidence the level is too high
+  // (otherwise a child failing everything could be served only reviews/challenges and never demoted).
+  const evidence =
+    input.slot === 'current'
+      ? input.level === state.level
+      : input.slot === 'review' && !input.correct && levelIndex(input.level) <= levelIndex(state.level);
+  if (evidence) {
     const recent = [...state.recent, input.correct].slice(-8);
     const streak = input.correct ? state.streak + 1 : 0;
     const wrongStreak = input.correct ? 0 : state.wrongStreak + 1;
@@ -265,7 +271,8 @@ export function chooseNext(
     );
     return { level: lvl, skill, slot: 'review', autoHint: false };
   }
-  if (roll < mix.review + mix.challenge) {
+  // no harder questions while the child is struggling
+  if (roll < mix.review + mix.challenge && state.wrongStreak === 0) {
     const up = stepLevel(state.level, 1, settings);
     if (up !== state.level)
       return {

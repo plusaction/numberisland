@@ -45,7 +45,8 @@ export function FeedbackOverlay({
       case 'CARRY_DOT_RISE':
       case 'BORROW_UNBUNDLE':
       case 'PLACE_COLUMNS_ALIGN':
-        body = <Column a={a} b={b} op={op} columns={columnSteps(a, b, op)} />;
+        // carry/borrow marks only — the result digits stay as empty boxes (never show the answer)
+        body = <Column a={a} b={b} op={op} columns={columnSteps(a, b, op)} revealUpTo={-1} />;
         break;
       case 'NUMBERLINE_TEN_JUMP':
       case 'NUMBERLINE_ONE_STEP':
@@ -55,6 +56,7 @@ export function FeedbackOverlay({
             hop={Math.abs(given - q.answer)}
             op={given < q.answer ? '+' : '-'}
             hideEnd
+            hideHop
           />
         );
         break;
@@ -70,7 +72,7 @@ export function FeedbackOverlay({
         );
         break;
       default:
-        body = <Column a={a} b={b} op={op} columns={columnSteps(a, b, op)} />;
+        body = <Column a={a} b={b} op={op} columns={columnSteps(a, b, op)} revealUpTo={-1} />;
     }
   return (
     <motion.div

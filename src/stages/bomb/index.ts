@@ -35,7 +35,7 @@ export const bombModule: StageModule<BombState, BombAction> = {
     hintMode: s.puzzle && s.puzzle.mode !== 'PLACE' ? 'pair' : 'standard',
     ...(s.puzzle ? { target: s.puzzle.target, pairOp: s.puzzle.mode === 'DIFF2' ? '-' : '+' } : {}),
   }),
-  glowTarget: (s) => (s.puzzle ? (solveBomb(s.puzzle)[0]?.[0] ?? null) : null),
+  glowTarget: (s) => (s.puzzle && s.puzzle.mode !== 'PLACE' ? (solveBomb(s.puzzle)[0]?.[0] ?? null) : null),
   solution: (s) => (s.puzzle ? (solveBomb(s.puzzle)[0] ?? []).map((id) => ({ t: 'cut' as const, id })) : []),
   hintAction: { t: 'hint' },
   retryAction: { t: 'retry' },
