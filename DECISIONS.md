@@ -15,3 +15,4 @@
 | D11 | 2026-10-20 | three r186의 `swizzle:'rgba'` 텍스처 뷰 기본값을 거부하는 구형 Chrome용 호환 shim(`infra/render/webgpu-compat.ts`) | Chrome 141에서 매 프레임 TypeError 확인. 기본 swizzle 제거는 무손실 |
 | D12 | 2026-10-20 | `check-offline`은 `//` 주석 줄 안의 링크(셰이더 출처 표기)를 무시하고 개수만 보고 | 요청을 만들지 않는 텍스트. fetch/XHR/WebSocket/외부 script·link·CSS url()은 계속 실패 처리 |
 | D13 | 2026-10-21 | 첫 시도 오답이 **현재 레벨 이하의 리뷰 문제**에서 나와도 강등 증거로 계산, 연속 오답 중에는 도전(+1) 문제를 내지 않음 | 계속 틀리는 아이에게 리뷰·도전만 뽑혀 'current' 오답이 쌓이지 않아 강등이 일어나지 않던 결함(테스트 `[E5] 쉽게(−1)에서 계속 틀리면 강등`) |
+| D14 | 2026-10-21 | 웹 호스팅 = **Vercel 정적 배포**(GitHub 연동). 헤더 원본은 `vercel.json`(=`public/_headers`와 동일 값, 다른 정적 호스트용으로 유지), `/assets/*` 1년 immutable, `index.html` no-cache, `packageManager: pnpm@10.28.0` 고정 | 사용자 요청. 분석·툴바 등 Vercel 부가 기능은 P1 위반이라 사용 안 함 |

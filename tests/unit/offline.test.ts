@@ -1,5 +1,5 @@
 import { execFileSync } from 'node:child_process';
-import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
@@ -46,5 +46,24 @@ describe('[S1] 네트워크 0 검사기', () => {
   }
   it('fails when the CSP meta is missing', () => {
     expect(run({ 'index.html': '<html></html>' }, false)).toBe(false);
+  });
+});
+
+describe('[S4] Vercel hosting keeps the same security headers', () => {
+  it('vercel.json sends every header from public/_headers on all paths', () => {
+    const lines = readFileSync('public/_headers', 'utf8')
+      .split('\n')
+      .slice(1)
+      .filter((l) => l.trim());
+    const expected = lines.map((l) => {
+      const i = l.indexOf(':');
+      return { key: l.slice(0, i).trim(), value: l.slice(i + 1).trim() };
+    });
+    const cfg = JSON.parse(readFileSync('vercel.json', 'utf8')) as {
+      outputDirectory: string;
+      headers: { source: string; headers: { key: string; value: string }[] }[];
+    };
+    expect(cfg.outputDirectory).toBe('dist');
+    expect(cfg.headers.find((h) => h.source === '/(.*)')?.headers).toEqual(expected);
   });
 });

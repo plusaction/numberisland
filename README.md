@@ -26,6 +26,13 @@ URL 옵션: `?renderer=webgl`(WebGL2 강제), `?debug=1`(백엔드·티어·프�
 ## 배포
 정적 호스팅(Cloudflare Pages / Netlify / GitHub Pages 등)에 `dist/`를 그대로 올리면 됩니다. `dist/_headers`에 보안 헤더(CSP 등)가 들어 있습니다.
 
+### Vercel
+1. 이 저장소를 GitHub에 올립니다.
+2. vercel.com → **Add New → Project** → 저장소 **Import** → **Deploy**. 설정은 `vercel.json`이 정합니다(Vite, `pnpm build`, `dist/`, 보안 헤더·캐시). 따로 바꿀 것이 없습니다.
+3. 이후 `main`에 푸시할 때마다 자동으로 다시 배포됩니다.
+
+Vercel Analytics·Speed Insights는 켜지 마세요(아이 안전 P1: 원격 분석 금지, CSP가 막습니다). 미리보기 배포의 Vercel 툴바는 프로젝트 설정에서 끄는 것을 권장합니다.
+
 ## 조작
 | 동작 | 마우스·터치 | 키보드 | 게임패드 |
 |---|---|---|---|
