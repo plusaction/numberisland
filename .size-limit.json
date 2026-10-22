@@ -20,7 +20,7 @@
   {
     "name": "stage bomb (gzip)",
     "path": "dist/assets/bomb-*.js",
-    "limit": "6 kB",
+    "limit": "8 kB",
     "gzip": true
   },
   {

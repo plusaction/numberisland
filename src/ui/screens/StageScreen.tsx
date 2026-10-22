@@ -14,7 +14,6 @@ import type { HudView } from '../../stages/_shared/module';
 import { createStageRuntime, type StageRuntime } from '../../stages/_shared/runtime';
 import { type AnyStageModule, STAGE_LOADERS } from '../../stages/registry';
 import { Button } from '../components/Button';
-import { SpeakButton } from '../components/SpeakButton';
 import { FeedbackOverlay } from '../hints/FeedbackOverlay';
 import { HintPanel } from '../hints/HintPanel';
 import { Tutorial } from './Tutorial';
@@ -91,7 +90,7 @@ export function StageScreen({ store, reducedMotion }: { store: GameStore; reduce
     const update = (s: typeof init) => {
       // re-render the HUD only when something it shows changed (state changes every tick)
       const c = s.core;
-      const sig = `${s.phase}|${c.asked?.question.key ?? ''}|${c.index}|${c.coins}|${c.correct}|${c.wrong}|${c.puzzleHints}|${(s as { puzzle?: unknown }).puzzle ? 1 : 0}|${(s as { undo?: unknown[] }).undo?.length ?? 0}|${(s as { slimes?: unknown[] }).slimes?.length ?? 0}|${(s as { cut?: unknown[] }).cut?.length ?? 0}`;
+      const sig = `${s.phase}|${c.asked?.question.key ?? ''}|${c.index}|${c.coins}|${c.correct}|${c.wrong}|${c.puzzleHints}|${(s as { puzzle?: unknown }).puzzle ? 1 : 0}|${(s as { undo?: unknown[] }).undo?.length ?? 0}|${(s as { slimes?: unknown[] }).slimes?.length ?? 0}|${(s as { cut?: unknown[] }).cut?.length ?? 0}|${(s as { picked?: unknown[] }).picked?.length ?? 0}`;
       if (sig !== lastSig) {
         lastSig = sig;
         setHud(mod.hud(s));
@@ -206,7 +205,6 @@ export function StageScreen({ store, reducedMotion }: { store: GameStore; reduce
 
       <section className="hud-goal card" data-testid="goal" aria-live="polite">
         <p className="question-main text-5xl">{hud.goal}</p>
-        <SpeakButton text={hud.goal} />
       </section>
 
       <div className="hud-bottom">

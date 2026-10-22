@@ -26,6 +26,7 @@ export const fishingModule: StageModule<FishingState, FishingAction> = {
     confirm: (_s, id) => ({ action: id === 1000 ? { t: 'odd' } : { t: 'tap', id } }),
   },
   hud: (s) => ({
+    canUndo: s.phase === 'play' && s.picked.length > 0,
     core: s.core,
     question: s.core.asked?.question ?? null,
     goal: goal(s),
@@ -40,5 +41,6 @@ export const fishingModule: StageModule<FishingState, FishingAction> = {
   solution: (s) =>
     s.puzzle ? (solveFishing(s.puzzle)[0] ?? []).map((id) => ({ t: 'tap' as const, id })) : [],
   hintAction: { t: 'hint' },
+  undoAction: { t: 'undo' },
   retryAction: { t: 'retry' },
 };

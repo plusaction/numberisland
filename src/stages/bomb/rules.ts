@@ -59,10 +59,16 @@ export interface BombState {
   lastWrong: { value: number; made: number; tag?: string } | null;
 }
 
-export type BombAction = { t: 'cut'; id: number } | { t: 'hint' } | { t: 'retry' };
+export type BombAction =
+  | { t: 'cut'; id: number }
+  | { t: 'hint' }
+  | { t: 'retry' }
+  /** Reconnect the last cut wire (a mis-cut); never costs anything (P2). */
+  | { t: 'undo' };
 
 export const DEFUSE_TICKS = 80;
-export const PUFF_TICKS = 60;
+/** Wrong-answer KABOOM is watched in full (~2.6 s) before the wires reconnect. */
+export const PUFF_TICKS = 156;
 
 export function needed(p: BombPuzzle): number {
   if (p.mode === 'SUM3') return 3;
@@ -183,6 +189,7 @@ export function stepBomb(state: BombState, input: InputFrame<BombAction>): BombS
   let s: BombState = { ...state, core: { ...state.core, tick: state.core.tick + 1 } };
   for (const a of input.actions) {
     if (a.t === 'hint' && s.phase === 'play') s = { ...s, core: takeHint(s.core) };
+    if (a.t === 'undo' && s.phase === 'play' && s.cut.length > 0) s = { ...s, cut: s.cut.slice(0, -1) };
     if (a.t === 'retry' && s.phase === 'play' && s.core.puzzleHints >= 4) {
       const core = sameKindQuestion(s.core, preferBomb);
       const q = core.asked?.question;

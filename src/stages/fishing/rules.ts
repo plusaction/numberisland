@@ -77,7 +77,13 @@ export interface FishingState {
   reeled: number[];
 }
 
-export type FishingAction = { t: 'tap'; id: number } | { t: 'hint' } | { t: 'odd' } | { t: 'retry' };
+export type FishingAction =
+  | { t: 'tap'; id: number }
+  | { t: 'hint' }
+  | { t: 'odd' }
+  | { t: 'retry' }
+  /** Put back the last picked fish (a mis-tap); never costs anything (P2). */
+  | { t: 'undo' };
 
 export const REEL_TICKS = 70;
 export const BOUNCE_TICKS = 40;
@@ -264,6 +270,8 @@ export function stepFishing(state: FishingState, input: InputFrame<FishingAction
   const tick = s.core.tick;
   for (const a of input.actions) {
     if (a.t === 'hint' && s.phase === 'play') s = { ...s, core: takeHint(s.core) };
+    if (a.t === 'undo' && s.phase === 'play' && s.picked.length > 0)
+      s = { ...s, picked: s.picked.slice(0, -1) };
     if (a.t === 'retry' && s.phase === 'play' && s.core.puzzleHints >= 4) s = retryPuzzle(s);
     if (a.t === 'odd' && s.odd) {
       s = {

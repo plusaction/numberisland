@@ -7,18 +7,16 @@ import {
   Color,
   CylinderGeometry,
   Group,
-  InstancedMesh,
-  Matrix4,
   Mesh,
   MeshBasicNodeMaterial,
   MeshStandardNodeMaterial,
   PointLight,
-  Quaternion,
   TorusGeometry,
   TubeGeometry,
   Vector3,
 } from 'three/webgpu';
 import { HitStop, Shake, Spring, squashScale } from '../../engine/fx/juice';
+import { createSmoke } from '../../engine/fx/smoke';
 import { ball, capsule, roundedBox } from '../../engine/geo/shapes';
 import { NumberLabel } from '../../engine/numbers/number-label';
 import { PALETTE, PLACE_COLORS } from '../../engine/palette';
@@ -95,7 +93,7 @@ export function createBombScene(world: RenderWorld, ctx: StageCtx): StageScene<B
   gift.position.copy(bombG.position);
   gift.scale.setScalar(0.001);
   root.add(gift);
-  // cartoon KABOOM (wrong answer): fireball flash, shockwave ring, puffy smoke clouds, a warm light pulse.
+  // cartoon KABOOM (wrong answer): fireball flash, chain blasts, shockwave rings, rising smoke, a warm light pulse.
   // Big and loud but friendly — the bomb pops back wobbling, nothing is lost (P2).
   const boomAt = bombG.position.clone();
   const fireMat = new MeshBasicNodeMaterial({ transparent: true, depthWrite: false });
@@ -118,53 +116,75 @@ export function createBombScene(world: RenderWorld, ctx: StageCtx): StageScene<B
   shockwave.rotation.x = Math.PI / 2;
   shockwave.position.set(boomAt.x, 0.65, boomAt.z);
   shockwave.visible = false;
-  const SMOKE = 12;
-  const smoke = new InstancedMesh(ball(0.6, 16), toyMaterial('#f3ece4', { finish: 'matte' }), SMOKE);
-  smoke.castShadow = true;
-  smoke.count = 0;
-  const smokeDir = Array.from({ length: SMOKE }, (_, i) => {
-    const a = (i / SMOKE) * Math.PI * 2;
-    return new Vector3(Math.cos(a), 0.35 + ((i * 7) % 5) * 0.12, Math.sin(a) * 0.7);
-  });
+  // realistic smoke: soft noise-edged billboards, one instanced draw call (engine/fx/smoke.ts)
+  const smokeFx = createSmoke();
   const flash = new PointLight('#ffb35c', 0, 14, 1.6); // always present (intensity 0): no shader recompiles
   flash.position.copy(boomAt).add(new Vector3(0, 0.5, 1.5));
-  root.add(fireball, core, shockwave, smoke, flash);
-  const m4 = new Matrix4();
-  const q = new Quaternion();
-  const sv = new Vector3();
-  const pv = new Vector3();
+  root.add(fireball, core, shockwave, smokeFx.object, flash);
   let boomT = -1;
+  // a second, later ring and three small follow-up blasts make it a "chain" explosion
+  const ring2Mat = new MeshBasicNodeMaterial({ transparent: true, depthWrite: false });
+  ring2Mat.color = new Color('#ffd23f');
+  const shockwave2 = new Mesh(shockwave.geometry, ring2Mat);
+  shockwave2.rotation.x = Math.PI / 2;
+  shockwave2.position.copy(shockwave.position);
+  shockwave2.visible = false;
+  const miniMat = new MeshBasicNodeMaterial({ transparent: true, depthWrite: false });
+  miniMat.color = new Color('#ffb02e');
+  const MINI = [
+    { at: 0.45, off: new Vector3(-1.6, 0.6, 0.6) },
+    { at: 0.75, off: new Vector3(1.7, 0.9, 0.3) },
+    { at: 1.05, off: new Vector3(0.2, 1.8, 0.8) },
+  ].map((m) => {
+    const mesh = new Mesh(ball(1, 20), miniMat);
+    mesh.visible = false;
+    mesh.position.copy(boomAt).add(m.off);
+    root.add(mesh);
+    return { ...m, mesh, fired: false };
+  });
+  root.add(shockwave2);
+  /** Whole show ≈ 2.6 s (rules hold the "puff" phase as long), so the child can actually watch it. */
   const updateBoom = (dt: number) => {
     if (boomT < 0) return;
     boomT += dt;
     const big = ctx.reducedMotion ? 0.6 : 1;
     const k = boomT;
-    // fireball: pops to full size in 0.18 s, fades by 0.6 s
-    const grow = Math.min(1, k / 0.18);
-    fireball.visible = core.visible = k < 0.6;
-    fireball.scale.setScalar((1.2 + grow * 2.6) * big);
-    core.scale.setScalar((0.6 + grow * 1.6) * big);
-    fireMat.opacity = Math.max(0, 0.95 * (1 - (k / 0.6) ** 2));
-    fireMat.color.set(k < 0.2 ? '#ff6a1f' : '#e8401c');
-    coreMat.opacity = Math.max(0, 1 - k / 0.35);
-    // shockwave across the bench
-    shockwave.visible = k < 0.7;
-    shockwave.scale.setScalar((0.5 + (k / 0.7) * 6.5) * big);
-    ringMat.opacity = Math.max(0, 0.8 * (1 - k / 0.7));
-    flash.intensity = Math.max(0, 60 * (1 - k / 0.4)) * big;
-    // smoke clouds puff out, drift up, then shrink away
-    const life = 1.6;
-    smoke.count = k < life ? SMOKE : 0;
-    for (let i = 0; i < SMOKE; i++) {
-      const d = smokeDir[i] as Vector3;
-      const out = 1 - Math.exp(-k * 5);
-      const sc =
-        (k < 0.25 ? k / 0.25 : Math.max(0, 1 - (k - 0.25) / (life - 0.25))) * (0.8 + (i % 3) * 0.25) * big;
-      pv.set(boomAt.x + d.x * out * 2.4, boomAt.y + d.y * out * 2 + k * 0.6, boomAt.z + d.z * out * 2.4);
-      m4.compose(pv, q, sv.setScalar(Math.max(0.001, sc)));
-      smoke.setMatrixAt(i, m4);
+    // main fireball: swells over 0.45 s (yellow → orange → red), lingers, fades by 1.5 s
+    const grow = 1 - (1 - Math.min(1, k / 0.45)) ** 3;
+    fireball.visible = core.visible = k < 1.5;
+    fireball.scale.setScalar((1 + grow * 3.4 + Math.sin(k * 18) * 0.06) * big);
+    core.scale.setScalar((0.5 + grow * 2) * big * Math.max(0.2, 1 - k / 1.1));
+    fireMat.opacity = Math.max(0, 0.95 * (1 - (k / 1.5) ** 2));
+    fireMat.color.set(k < 0.3 ? '#ffb02e' : k < 0.7 ? '#ff6a1f' : '#e8401c');
+    coreMat.opacity = Math.max(0, 1 - k / 0.9);
+    // two shockwaves rolling across the bench
+    shockwave.visible = k < 1.2;
+    shockwave.scale.setScalar((0.5 + (k / 1.2) * 7) * big);
+    ringMat.opacity = Math.max(0, 0.85 * (1 - k / 1.2));
+    const k2 = k - 0.35;
+    shockwave2.visible = k2 > 0 && k2 < 1.2;
+    shockwave2.scale.setScalar((0.5 + (Math.max(0, k2) / 1.2) * 5.5) * big);
+    ring2Mat.opacity = Math.max(0, 0.7 * (1 - Math.max(0, k2) / 1.2));
+    // warm flash that flickers with each blast
+    const flick = MINI.some((m) => k > m.at && k < m.at + 0.15) ? 25 : 0;
+    flash.intensity = (Math.max(0, 70 * (1 - k / 0.9)) + flick) * big;
+    // chain blasts: small fireballs pop around the bomb with their own sparkle showers
+    for (const m of MINI) {
+      const mk = k - m.at;
+      m.mesh.visible = mk > 0 && mk < 0.5;
+      if (m.mesh.visible)
+        m.mesh.scale.setScalar((0.3 + Math.min(1, mk / 0.15) * 0.9) * big * (1 - mk / 0.5 + 0.2));
+      if (!m.fired && mk > 0) {
+        m.fired = true;
+        audio.play('wrong.pfft', { pitch: 0.8 + Math.random() * 0.4 });
+        world.particles.emit('sparkle', m.mesh.position, 70);
+        world.particles.emit('confetti', m.mesh.position, 60);
+        smokeFx.emit(m.mesh.position, 10, { heat: 0.8, spread: 0.6, size: 0.7 });
+        shake.add(0.35 * ctx.shakeIntensity);
+      }
     }
-    smoke.instanceMatrix.needsUpdate = true;
+    miniMat.opacity = 0.9;
+    const life = 1.7; // blast meshes; the smoke keeps drifting on its own afterwards
     if (k > life) {
       boomT = -1;
       flash.intensity = 0;
@@ -172,16 +192,20 @@ export function createBombScene(world: RenderWorld, ctx: StageCtx): StageScene<B
   };
   const kaboom = () => {
     boomT = 0;
-    audio.play('boom');
-    audio.play('wrong.duck', { delay: 0.55 });
-    hitStop.trigger(90);
+    for (const m of MINI) m.fired = false;
+    slowmo = ctx.reducedMotion ? 0 : 0.35; // a moment of slow motion as it goes off
+    audio.play('fuse');
+    audio.play('boom', { delay: 0.12 });
+    audio.play('wrong.duck', { delay: 1.6 });
+    hitStop.trigger(120);
     spring.impulse(14);
-    shake.add(1.3 * ctx.shakeIntensity);
-    world.particles.emit('sparkle', boomAt, 140);
-    world.particles.emit('dust', boomAt, 160);
-    world.particles.emit('confetti', { x: boomAt.x, y: boomAt.y + 0.5, z: boomAt.z }, 180);
+    shake.add(1.4 * ctx.shakeIntensity);
+    world.particles.emit('sparkle', boomAt, 200);
+    world.particles.emit('dust', boomAt, 200);
+    smokeFx.emit(boomAt, 44, { heat: 1, spread: 1.3, size: 1.1 });
+    world.particles.emit('confetti', { x: boomAt.x, y: boomAt.y + 0.5, z: boomAt.z }, 240);
     world.burst('pebble', boomAt, 30);
-    world.burst('candy', boomAt, 10, ['#ff8fab', '#ffd166', '#b9a6f2']);
+    world.burst('candy', boomAt, 14, ['#ff8fab', '#ffd166', '#b9a6f2', '#6fd0e3']);
   };
 
   const label = new NumberLabel(0, { size: 1.1, placeColors: true });
@@ -276,6 +300,7 @@ export function createBombScene(world: RenderWorld, ctx: StageCtx): StageScene<B
       }
       if (prev && prev.phase !== 'puff' && state.phase === 'puff') kaboom();
       updateBoom(vdt);
+      smokeFx.update(vdt);
       for (const [id, w] of wires) {
         const cut = state.cut.includes(id) || state.phase === 'defuse';
         w.whole.visible = !cut;
@@ -296,7 +321,7 @@ export function createBombScene(world: RenderWorld, ctx: StageCtx): StageScene<B
         label.visible = giftT < 0.5;
       } else {
         // the bomb vanishes inside the fireball, then pops back wobbling (spring) — funny, not scary
-        const gone = boomT >= 0 && boomT < 0.42;
+        const gone = boomT >= 0 && boomT < 1.0;
         const back = gone ? 0.001 : 1;
         bombG.scale.set(s.x * breathe * back, s.y * breathe * back, s.z * breathe * back);
         gift.scale.setScalar(0.001);

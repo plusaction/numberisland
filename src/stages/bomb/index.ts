@@ -34,6 +34,7 @@ export const bombModule: StageModule<BombState, BombAction> = {
     confirm: (_s, id) => ({ action: { t: 'cut', id } }),
   },
   hud: (s) => ({
+    canUndo: s.phase === 'play' && s.cut.length > 0,
     core: s.core,
     question: s.core.asked?.question ?? null,
     goal: goal(s),
@@ -45,5 +46,6 @@ export const bombModule: StageModule<BombState, BombAction> = {
   glowTarget: (s) => (s.puzzle && s.puzzle.mode !== 'PLACE' ? (solveBomb(s.puzzle)[0]?.[0] ?? null) : null),
   solution: (s) => (s.puzzle ? (solveBomb(s.puzzle)[0] ?? []).map((id) => ({ t: 'cut' as const, id })) : []),
   hintAction: { t: 'hint' },
+  undoAction: { t: 'undo' },
   retryAction: { t: 'retry' },
 };
