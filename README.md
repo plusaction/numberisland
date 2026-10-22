@@ -30,6 +30,8 @@ URL 옵션: `?renderer=webgl`(WebGL2 강제), `?debug=1`(백엔드·티어·프�
 정적 호스팅(Cloudflare Pages / Netlify / GitHub Pages 등)에 `dist/`를 그대로 올리면 됩니다. `dist/_headers`에 보안 헤더(CSP 등)가 들어 있습니다.
 
 ### Vercel
+배포 주소: **https://numberisland.vercel.app** (`main`에 푸시하면 1~2분 뒤 자동 반영)
+
 1. 이 저장소를 GitHub에 올립니다.
 2. vercel.com → **Add New → Project** → 저장소 **Import** → **Deploy**. 설정은 `vercel.json`이 정합니다(Vite, `pnpm build`, `dist/`, 보안 헤더·캐시). 따로 바꿀 것이 없습니다.
 3. 이후 `main`에 푸시할 때마다 자동으로 다시 배포됩니다.

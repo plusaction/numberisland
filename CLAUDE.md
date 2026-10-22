@@ -62,3 +62,4 @@ adversarial-reviewer · art-reviewer · curriculum-checker. 로드 안 됐으면
 
 ## 보고
 사용자 보고는 한국어로 짧게: 무엇이 됐고 / 점수 변화 / 사람이 할 일.
+작업 끝 보고에는 **항상 사이트 링크** https://numberisland.vercel.app 를 넣는다(main 푸시 → Vercel 자동 배포, 1~2분 뒤 Ctrl+Shift+R).
