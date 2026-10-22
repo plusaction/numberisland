@@ -1,12 +1,12 @@
 /** ③ 숫자 낚시 diorama: TSL pond, number fish, rod & line; reel = slow-mo parabola + droplets (signature). */
-import { ConeGeometry, CylinderGeometry, Group, Mesh, Quaternion, Vector3 } from 'three/webgpu';
+import { ConeGeometry, CylinderGeometry, Group, Mesh, Vector3 } from 'three/webgpu';
 import { createRng } from '../../domain/rng/rng';
 import { HitStop, Shake, Spring } from '../../engine/fx/juice';
+import { createWake } from '../../engine/fx/wake';
 import { ball, blob, capsule, disc, roundedBox, waterPlane } from '../../engine/geo/shapes';
 import { NumberLabel } from '../../engine/numbers/number-label';
 import { PALETTE } from '../../engine/palette';
 import {
-  metalMaterial,
   sandMaterial,
   toyMaterial,
   waterMaterial,
@@ -41,6 +41,10 @@ interface FishView {
   spring: Spring;
   proxy: Mesh;
   pos: Vector3;
+  /** Last frame's position (wake direction/speed). */
+  prev: Vector3;
+  /** Seconds until the next wake ripple. */
+  wakeT: number;
   jumpT: number;
 }
 
@@ -116,9 +120,14 @@ export function createFishingScene(
   odd.add(oddProxy);
   odd.visible = false;
   root.add(odd);
+  const wake = createWake();
+  root.add(wake.object);
 
   const buildFish = (state: FishingState) => {
-    for (const v of fishViews.values()) disposeTree(v.group);
+    for (const v of fishViews.values()) {
+      disposeTree(v.group);
+      disposeTree(v.label);
+    }
     fishViews.clear();
     proxies.length = 0;
     const p = state.puzzle;
@@ -139,8 +148,10 @@ export function createFishingScene(
       // tall tap column: the fish body and the number badge above it both count
       const proxy = hitCylinder(0.85, 2.4, f.id);
       proxy.position.y = 0.5;
-      g.add(body, tail, eye, label, proxy);
-      root.add(g);
+      // the number badge is NOT a child of the turning fish: it follows the fish but never rotates,
+      // so "70" can never read "07" when the fish swims the other way
+      g.add(body, tail, eye, proxy);
+      root.add(g, label);
       proxies.push(proxy);
       fishViews.set(f.id, {
         group: g,
@@ -149,6 +160,8 @@ export function createFishingScene(
         spring: new Spring(0, 200, 11),
         proxy,
         pos: new Vector3(),
+        prev: new Vector3(Number.NaN, 0, 0),
+        wakeT: Math.random() * 0.1,
         jumpT: -1,
       });
     });
@@ -174,6 +187,7 @@ export function createFishingScene(
   const scene: StageScene<FishingState, FishingAction> = {
     sync(state, prev, dt) {
       const vdt = hitStop.filter(dt) * (slowmo > 0 ? 0.3 : 1);
+      wake.update(vdt);
       slowmo = Math.max(0, slowmo - dt);
       t += vdt;
       if (state.puzzle !== puzzleRef) {
@@ -192,6 +206,7 @@ export function createFishingScene(
             v.jumpT = 0;
             world.particles.emit('droplet', v.group.position, 60);
             world.burst('drop', v.group.position, 12);
+            for (let r = 0; r < 3; r++) wake.spawn(v.pos.x, pond.position.y + 0.02, v.pos.z, r * 1.1, 1);
           }
         }
         celebrate(
@@ -242,6 +257,7 @@ export function createFishingScene(
           v.label.visible = k < 0.6;
         } else if (f.caught) {
           v.group.visible = false;
+          v.label.visible = false;
         } else {
           v.group.position.copy(v.pos);
           // ride the visible waves (same Gerstner set and clock as the water shader)
@@ -249,7 +265,6 @@ export function createFishingScene(
           const ahead = fishPos(state, id, t + 0.05, new Vector3());
           v.group.lookAt(ahead.x, v.group.position.y, ahead.z);
           v.group.rotateY(-Math.PI / 2);
-          v.label.quaternion.copy(new Quaternion());
           const s = 1 + v.spring.update(vdt) * 0.06;
           const picked = state.picked.includes(id);
           v.group.scale.setScalar((picked ? 1.2 : 1) * s);
@@ -260,7 +275,31 @@ export function createFishingScene(
             v.group.scale.multiplyScalar(1 + Math.abs(Math.sin(t * 4)) * 0.25);
             if (Math.floor(t * 6) % 4 === 0) world.particles.emit('sparkle', v.group.position, 2);
           }
+          // wake: foam ripples trail behind a swimming fish (stronger when it swims faster)
+          if (!Number.isNaN(v.prev.x) && vdt > 0) {
+            const dx = v.pos.x - v.prev.x;
+            const dz = v.pos.z - v.prev.z;
+            const speed = Math.hypot(dx, dz) / vdt;
+            v.wakeT -= vdt;
+            if (speed > 0.15 && v.wakeT <= 0 && !picked) {
+              v.wakeT = 0.11;
+              const len = Math.hypot(dx, dz) || 1;
+              const bx = v.pos.x - (dx / len) * 0.55;
+              const bz = v.pos.z - (dz / len) * 0.55;
+              const wy = pond.position.y + waveHeight(WAVES_POND, bx, bz, waterTime.value) + 0.05;
+              wake.spawn(bx, wy, bz, Math.atan2(-dz, dx), Math.min(1, 0.45 + speed * 0.35));
+            }
+          }
+          v.prev.copy(v.pos);
         }
+        // badge follows the fish upright (world space), scaled with it
+        v.label.position.set(
+          v.group.position.x,
+          v.group.position.y + 1.0 * v.group.scale.y,
+          v.group.position.z,
+        );
+        v.label.scale.setScalar(v.group.scale.y);
+        if (!f.caught && v.jumpT < 0) v.label.visible = v.group.visible;
       }
       // fishing line to the picked fish
       const pickedId = state.phase === 'reel' ? state.reeled[0] : state.picked[0];
