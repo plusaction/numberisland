@@ -1,13 +1,20 @@
 import { expect, test } from '@playwright/test';
 import { collectErrors, startFresh, throughPlacement, url } from './helpers';
 
+/**
+ * Functional stage tests run on the lightest tier: in this GPU-less CI every pixel is rasterised on the CPU,
+ * so the PBR/post tiers would turn the latency guard into a measure of SwiftShader speed. Visual quality per
+ * tier is checked separately (`pnpm shots`), real-device latency/FPS by `pnpm bench` (HUMAN).
+ */
+const STAGE_PATH = '/?tier=low';
+
 for (const stage of ['fishing', 'bomb', 'slime'] as const) {
   test(`[A1:${stage}] [G2:${stage}] round → result with stars, new thing, next goal`, async ({
     page,
   }, info) => {
     test.setTimeout(300_000);
     const errors = await collectErrors(page);
-    await startFresh(page, url(info, '/'));
+    await startFresh(page, url(info, STAGE_PATH));
     await throughPlacement(page);
     await page.evaluate((s) => {
       const st = (
@@ -66,7 +73,7 @@ for (const stage of ['fishing', 'bomb', 'slime'] as const) {
 }
 
 test('[G7] exit is always available mid-round (P10)', async ({ page }, info) => {
-  await startFresh(page, url(info, '/'));
+  await startFresh(page, url(info, STAGE_PATH));
   await throughPlacement(page);
   await page.getByTestId('start').click();
   await page.getByTestId('go').click();
@@ -77,7 +84,7 @@ test('[G7] exit is always available mid-round (P10)', async ({ page }, info) => 
 
 test('[G7] tutorial plays to the end by itself and unlocks input (no skip)', async ({ page }, info) => {
   test.setTimeout(180_000);
-  await startFresh(page, url(info, '/'));
+  await startFresh(page, url(info, STAGE_PATH));
   await throughPlacement(page);
   await page.getByTestId('start').click();
   await page.getByTestId('go').click();
@@ -92,7 +99,7 @@ test('[G7] tutorial plays to the end by itself and unlocks input (no skip)', asy
 test('[G7] keyboard H opens the hint panel; Escape closes it, then leaves the stage', async ({
   page,
 }, info) => {
-  await startFresh(page, url(info, '/'));
+  await startFresh(page, url(info, STAGE_PATH));
   await throughPlacement(page);
   await page.getByTestId('start').click();
   await page.getByTestId('go').click();
@@ -109,7 +116,7 @@ test('[E4] after hint 4 the new-numbers retry updates the goal shown to the chil
   page,
 }, info) => {
   test.setTimeout(180_000);
-  await startFresh(page, url(info, '/'));
+  await startFresh(page, url(info, STAGE_PATH));
   await throughPlacement(page);
   await page.getByTestId('start').click(); // fishing is the default selection
   await page.getByTestId('go').click();
