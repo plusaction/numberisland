@@ -275,7 +275,7 @@ export function createIsland(world: RenderWorld, opts: IslandOptions): IslandCon
       crown.scale.setScalar(1 + Math.sin(t * 1.3) * 0.015);
       if (friend) {
         // keep the friend in the lower-right corner of the screen (beside the card) on any aspect ratio
-        friendRay.setFromCamera(friendNdc.set(0.7, -0.58), world.camera);
+        friendRay.setFromCamera(friendNdc.set(0.8, -0.6), world.camera);
         if (friendRay.ray.intersectPlane(friendGround, friendHit)) {
           const r = Math.hypot(friendHit.x, friendHit.z);
           if (r > 6.2) friendHit.multiplyScalar(6.2 / r);

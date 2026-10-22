@@ -87,7 +87,7 @@ export function createFishingScene(
   const line = new Mesh(new CylinderGeometry(0.015, 0.015, 1, 6), toyMaterial(PALETTE.white));
   line.visible = false;
   root.add(line);
-  const bucket = new Mesh(disc(0.55, 0.7, 24), metalMaterial('#4aa7c4', 0.28));
+  const bucket = new Mesh(disc(0.55, 0.7, 24), toyMaterial('#7cc8e0'));
   bucket.position.set(-4.6, 0.35, 4.6);
   root.add(bucket);
 
