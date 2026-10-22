@@ -33,6 +33,7 @@ import {
   type ColorRepresentation,
   Mesh,
   MeshBasicNodeMaterial,
+  MeshLambertNodeMaterial,
   MeshPhysicalNodeMaterial,
   MeshStandardNodeMaterial,
   type Node,
@@ -72,6 +73,33 @@ export function invalidateSharedMaterials() {
   for (const m of cache.values()) m.needsUpdate = true;
 }
 
+/**
+ * Low tier (weak phones, software GPUs): every shared PBR material has a flat Lambert stand-in — one cheap
+ * diffuse term, no texture lookups, no environment sampling, no vertex waves. `RenderWorld` swaps them in and
+ * out when the quality governor crosses the low tier, so the same scenes run on any device.
+ */
+const lowCache = new Map<number, MeshLambertNodeMaterial>();
+export function lowVariant(m: {
+  userData: Record<string, unknown>;
+  transparent: boolean;
+}): MeshLambertNodeMaterial | null {
+  const hex = m.userData.lowColor;
+  if (typeof hex !== 'number') return null;
+  const key = hex * 2 + (m.transparent ? 1 : 0);
+  let low = lowCache.get(key);
+  if (!low) {
+    low = new MeshLambertNodeMaterial({
+      color: hex,
+      transparent: m.transparent,
+      opacity: m.transparent ? 0.9 : 1,
+    });
+    low.userData.shared = true;
+    low.userData.isLow = true;
+    lowCache.set(key, low);
+  }
+  return low;
+}
+
 export type Finish = 'plastic' | 'matte' | 'satin';
 
 /** Shared noise lookup in object space (xz + a bit of y so vertical faces are not streaked). */
@@ -94,6 +122,7 @@ export function toyMaterial(
   return shared(key, () => {
     const rough = opts.roughness ?? (finish === 'plastic' ? 0.3 : finish === 'satin' ? 0.5 : 0.8);
     const m = new MeshStandardNodeMaterial({ roughness: rough, metalness: 0 });
+    m.userData.lowColor = new Color(hex).getHex();
     const base = color(new Color(hex));
     m.colorNode = base;
     if (opts.rimStrength) m.emissiveNode = base.mul(rim(2.5).mul(opts.rimStrength).add(0.05));
@@ -108,6 +137,7 @@ export function woodMaterial(
 ): MeshStandardNodeMaterial {
   return shared(`wood|${new Color(hex).getHexString()}|${roughness}`, () => {
     const m = new MeshStandardNodeMaterial({ roughness, metalness: 0 });
+    m.userData.lowColor = new Color(hex).getHex();
     const p = positionLocal;
     const n = texture(noiseTexture(), vec2(p.x.add(p.z).mul(0.35), p.y.mul(2.5))).g;
     const rings = sin(p.x.mul(7).add(p.z.mul(3)).add(n.mul(9)))
@@ -127,6 +157,7 @@ export function woodMaterial(
 export function tableMaterial(hex: ColorRepresentation = '#c89a6e'): MeshStandardNodeMaterial {
   return shared(`table|${new Color(hex).getHexString()}`, () => {
     const m = new MeshStandardNodeMaterial({ roughness: 0.22, metalness: 0 });
+    m.userData.lowColor = new Color(hex).getHex();
     const p = positionLocal;
     const w = 1.1; // plank width
     const plank = p.x.div(w).floor();
@@ -148,6 +179,7 @@ export function tableMaterial(hex: ColorRepresentation = '#c89a6e'): MeshStandar
 export function sandMaterial(hex: ColorRepresentation, caustics = false): MeshStandardNodeMaterial {
   return shared(`sand|${new Color(hex).getHexString()}|${caustics}`, () => {
     const m = new MeshStandardNodeMaterial({ roughness: 0.9, metalness: 0 });
+    m.userData.lowColor = new Color(hex).getHex();
     const fine = noiseAt(2.2);
     const big = noiseAt(0.18);
     const base = color(new Color(hex));
@@ -172,6 +204,7 @@ export function sandMaterial(hex: ColorRepresentation, caustics = false): MeshSt
 export function grassMaterial(hex: ColorRepresentation): MeshStandardNodeMaterial {
   return shared(`grass|${new Color(hex).getHexString()}`, () => {
     const m = new MeshStandardNodeMaterial({ roughness: 0.85, metalness: 0 });
+    m.userData.lowColor = new Color(hex).getHex();
     const n = noiseAt(0.6);
     const base = color(new Color(hex));
     m.colorNode = base
@@ -185,6 +218,7 @@ export function grassMaterial(hex: ColorRepresentation): MeshStandardNodeMateria
 export function metalMaterial(hex: ColorRepresentation, roughness = 0.32): MeshStandardNodeMaterial {
   return shared(`metal|${new Color(hex).getHexString()}|${roughness}`, () => {
     const m = new MeshStandardNodeMaterial({ roughness, metalness: 0.85 });
+    m.userData.lowColor = new Color(hex).getHex();
     const p = positionLocal;
     const brush = texture(noiseTexture(), vec2(p.x.add(p.z).mul(4), p.y.mul(0.05))).r;
     m.colorNode = color(new Color(hex));
@@ -237,6 +271,7 @@ export function waterMaterial(
   const key = `water|${new Color(deep).getHexString()}|${new Color(shallow).getHexString()}|${radius}|${waves.name}|${opaque}`;
   return shared(key, () => {
     const m = new MeshStandardNodeMaterial({ roughness: 0.05, metalness: 0, transparent: !opaque });
+    m.userData.lowColor = new Color(opaque ? deep : shallow).getHex();
     const p = positionLocal;
     const xz = vec2(p.x, p.z);
     type N = Node<'float'>;

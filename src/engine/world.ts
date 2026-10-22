@@ -36,7 +36,7 @@ import {
   TIERS,
   type Tier,
 } from './quality/quality';
-import { invalidateSharedMaterials, waterTime } from './tsl/materials';
+import { invalidateSharedMaterials, lowVariant, waterTime } from './tsl/materials';
 
 export interface WorldOptions {
   canvas: HTMLCanvasElement;
@@ -240,7 +240,7 @@ export class RenderWorld {
       const rt = gen.fromScene(env, 0.02, 0.1, 50);
       this.envTarget?.dispose();
       this.envTarget = rt;
-      this.scene.environment = rt.texture;
+      this.scene.environment = this.governor.tier === 'low' ? null : rt.texture;
       this.scene.environmentIntensity = 0.6;
     } catch (err) {
       console.warn('[render] environment bake failed; using lights only', err);
@@ -296,6 +296,28 @@ export class RenderWorld {
     this.physics?.clear();
   }
 
+  private frameNo = 0;
+  /** Swap shared PBR materials ↔ flat Lambert stand-ins when entering/leaving the low tier. */
+  applyMaterialTier() {
+    const low = this.governor.tier === 'low';
+    this.scene.environment = low ? null : (this.envTarget?.texture ?? null);
+    this.scene.traverse((o) => {
+      const mesh = o as { material?: unknown; userData: Record<string, unknown> };
+      const mat = mesh.material as { userData: Record<string, unknown>; transparent: boolean } | undefined;
+      if (!mat || Array.isArray(mat)) return;
+      if (low && !mat.userData.isLow) {
+        const v = lowVariant(mat);
+        if (v) {
+          mesh.userData.fullMaterial = mat;
+          mesh.material = v;
+        }
+      } else if (!low && mat.userData.isLow && mesh.userData.fullMaterial) {
+        mesh.material = mesh.userData.fullMaterial;
+        delete mesh.userData.fullMaterial;
+      }
+    });
+  }
+
   setTier(tier: Tier) {
     this.governor.tier = tier;
     this.applyTier();
@@ -314,6 +336,7 @@ export class RenderWorld {
     }
     this.post?.dispose();
     this.post = createPost(this.renderer, this.scene, this.camera, cfg);
+    this.applyMaterialTier();
     const wantGpu = this.backend === 'webgpu' && cfg.gpuParticles;
     if (!this.particles || this.particlesLost || this.particles.gpu !== wantGpu) {
       if (this.particles) {
@@ -338,6 +361,8 @@ export class RenderWorld {
   /** Per-frame: particles + render + quality sampling. */
   frame(dt: number, frameMs: number) {
     if (this.recovering || this.fatal) return;
+    // new objects appear during play (fish, slimes): keep the low-tier material swap current
+    if (++this.frameNo % 20 === 0) this.applyMaterialTier();
     waterTime.value += Math.min(dt, 1 / 20);
     this.physics?.step(Math.min(dt, 1 / 20));
     this.particles.update(Math.min(dt, 1 / 20), this.renderer);
