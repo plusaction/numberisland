@@ -125,13 +125,13 @@ export function stageLevel(
   const settings = { ...DEFAULT_SETTINGS, term };
   // shift steps over levels outside the term (A5 for grade 1) and stops at the ceiling
   let base = clampLevel(level, settings);
-  if (shift !== 0) {
-    for (let j = levelIndex(base) + shift; j >= 0 && j < CURRICULUM.length; j += shift) {
-      const spec = CURRICULUM[j];
-      if (spec && isAllowed(spec, settings)) {
-        base = spec.id;
-        break;
-      }
+  // "쉽게" (−1) goes two levels down so it is clearly easier; "어렵게" (+1) one level up
+  let steps = shift === -1 ? 2 : shift === 1 ? 1 : 0;
+  for (let j = levelIndex(base) + shift; steps > 0 && j >= 0 && j < CURRICULUM.length; j += shift) {
+    const spec = CURRICULUM[j];
+    if (spec && isAllowed(spec, settings)) {
+      base = spec.id;
+      steps--;
     }
   }
   const i = levelIndex(base);

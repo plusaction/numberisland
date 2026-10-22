@@ -135,7 +135,8 @@ export function preferSlime(q: Question): boolean {
 }
 
 /** Backwards generation: the question's parts become slimes, plus distractors that keep it solvable. */
-export function puzzleFromQuestion(q: Question, rng: Rng): SlimePuzzle {
+/** `easy` (hub "쉽게"): no extra split and only one spare slime. */
+export function puzzleFromQuestion(q: Question, rng: Rng, easy = false): SlimePuzzle {
   const band = bandOf(q.level);
   const target = q.answer;
   const parts: { value: number; minus: boolean }[] = [];
@@ -145,14 +146,22 @@ export function puzzleFromQuestion(q: Question, rng: Rng): SlimePuzzle {
   });
   // A band: split a big first part once more so there is a real 2–3 step plan (10 만들기 friendly)
   const first = parts[0];
-  if (band === 'A' && parts.length === 2 && first && !first.minus && first.value >= 6 && rng.chance(0.5)) {
+  if (
+    !easy &&
+    band === 'A' &&
+    parts.length === 2 &&
+    first &&
+    !first.minus &&
+    first.value >= 6 &&
+    rng.chance(0.5)
+  ) {
     const cut = rng.int(1, first.value - 1);
     // never split into a piece that already equals the target
     if (cut !== target && first.value - cut !== target) {
       parts.splice(0, 1, { value: cut, minus: false }, { value: first.value - cut, minus: false });
     }
   }
-  const total = band === 'A' ? 5 : band === 'B' ? 6 : 7;
+  const total = easy ? parts.length + 1 : band === 'A' ? 5 : band === 'B' ? 6 : 7;
   const values: { value: number; minus: boolean }[] = parts.slice();
   const ceiling = levelSpec(q.level).max;
   const near = (v: number) => Math.min(ceiling, Math.max(1, v + rng.pick([1, -1, 2, 10, -10])));
@@ -183,9 +192,10 @@ function newPuzzle(s: SlimeState): SlimeState {
   const q = core.asked?.question;
   if (!q) return { ...s, core };
   const r = withRng(core, (rng) => {
-    let p = puzzleFromQuestion(q, rng);
+    let p = puzzleFromQuestion(q, rng, core.shift === -1);
     // defensive: regenerate distractors until BFS proves solvable (generation is constructive, this never loops long)
-    for (let i = 0; i < 10 && solveSlime(p.target, p.slimes) === null; i++) p = puzzleFromQuestion(q, rng);
+    for (let i = 0; i < 10 && solveSlime(p.target, p.slimes) === null; i++)
+      p = puzzleFromQuestion(q, rng, core.shift === -1);
     return p;
   });
   core = r.core;
@@ -233,7 +243,7 @@ export function stepSlime(state: SlimeState, input: InputFrame<SlimeAction>): Sl
       const core = sameKindQuestion(s.core, preferSlime);
       const q = core.asked?.question;
       if (q) {
-        const r = withRng(core, (rng) => puzzleFromQuestion(q, rng));
+        const r = withRng(core, (rng) => puzzleFromQuestion(q, rng, core.shift === -1));
         s = {
           ...s,
           core: r.core,

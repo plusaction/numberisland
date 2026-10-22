@@ -232,3 +232,38 @@ describe('[E1] 초1 설정 — 어떤 스테이지도 1학년 범위를 넘지 �
     }
   });
 });
+
+describe('[E5] "쉽게" — 두 단계 아래 + 선택지 적게, 언제나 풀 수 있음', () => {
+  it('shift −1 serves content two levels below and smaller, still-solvable puzzles', () => {
+    // A4 → two allowed levels down (A3, A2) for the stage skills
+    const lv = stageLevel('A4', FISHING_SKILLS as never, -1);
+    expect(CURRICULUM.findIndex((l) => l.id === lv)).toBeLessThanOrEqual(
+      CURRICULUM.findIndex((l) => l.id === 'A2'),
+    );
+    for (let i = 0; i < 40; i++) {
+      const f = initWith(fishingRules)(`easy-f-${i}`, 'A6', { shift: -1 }) as {
+        puzzle: Parameters<typeof solveFishing>[0] | null;
+        core: { asked: { question: { level: LevelId } } | null };
+      };
+      if (f.puzzle) {
+        expect(f.puzzle.fish.length).toBeLessThanOrEqual(5);
+        expect(solveFishing(f.puzzle).length).toBeGreaterThanOrEqual(1);
+      }
+      const b = initWith(bombRules)(`easy-b-${i}`, 'A6', { shift: -1 }) as {
+        puzzle: Parameters<typeof solveBomb>[0] | null;
+      };
+      if (b.puzzle && b.puzzle.mode !== 'PLACE') {
+        expect(b.puzzle.wires.length).toBeLessThanOrEqual(4);
+        expect(solveBomb(b.puzzle).length).toBeGreaterThanOrEqual(1);
+      }
+      const s = initWith(slimeRules)(`easy-s-${i}`, 'A6', { shift: -1 }) as {
+        puzzle: { target: number } | null;
+        slimes: Parameters<typeof solveSlime>[1];
+      };
+      if (s.puzzle) {
+        expect(s.slimes.length).toBeLessThanOrEqual(4);
+        expect(solveSlime(s.puzzle.target, s.slimes)).not.toBeNull();
+      }
+    }
+  });
+});

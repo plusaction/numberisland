@@ -108,7 +108,8 @@ export function preferBomb(q: Question): boolean {
   return q.form === 'EXPR' && q.operands.length === 2;
 }
 
-export function puzzleFromQuestion(q: Question, rng: Rng): BombPuzzle {
+/** `easy` (hub "쉽게"): only one extra wire besides the right ones. */
+export function puzzleFromQuestion(q: Question, rng: Rng, easy = false): BombPuzzle {
   const band = bandOf(q.level);
   const deco = (i: number) => ({ color: i % 6, pattern: Math.floor(i / 2) % 3 });
   if (q.skill === 'PLACE_VALUE') {
@@ -140,7 +141,7 @@ export function puzzleFromQuestion(q: Question, rng: Rng): BombPuzzle {
   for (const c of correct) for (const d of [1, -1, 10, -10, 2, -2, 100]) cands.push(c + d);
   for (const ch of q.choices) if (ch.value !== q.answer) cands.push(ch.value - (correct[1] ?? 0));
   const max = Math.min(levelSpec(q.level).max, Math.max(...correct) + 20);
-  const want = Math.max(count, correct.length + 2);
+  const want = easy ? correct.length + 1 : Math.max(count, correct.length + 2);
   const push = (v: number) => {
     if (values.length < want && Number.isInteger(v) && v > 0 && v <= max && !used.has(v)) {
       used.add(v);
@@ -157,7 +158,7 @@ function newPuzzle(s: BombState): BombState {
   let core = nextStageQuestion(s.core, BOMB_SKILLS, preferBomb);
   const q = core.asked?.question;
   if (!q) return { ...s, core };
-  const r = withRng(core, (rng) => puzzleFromQuestion(q, rng));
+  const r = withRng(core, (rng) => puzzleFromQuestion(q, rng, core.shift === -1));
   core = r.core;
   return { ...s, core, puzzle: r.value, cut: [], phase: 'play', phaseLeft: 0, lastWrong: null };
 }
@@ -186,7 +187,7 @@ export function stepBomb(state: BombState, input: InputFrame<BombAction>): BombS
       const core = sameKindQuestion(s.core, preferBomb);
       const q = core.asked?.question;
       if (q) {
-        const r = withRng(core, (rng) => puzzleFromQuestion(q, rng));
+        const r = withRng(core, (rng) => puzzleFromQuestion(q, rng, core.shift === -1));
         s = { ...s, core: r.core, puzzle: r.value, cut: [], lastWrong: null };
       }
     }

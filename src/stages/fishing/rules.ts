@@ -111,9 +111,10 @@ function missingOk(p: FishPuzzle, x: number): boolean {
 }
 
 /** Build a puzzle from an education question; distractors come from its misconception choices. */
-export function puzzleFromQuestion(q: Question, rng: Rng): FishPuzzle {
+/** `easy` (hub "쉽게"): fewer fish to choose from. */
+export function puzzleFromQuestion(q: Question, rng: Rng, easy = false): FishPuzzle {
   const band = bandOf(q.level);
-  const count = band === 'A' ? 6 : band === 'B' ? 7 : 8;
+  const count = easy ? 4 : band === 'A' ? 6 : band === 'B' ? 7 : 8;
   const [a = 0, b = 0] = q.operands;
   const op = (q.ops[0] ?? '+') as Op;
   let mode: FishMode;
@@ -168,7 +169,7 @@ function newPuzzle(s: FishingState): FishingState {
   let core = nextStageQuestion(s.core, FISHING_SKILLS, preferFishing);
   const q = core.asked?.question;
   if (!q) return { ...s, core };
-  const r = withRng(core, (rng) => puzzleFromQuestion(q, rng));
+  const r = withRng(core, (rng) => puzzleFromQuestion(q, rng, core.shift === -1));
   core = r.core;
   return {
     ...s,
@@ -187,7 +188,7 @@ function retryPuzzle(s: FishingState): FishingState {
   let core = sameKindQuestion(s.core, preferFishing);
   const q = core.asked?.question;
   if (!q) return s;
-  const r = withRng(core, (rng) => puzzleFromQuestion(q, rng));
+  const r = withRng(core, (rng) => puzzleFromQuestion(q, rng, core.shift === -1));
   core = r.core;
   return { ...s, core, puzzle: r.value, picked: [], lastWrong: null };
 }
