@@ -24,7 +24,7 @@ import { metalMaterial, toyMaterial } from '../../engine/tsl/materials';
 import type { RenderWorld } from '../../engine/world';
 import { audio } from '../../infra/audio/audio';
 import type { PointerInfo } from '../../scenes/common/controller';
-import { baseDiorama, disposeTree, hitId, hitSphere, stageCamera } from '../_shared/diorama';
+import { baseDiorama, disposeTree, hitCylinder, hitId, hitSphere, stageCamera } from '../_shared/diorama';
 import { celebrate } from '../_shared/fx';
 import type { StageCtx, StageScene } from '../_shared/module';
 import { type BombAction, type BombState, DEFUSE_TICKS } from './rules';
@@ -58,6 +58,7 @@ interface WireView {
   label: NumberLabel;
   post: Mesh;
   proxy: Mesh;
+  wireProxy: Mesh;
   end: Vector3;
 }
 
@@ -226,7 +227,7 @@ export function createBombScene(world: RenderWorld, ctx: StageCtx): StageScene<B
 
   const build = (s: BombState) => {
     for (const w of wires.values())
-      for (const m of [w.whole, w.stubA, w.stubB, w.post, w.proxy]) disposeTree(m);
+      for (const m of [w.whole, w.stubA, w.stubB, w.post, w.proxy, w.wireProxy]) disposeTree(m);
     for (const w of wires.values()) w.label.removeFromParent();
     wires.clear();
     proxies.length = 0;
@@ -235,7 +236,8 @@ export function createBombScene(world: RenderWorld, ctx: StageCtx): StageScene<B
     label.set(p.target);
     const n = p.wires.length;
     p.wires.forEach((w, i) => {
-      const x = (i - (n - 1) / 2) * Math.min(1.5, 9 / n);
+      const spacing = Math.min(1.5, 9 / n);
+      const x = (i - (n - 1) / 2) * spacing;
       const start = new Vector3((i - (n - 1) / 2) * 0.35, 1.3, -0.9);
       const end = new Vector3(x, 0.75, 2.4);
       const curve = new CatmullRomCurve3([
@@ -258,11 +260,15 @@ export function createBombScene(world: RenderWorld, ctx: StageCtx): StageScene<B
       post.castShadow = true;
       const lab = new NumberLabel(w.value, { size: 0.6, placeColors: true });
       lab.position.set(end.x, 1.65, end.z + 0.4);
-      const proxy = hitSphere(0.8, w.id);
-      proxy.position.copy(curve.getPoint(0.75));
-      proxies.push(proxy);
-      root.add(whole, stubA, stubB, post, lab, proxy);
-      wires.set(w.id, { whole, stubA, stubB, label: lab, post, proxy, end });
+      // tap targets: a column over the number badge + its plug (where children actually tap), plus the
+      // wire's lower part. Columns are narrower than the wire spacing, so neighbours never overlap.
+      const proxy = hitCylinder(Math.min(0.72, spacing * 0.47), 2.1, w.id);
+      proxy.position.set(end.x, 1.3, end.z + 0.3);
+      const wireProxy = hitSphere(0.45, w.id);
+      wireProxy.position.copy(curve.getPoint(0.82));
+      proxies.push(proxy, wireProxy);
+      root.add(whole, stubA, stubB, post, lab, proxy, wireProxy);
+      wires.set(w.id, { whole, stubA, stubB, label: lab, post, proxy, wireProxy, end });
     });
   };
 
@@ -341,7 +347,8 @@ export function createBombScene(world: RenderWorld, ctx: StageCtx): StageScene<B
     screenPos(_s, id) {
       const w = wires.get(id);
       if (!w) return null;
-      const v = w.proxy.position.clone().project(world.camera);
+      // the number badge is what a child taps (tutorial hand and tests point there)
+      const v = w.label.position.clone().project(world.camera);
       return { x: v.x, y: v.y };
     },
     setCursor(id) {

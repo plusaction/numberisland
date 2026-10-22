@@ -14,7 +14,7 @@ import {
   SpriteNodeMaterial,
   SRGBColorSpace,
 } from 'three/webgpu';
-import { PALETTE, PLACE_COLORS, PLACE_MARKS } from '../palette';
+import { PALETTE, PLACE_COLORS } from '../palette';
 import { buildAtlasCanvas, CELL_H, CELL_W, GLYPHS, type Glyph } from './atlas';
 
 let atlas: CanvasTexture | null = null;
@@ -124,8 +124,9 @@ export class NumberLabel extends Group {
     const digitsOnly = /^\d+$/.test(text);
     if (this.opts.badge) {
       const b = new Sprite(glyphMaterial('BADGE', PALETTE.white));
-      b.scale.set(total + size * 0.55, size * 1.55, 1);
-      b.position.set(0, placeColors && digitsOnly ? -size * 0.18 : 0, 0);
+      // numbers only (D19): place value is shown by digit colour; no marks under the digits
+      b.scale.set(total + size * 0.55, size * 1.3, 1);
+      b.position.set(0, 0, 0);
       b.renderOrder = 1;
       this.badgeSprite = b;
       this.add(b);
@@ -140,20 +141,6 @@ export class NumberLabel extends Group {
       s.renderOrder = 2;
       s.center.set(0.5, 0.5);
       this.add(s);
-      // shape mark under every digit (also single digits) so colour is never the only cue (P9)
-      if (placeColors && digitsOnly) {
-        const mark = new Sprite(
-          glyphMaterial(
-            PLACE_MARKS[Math.min(placeIdx, 3)] as Glyph,
-            PLACE_COLORS[Math.min(placeIdx, 3)] as string,
-          ),
-        );
-        const ms = size * 0.42;
-        mark.scale.set(ms * (CELL_W / CELL_H), ms, 1);
-        mark.position.set(-total / 2 + step * (i + 0.5), -size * 0.66, 0);
-        mark.renderOrder = 2;
-        this.add(mark);
-      }
     });
   }
 }

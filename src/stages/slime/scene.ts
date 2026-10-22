@@ -8,7 +8,7 @@ import { type JellyMaterial, jellyMaterial, toyMaterial } from '../../engine/tsl
 import type { RenderWorld } from '../../engine/world';
 import { audio } from '../../infra/audio/audio';
 import type { PointerInfo } from '../../scenes/common/controller';
-import { baseDiorama, disposeTree, hitId, hitSphere, stageCamera } from '../_shared/diorama';
+import { baseDiorama, disposeTree, hitCylinder, hitId, stageCamera } from '../_shared/diorama';
 import { celebrate } from '../_shared/fx';
 import type { StageCtx, StageScene } from '../_shared/module';
 import type { SlimeAction, SlimeState } from './rules';
@@ -98,7 +98,9 @@ export function createSlimeScene(world: RenderWorld, ctx: StageCtx): StageScene<
       placeColors: !minus,
       tint: '#e8505b',
     });
-    const proxy = hitSphere(1.15, id);
+    // tap column covers the slime and its number badge above it
+    const proxy = hitCylinder(1.1, 3.2, id);
+    proxy.position.y = 0.7;
     g.add(body, label, proxy);
     const home = SLOT_POS(slot);
     g.position.copy(home);

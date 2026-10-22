@@ -152,3 +152,55 @@ test('[E4] after hint 4 the new-numbers retry updates the goal shown to the chil
   );
   await expect(page.getByTestId('goal')).toContainText(String(target));
 });
+
+test("[G7] tapping a wire's number badge selects that wire; undo puts it back", async ({ page }, info) => {
+  test.setTimeout(240_000);
+  await startFresh(page, url(info, STAGE_PATH));
+  await throughPlacement(page);
+  await page.evaluate(() => {
+    const st = (
+      globalThis as { __store?: { getState(): { select(s: string): void; go(s: string): void } } }
+    ).__store?.getState();
+    st?.select('bomb');
+    st?.go('intro');
+  });
+  await page.getByTestId('go').click();
+  await expect(page.getByTestId('stage')).toHaveAttribute('data-stage', 'bomb');
+  const skip = page.getByTestId('skip-tutorial');
+  if (await skip.isVisible().catch(() => false)) await skip.click();
+  await page.waitForTimeout(1200);
+  type Rt = {
+    state: { cut: number[]; puzzle: { wires: { id: number }[] } };
+    screenPos(id: number): { x: number; y: number } | null;
+  };
+  const ids = await page.evaluate(() =>
+    (globalThis as unknown as { __stage: { runtime: Rt } }).__stage.runtime.state.puzzle.wires.map(
+      (w) => w.id,
+    ),
+  );
+  const box = await page.getByTestId('world-canvas').boundingBox();
+  if (!box) throw new Error('no canvas');
+  for (const id of ids) {
+    const p = await page.evaluate(
+      (i) => (globalThis as unknown as { __stage: { runtime: Rt } }).__stage.runtime.screenPos(i),
+      id,
+    );
+    if (!p) throw new Error('no screen pos');
+    await page.mouse.click(box.x + ((p.x + 1) / 2) * box.width, box.y + ((1 - p.y) / 2) * box.height);
+    await expect
+      .poll(() =>
+        page.evaluate(
+          () => (globalThis as unknown as { __stage: { runtime: Rt } }).__stage.runtime.state.cut,
+        ),
+      )
+      .toEqual([id]);
+    await page.getByTestId('undo').click();
+    await expect
+      .poll(() =>
+        page.evaluate(
+          () => (globalThis as unknown as { __stage: { runtime: Rt } }).__stage.runtime.state.cut,
+        ),
+      )
+      .toEqual([]);
+  }
+});

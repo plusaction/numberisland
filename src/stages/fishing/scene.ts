@@ -17,7 +17,7 @@ import { WAVES_POND, waveHeight } from '../../engine/water/waves';
 import type { RenderWorld } from '../../engine/world';
 import { audio } from '../../infra/audio/audio';
 import type { PointerInfo } from '../../scenes/common/controller';
-import { baseDiorama, disposeTree, hitId, hitSphere, stageCamera } from '../_shared/diorama';
+import { baseDiorama, disposeTree, hitCylinder, hitId, hitSphere, stageCamera } from '../_shared/diorama';
 import { celebrate } from '../_shared/fx';
 import type { StageCtx, StageScene } from '../_shared/module';
 import { BOUNCE_TICKS, type FishingAction, type FishingState, REEL_TICKS } from './rules';
@@ -136,7 +136,9 @@ export function createFishingScene(
       eye.position.set(0.45, 0.12, 0.25);
       const label = new NumberLabel(f.value, { size: 0.7, placeColors: true });
       label.position.set(0, 1.0, 0);
-      const proxy = hitSphere(1.0, f.id);
+      // tall tap column: the fish body and the number badge above it both count
+      const proxy = hitCylinder(0.85, 2.4, f.id);
+      proxy.position.y = 0.5;
       g.add(body, tail, eye, label, proxy);
       root.add(g);
       proxies.push(proxy);
