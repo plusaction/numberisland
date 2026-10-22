@@ -3,8 +3,15 @@
  * coins, medals. Stages embed `RoundCore` in their state and call these helpers from `step`.
  */
 import { BALANCE } from '../../domain/balance';
+import type { TermSetting } from '../../domain/curriculum/curriculum';
 import { type CarryPolicy, CURRICULUM, levelIndex, levelSpec } from '../../domain/curriculum/curriculum';
-import type { AdaptiveState } from '../../domain/edu/adaptive';
+import {
+  type AdaptiveState,
+  clampLevel,
+  createAdaptiveState,
+  DEFAULT_SETTINGS,
+  isAllowed,
+} from '../../domain/edu/adaptive';
 import { generateQuestion } from '../../domain/edu/generate';
 import {
   type Asked,
@@ -25,6 +32,8 @@ export interface RoundOptions {
   /** Local calendar day (review scheduling). */
   day?: number;
   adaptive?: AdaptiveState;
+  /** School-term setting (grade 1 by default): stages never serve content above it. */
+  term?: TermSetting;
 }
 
 export interface RoundCore {
@@ -33,6 +42,7 @@ export interface RoundCore {
   rng: RngState;
   session: SessionState;
   shift: -1 | 0 | 1;
+  term: TermSetting;
   day: number;
   puzzles: number;
   index: number;
@@ -66,6 +76,7 @@ export function initRound(
     rng: rng.state(),
     session: createSession({ ...adaptive, level: adaptive.level ?? start }),
     shift: opts.shift ?? 0,
+    term: opts.term ?? DEFAULT_SETTINGS.term,
     day: opts.day ?? 0,
     puzzles: opts.puzzles ?? BALANCE.round.puzzles,
     index: 0,
@@ -85,8 +96,6 @@ export function initRound(
   };
 }
 
-import { createAdaptiveState } from '../../domain/edu/adaptive';
-
 function emptyAdaptive(start: LevelId): AdaptiveState {
   return createAdaptiveState(start);
 }
@@ -98,24 +107,43 @@ export function withRng<T>(core: RoundCore, fn: (rng: Rng) => T): { core: RoundC
   return { core: { ...core, rng: rng.state() }, value };
 }
 
-/** Is a level usable for a stage that needs these skills (some arithmetic spec present)? */
-function levelFits(level: LevelId, usable: readonly SkillId[]): boolean {
-  return levelSpec(level).skills.some((s) => usable.includes(s));
+/** Is a level usable for a stage that needs these skills, and within the child's school term? */
+function levelFits(level: LevelId, usable: readonly SkillId[], term: TermSetting): boolean {
+  return (
+    isAllowed(levelSpec(level), { ...DEFAULT_SETTINGS, term }) &&
+    levelSpec(level).skills.some((s) => usable.includes(s))
+  );
 }
 
 /** Nearest level in the same band (prefer the next one up, then down) that has a usable skill. */
-export function stageLevel(level: LevelId, usable: readonly SkillId[], shift: -1 | 0 | 1): LevelId {
-  const i = Math.max(0, Math.min(CURRICULUM.length - 1, levelIndex(level) + shift));
-  const base = CURRICULUM[i]?.id ?? level;
-  if (levelFits(base, usable)) return base;
+export function stageLevel(
+  level: LevelId,
+  usable: readonly SkillId[],
+  shift: -1 | 0 | 1,
+  term: TermSetting = DEFAULT_SETTINGS.term,
+): LevelId {
+  const settings = { ...DEFAULT_SETTINGS, term };
+  // shift steps over levels outside the term (A5 for grade 1) and stops at the ceiling
+  let base = clampLevel(level, settings);
+  if (shift !== 0) {
+    for (let j = levelIndex(base) + shift; j >= 0 && j < CURRICULUM.length; j += shift) {
+      const spec = CURRICULUM[j];
+      if (spec && isAllowed(spec, settings)) {
+        base = spec.id;
+        break;
+      }
+    }
+  }
+  const i = levelIndex(base);
+  if (levelFits(base, usable, term)) return base;
   const band = levelSpec(base).band;
   for (let d = 1; d < CURRICULUM.length; d++) {
     for (const j of [i + d, i - d]) {
       const l = CURRICULUM[j];
-      if (l && (l.band === band || band === '0') && levelFits(l.id, usable)) return l.id;
+      if (l && (l.band === band || band === '0') && levelFits(l.id, usable, term)) return l.id;
     }
   }
-  return 'A2';
+  return clampLevel('A2', settings);
 }
 
 /**
@@ -131,7 +159,7 @@ export function nextStageQuestion(
     const r = nextQuestion(core.session, rng, core.day);
     let { question } = r.asked;
     const pick = r.asked.pick;
-    const level = stageLevel(question.level, usable, core.shift);
+    const level = stageLevel(question.level, usable, core.shift, core.term);
     const skills = levelSpec(level).skills.filter((s) => usable.includes(s));
     const fits = (x: Question) => usable.includes(x.skill) && (!prefer || prefer(x));
     if (level !== question.level || !fits(question)) {
@@ -140,7 +168,11 @@ export function nextStageQuestion(
         ...new Set([...(skills.includes(pick.skill) ? [pick.skill] : []), ...rng.shuffle(skills)]),
       ];
       let found: Question | null = null;
-      const levels = [level, stageLevel(level, usable, -1), stageLevel(level, usable, 1)];
+      const levels = [
+        level,
+        stageLevel(level, usable, -1, core.term),
+        stageLevel(level, usable, 1, core.term),
+      ];
       for (const lv of levels) {
         const lvSkills = lv === level ? order : levelSpec(lv).skills.filter((sk) => usable.includes(sk));
         for (const skill of lvSkills) {

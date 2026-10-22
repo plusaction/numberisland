@@ -112,7 +112,7 @@ describe('[E5] 적응 엔진 수렴', () => {
   });
 
   it('third consecutive demotion becomes rescue mode with auto hint', () => {
-    let st = createAdaptiveState('B3');
+    let st = createAdaptiveState('A6');
     const events: string[] = [];
     for (let i = 0; i < 6; i++) {
       const r = recordAnswer(st, {
@@ -206,5 +206,20 @@ describe('[E5] 쉽게(−1)에서 계속 틀리면 강등', () => {
       core = { ...advancePuzzle(core), done: false };
     }
     expect(levelIndex(core.session.adaptive.level)).toBeLessThan(levelIndex('A4'));
+  });
+});
+
+describe('[E5] 초1 상한', () => {
+  it('a near-perfect child climbs to A6 and never beyond; no level outside 1-1/1-2 is ever picked', () => {
+    const rng = createRng('grade1-cap');
+    let st = createAdaptiveState('A1');
+    const seen = new Set<string>();
+    for (let i = 0; i < 400; i++) {
+      const pick = chooseNext(st, rng, 0);
+      seen.add(pick.level);
+      st = recordAnswer(st, { ...pick, correct: rng.chance(0.97), hintsUsed: 0, day: 0 }).state;
+    }
+    expect(st.level).toBe('A6');
+    expect([...seen].every((l) => ['L0_1', 'A1', 'A2', 'A3', 'A4', 'A6'].includes(l))).toBe(true);
   });
 });

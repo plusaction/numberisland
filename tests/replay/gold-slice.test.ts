@@ -3,7 +3,7 @@ import { CURRICULUM, levelSpec } from '../../src/domain/curriculum/curriculum';
 import { generateQuestion } from '../../src/domain/edu/generate';
 import type { LevelId } from '../../src/domain/edu/types';
 import { createRng } from '../../src/domain/rng/rng';
-import { stageLevel } from '../../src/stages/_shared/round';
+import { type RoundOptions, stageLevel } from '../../src/stages/_shared/round';
 import {
   BOMB_SKILLS,
   puzzleFromQuestion as bombPuzzle,
@@ -30,8 +30,12 @@ import {
 import { BOTS, type BotPolicy } from '../../tools/autoplayer/policy';
 import { bombBot, fishingBot, replay, slimeBot } from '../../tools/autoplayer/stages';
 
+/** Stage rules accept the full round options (term, shift) at runtime; the domain type only names `puzzles`. */
+const initWith = (rules: { init: unknown }) =>
+  rules.init as (seed: string, level: LevelId, opts?: RoundOptions) => unknown;
+
 const BAND_LEVELS: Record<'A' | 'B' | 'C', LevelId[]> = {
-  A: ['A2', 'A3', 'A5'],
+  A: ['A2', 'A3', 'A4'],
   B: ['B2', 'B3'],
   C: ['C2', 'C3', 'C4'],
 };
@@ -190,7 +194,8 @@ describe('[E1] 밴드 변형 (A/B/C) — 스테이지 숫자 범위', () => {
       for (const level of BAND_LEVELS[band]) {
         for (let i = 0; i < 8; i++) {
           for (const rules of [fishingRules, bombRules, slimeRules] as const) {
-            const s = rules.init(`band-${level}-${i}`, level) as {
+            // bands B/C stay supported for 2-1/2-2 settings; the default (grade 1) never reaches them
+            const s = initWith(rules)(`band-${level}-${i}`, level, band === 'A' ? {} : { term: '2-2' }) as {
               puzzle: { target: number } | null;
               core: { asked: { question: { level: LevelId } } | null };
             };
@@ -204,6 +209,26 @@ describe('[E1] 밴드 변형 (A/B/C) — 스테이지 숫자 범위', () => {
       if (band === 'A') expect(maxTarget).toBeLessThanOrEqual(99);
       if (band === 'B') expect(maxTarget).toBeGreaterThanOrEqual(100);
       if (band === 'C') expect(maxTarget).toBeGreaterThanOrEqual(1000);
+    }
+  });
+});
+
+describe('[E1] 초1 설정 — 어떤 스테이지도 1학년 범위를 넘지 않음', () => {
+  it('even "harder" (+1) from a B/C level serves only L0_1–A6 content, never two-digit carrying', () => {
+    const grade1 = new Set(['L0_1', 'A1', 'A2', 'A3', 'A4', 'A6']);
+    for (const level of ['A4', 'A6', 'B2', 'C3'] as LevelId[]) {
+      for (const shift of [-1, 0, 1] as const) {
+        for (let i = 0; i < 6; i++) {
+          for (const rules of [fishingRules, bombRules, slimeRules] as const) {
+            const s = initWith(rules)(`g1-${level}-${shift}-${i}`, level, { shift }) as {
+              core: { asked: { question: { level: LevelId; answer: number; operands: number[] } } | null };
+            };
+            const q = s.core.asked?.question;
+            expect(q && grade1.has(q.level), `${level}/${shift} → ${q?.level}`).toBe(true);
+            expect(Math.max(q?.answer ?? 0, ...(q?.operands ?? []))).toBeLessThanOrEqual(100);
+          }
+        }
+      }
     }
   });
 });

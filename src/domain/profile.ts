@@ -1,6 +1,6 @@
 /** Saved profile shape (SPEC §15) — pure types + defaults. Validation lives in infra/storage. */
 import type { TermSetting } from './curriculum/curriculum';
-import { type AdaptiveState, createAdaptiveState } from './edu/adaptive';
+import { type AdaptiveState, clampLevel, createAdaptiveState, DEFAULT_SETTINGS } from './edu/adaptive';
 import type { LevelId, SkillId } from './edu/types';
 import type { Stars } from './scoring/medals';
 import { STAGE_IDS, type StageId } from './stage/types';
@@ -108,4 +108,20 @@ export function defaultProfile(id: string, nickname: string, now: string): Profi
 export function pushHistory(history: readonly AnswerLog[], entry: AnswerLog): AnswerLog[] {
   const out = [...history, entry];
   return out.length > HISTORY_LIMIT ? out.slice(out.length - HISTORY_LIMIT) : out;
+}
+
+/**
+ * Keep a stored profile inside its school term (D15): a level saved before the grade-1 cap (e.g. B1)
+ * is moved to the nearest allowed level. Nothing earned is touched (P2).
+ */
+export function fitProfileToTerm(p: Profile): Profile {
+  const settings = {
+    ...DEFAULT_SETTINGS,
+    term: p.settings.term,
+    challengeEnabled: p.settings.challengeEnabled,
+  };
+  const level = clampLevel(p.adaptive.level, settings);
+  const best = clampLevel(p.adaptive.best, settings);
+  if (level === p.adaptive.level && best === p.adaptive.best) return p;
+  return { ...p, adaptive: { ...p.adaptive, level, best, recent: [], streak: 0, wrongStreak: 0 } };
 }

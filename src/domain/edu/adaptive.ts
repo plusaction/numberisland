@@ -14,6 +14,7 @@ import {
   levelSpec,
   TERM_RANGES,
   type TermSetting,
+  termRank,
 } from '../curriculum/curriculum';
 import type { Rng } from '../rng/rng';
 import { type BktParams, bktPredict, bktUpdate, DEFAULT_BKT } from './bkt';
@@ -97,8 +98,25 @@ export function allowedRange(settings: AdaptiveSettings): { floor: number; ceili
   };
 }
 
-function isAllowed(spec: LevelSpec, settings: AdaptiveSettings): boolean {
+export function isAllowed(spec: LevelSpec, settings: AdaptiveSettings): boolean {
+  if (termRank(spec.term) > termRank(TERM_RANGES[settings.term].maxTerm)) return false;
+  const { floor, ceiling } = allowedRange(settings);
+  const i = levelIndex(spec.id);
+  if (i < floor || i > ceiling) return false;
   return settings.challengeEnabled || !spec.challenge;
+}
+
+/** Nearest allowed level to `level` (prefer lower: never serve content above the child's grade). */
+export function clampLevel(level: LevelId, settings: AdaptiveSettings): LevelId {
+  if (isAllowed(levelSpec(level), settings)) return level;
+  const i = levelIndex(level);
+  for (let d = 1; d < CURRICULUM.length; d++) {
+    for (const j of [i - d, i + d]) {
+      const spec = CURRICULUM[j];
+      if (spec && isAllowed(spec, settings)) return spec.id;
+    }
+  }
+  return TERM_RANGES[settings.term].start;
 }
 
 /** Step to the next allowed level index in a direction, skipping disabled challenge levels. */

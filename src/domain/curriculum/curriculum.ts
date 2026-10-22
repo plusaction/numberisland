@@ -104,9 +104,9 @@ export const CURRICULUM: readonly LevelSpec[] = [
     band: 'A',
     term: '1-2',
     title: '(두 자리) ± (한 자리)',
-    skills: ['ADD_NOCARRY', 'ADD_CARRY', 'SUB_NOBORROW', 'SUB_BORROW'],
+    skills: ['ADD_NOCARRY', 'SUB_NOBORROW'],
     max: 99,
-    carry: 'some',
+    carry: 'none',
     terms: 2,
     forms: ['EXPR'],
     representations: ['blocks', 'numberline', 'column'],
@@ -136,7 +136,7 @@ export const CURRICULUM: readonly LevelSpec[] = [
   {
     id: 'A5',
     band: 'A',
-    term: '1-2',
+    term: '2-1',
     title: '(두 자리) ± (두 자리), 받아올림·내림 있음, 세로셈',
     skills: ['ADD_CARRY', 'SUB_BORROW'],
     max: 99,
@@ -157,7 +157,7 @@ export const CURRICULUM: readonly LevelSpec[] = [
     title: '세 수 덧셈·뺄셈, □ 채우기, 짧은 문장제',
     skills: ['THREE_TERM', 'MISSING_TERM', 'WORD', 'COMPARE_EXPR'],
     max: 99,
-    carry: 'some',
+    carry: 'none',
     terms: 3,
     forms: ['EXPR', 'MISSING', 'WORD', 'COMPARE'],
     representations: ['dots', 'numberline', 'blocks'],
@@ -376,9 +376,19 @@ export function levelAt(index: number): LevelSpec {
 
 /** School-term setting → start level + allowed range (parent panel "현재 진도"). */
 export type TermSetting = '1-1' | '1-2' | '2-1' | '2-2';
-export const TERM_RANGES: Record<TermSetting, { start: LevelId; floor: LevelId; ceiling: LevelId }> = {
-  '1-1': { start: 'L0_1', floor: 'L0_1', ceiling: 'C5' },
-  '1-2': { start: 'A1', floor: 'L0_1', ceiling: 'C5' },
-  '2-1': { start: 'B1', floor: 'A1', ceiling: 'C5' },
-  '2-2': { start: 'C1', floor: 'A3', ceiling: 'C5' },
+/**
+ * `maxTerm` caps content by school term (D15: grade-1 settings never leave 1-1/1-2 content, so A5 — two-digit
+ * carrying, a 2-1 topic — is skipped and the ceiling is A6).
+ */
+export const TERM_RANGES: Record<
+  TermSetting,
+  { start: LevelId; floor: LevelId; ceiling: LevelId; maxTerm: LevelSpec['term'] }
+> = {
+  '1-1': { start: 'L0_1', floor: 'L0_1', ceiling: 'A6', maxTerm: '1-2' },
+  '1-2': { start: 'A1', floor: 'L0_1', ceiling: 'A6', maxTerm: '1-2' },
+  '2-1': { start: 'B1', floor: 'A1', ceiling: 'C5', maxTerm: '3-1' },
+  '2-2': { start: 'C1', floor: 'A3', ceiling: 'C5', maxTerm: '3-1' },
 };
+
+const TERM_ORDER: readonly LevelSpec['term'][] = ['1-1', '1-2', '2-1', '2-2', '3-1'];
+export const termRank = (t: LevelSpec['term']): number => TERM_ORDER.indexOf(t);
