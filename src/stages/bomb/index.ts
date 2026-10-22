@@ -2,16 +2,23 @@ import type { StageModule } from '../_shared/module';
 import { type BombAction, type BombState, bombRules, initBomb, solveBomb } from './rules';
 import { createBombScene } from './scene';
 
+/** Goal line; every wire the child cuts fills the next "?" with its number (picked order; bigger first for −). */
 function goal(s: BombState): string {
   const p = s.puzzle;
   if (!p) return '';
+  const picked = s.cut.map((id) => p.wires.find((w) => w.id === id)?.value ?? 0);
+  const slot = (i: number) => (picked[i] !== undefined ? String(picked[i]) : '?');
+  // after a miss, show what the cut wires really make (a true sentence), never a false "= target"
+  const rhs = s.phase === 'puff' && s.lastWrong ? s.lastWrong.made : p.target;
   switch (p.mode) {
     case 'SUM2':
-      return `💣 ? + ? = ${p.target}`;
-    case 'DIFF2':
-      return `💣 ? − ? = ${p.target}`;
+      return `💣 ${slot(0)} + ${slot(1)} = ${rhs}`;
+    case 'DIFF2': {
+      picked.sort((a, b) => b - a);
+      return `💣 ${slot(0)} − ${slot(1)} = ${rhs}`;
+    }
     case 'SUM3':
-      return `💣 ? + ? + ? = ${p.target}`;
+      return `💣 ${slot(0)} + ${slot(1)} + ${slot(2)} = ${rhs}`;
     case 'PLACE':
       return `💣 ${p.target}`;
   }

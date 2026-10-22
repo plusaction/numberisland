@@ -91,7 +91,7 @@ export function StageScreen({ store, reducedMotion }: { store: GameStore; reduce
     const update = (s: typeof init) => {
       // re-render the HUD only when something it shows changed (state changes every tick)
       const c = s.core;
-      const sig = `${s.phase}|${c.asked?.question.key ?? ''}|${c.index}|${c.coins}|${c.correct}|${c.wrong}|${c.puzzleHints}|${(s as { puzzle?: unknown }).puzzle ? 1 : 0}|${(s as { undo?: unknown[] }).undo?.length ?? 0}|${(s as { slimes?: unknown[] }).slimes?.length ?? 0}`;
+      const sig = `${s.phase}|${c.asked?.question.key ?? ''}|${c.index}|${c.coins}|${c.correct}|${c.wrong}|${c.puzzleHints}|${(s as { puzzle?: unknown }).puzzle ? 1 : 0}|${(s as { undo?: unknown[] }).undo?.length ?? 0}|${(s as { slimes?: unknown[] }).slimes?.length ?? 0}|${(s as { cut?: unknown[] }).cut?.length ?? 0}`;
       if (sig !== lastSig) {
         lastSig = sig;
         setHud(mod.hud(s));

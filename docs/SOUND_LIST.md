@@ -24,6 +24,7 @@
 | ui.tap / ui.back | 버튼 | ✅ |
 | correct / correct.big | 정답 / 연속·큰 정답 | ✅ |
 | wrong.duck / wrong.boing / wrong.pfft | 웃긴 실패음(고무오리·뿅·뿡) | ✅ |
+| boom | 폭탄 만화 폭발(부드러운 쿵 + 펑 + 미끄러지는 웃음소리) | ✅ |
 | coin / star | 보상 | ✅ |
 | splash / reel | ③ 시그니처: 물방울·줄 감기 | ✅ |
 | snip / gift / fuse | ① 시그니처: 선 자르기·선물 변신·퓨즈 | ✅ |

@@ -34,7 +34,8 @@ export type SfxId =
   | 'firework'
   | 'levelup'
   | 'whoosh'
-  | 'fuse';
+  | 'fuse'
+  | 'boom';
 
 const C5 = 523.25;
 const E5 = 659.25;
@@ -88,6 +89,12 @@ export const SFX: Record<SfxId, Note[]> = {
   'slime.split': [
     { at: 0, freq: 500, to: 900, dur: 0.07, wave: 'sine', gain: 0.2 },
     { at: 0.07, freq: 600, to: 1000, dur: 0.07, wave: 'sine', gain: 0.2 },
+  ],
+  // cartoon "kaboom": soft low thump + noise burst + a silly falling slide (loud but never harsh)
+  boom: [
+    { at: 0, freq: 90, to: 40, dur: 0.45, wave: 'sine', gain: 0.4, noise: false },
+    { at: 0, freq: 400, dur: 0.5, wave: 'sine', gain: 0.28, noise: true },
+    { at: 0.35, freq: 700, to: 220, dur: 0.4, wave: 'triangle', gain: 0.12 },
   ],
   firework: [
     { at: 0, freq: 200, to: 1400, dur: 0.45, wave: 'triangle', gain: 0.12 },

@@ -2,12 +2,19 @@
 
 import { color, float, fract, mix, step, uv } from 'three/tsl';
 import {
+  AdditiveBlending,
   CatmullRomCurve3,
   Color,
   CylinderGeometry,
   Group,
+  InstancedMesh,
+  Matrix4,
   Mesh,
+  MeshBasicNodeMaterial,
   MeshStandardNodeMaterial,
+  PointLight,
+  Quaternion,
+  TorusGeometry,
   TubeGeometry,
   Vector3,
 } from 'three/webgpu';
@@ -88,6 +95,95 @@ export function createBombScene(world: RenderWorld, ctx: StageCtx): StageScene<B
   gift.position.copy(bombG.position);
   gift.scale.setScalar(0.001);
   root.add(gift);
+  // cartoon KABOOM (wrong answer): fireball flash, shockwave ring, puffy smoke clouds, a warm light pulse.
+  // Big and loud but friendly — the bomb pops back wobbling, nothing is lost (P2).
+  const boomAt = bombG.position.clone();
+  const fireMat = new MeshBasicNodeMaterial({ transparent: true, depthWrite: false });
+  fireMat.color = new Color('#ff6a1f');
+  const fireball = new Mesh(ball(1, 32), fireMat);
+  fireball.position.copy(boomAt);
+  fireball.visible = false;
+  const coreMat = new MeshBasicNodeMaterial({
+    transparent: true,
+    depthWrite: false,
+    blending: AdditiveBlending,
+  });
+  coreMat.color = new Color('#ffd23f');
+  const core = new Mesh(ball(1, 24), coreMat);
+  core.position.copy(boomAt);
+  core.visible = false;
+  const ringMat = new MeshBasicNodeMaterial({ transparent: true, depthWrite: false });
+  ringMat.color = new Color('#fff1d0');
+  const shockwave = new Mesh(new TorusGeometry(1, 0.08, 8, 64), ringMat);
+  shockwave.rotation.x = Math.PI / 2;
+  shockwave.position.set(boomAt.x, 0.65, boomAt.z);
+  shockwave.visible = false;
+  const SMOKE = 12;
+  const smoke = new InstancedMesh(ball(0.6, 16), toyMaterial('#f3ece4', { finish: 'matte' }), SMOKE);
+  smoke.castShadow = true;
+  smoke.count = 0;
+  const smokeDir = Array.from({ length: SMOKE }, (_, i) => {
+    const a = (i / SMOKE) * Math.PI * 2;
+    return new Vector3(Math.cos(a), 0.35 + ((i * 7) % 5) * 0.12, Math.sin(a) * 0.7);
+  });
+  const flash = new PointLight('#ffb35c', 0, 14, 1.6); // always present (intensity 0): no shader recompiles
+  flash.position.copy(boomAt).add(new Vector3(0, 0.5, 1.5));
+  root.add(fireball, core, shockwave, smoke, flash);
+  const m4 = new Matrix4();
+  const q = new Quaternion();
+  const sv = new Vector3();
+  const pv = new Vector3();
+  let boomT = -1;
+  const updateBoom = (dt: number) => {
+    if (boomT < 0) return;
+    boomT += dt;
+    const big = ctx.reducedMotion ? 0.6 : 1;
+    const k = boomT;
+    // fireball: pops to full size in 0.18 s, fades by 0.6 s
+    const grow = Math.min(1, k / 0.18);
+    fireball.visible = core.visible = k < 0.6;
+    fireball.scale.setScalar((1.2 + grow * 2.6) * big);
+    core.scale.setScalar((0.6 + grow * 1.6) * big);
+    fireMat.opacity = Math.max(0, 0.95 * (1 - (k / 0.6) ** 2));
+    fireMat.color.set(k < 0.2 ? '#ff6a1f' : '#e8401c');
+    coreMat.opacity = Math.max(0, 1 - k / 0.35);
+    // shockwave across the bench
+    shockwave.visible = k < 0.7;
+    shockwave.scale.setScalar((0.5 + (k / 0.7) * 6.5) * big);
+    ringMat.opacity = Math.max(0, 0.8 * (1 - k / 0.7));
+    flash.intensity = Math.max(0, 60 * (1 - k / 0.4)) * big;
+    // smoke clouds puff out, drift up, then shrink away
+    const life = 1.6;
+    smoke.count = k < life ? SMOKE : 0;
+    for (let i = 0; i < SMOKE; i++) {
+      const d = smokeDir[i] as Vector3;
+      const out = 1 - Math.exp(-k * 5);
+      const sc =
+        (k < 0.25 ? k / 0.25 : Math.max(0, 1 - (k - 0.25) / (life - 0.25))) * (0.8 + (i % 3) * 0.25) * big;
+      pv.set(boomAt.x + d.x * out * 2.4, boomAt.y + d.y * out * 2 + k * 0.6, boomAt.z + d.z * out * 2.4);
+      m4.compose(pv, q, sv.setScalar(Math.max(0.001, sc)));
+      smoke.setMatrixAt(i, m4);
+    }
+    smoke.instanceMatrix.needsUpdate = true;
+    if (k > life) {
+      boomT = -1;
+      flash.intensity = 0;
+    }
+  };
+  const kaboom = () => {
+    boomT = 0;
+    audio.play('boom');
+    audio.play('wrong.duck', { delay: 0.55 });
+    hitStop.trigger(90);
+    spring.impulse(14);
+    shake.add(1.3 * ctx.shakeIntensity);
+    world.particles.emit('sparkle', boomAt, 140);
+    world.particles.emit('dust', boomAt, 160);
+    world.particles.emit('confetti', { x: boomAt.x, y: boomAt.y + 0.5, z: boomAt.z }, 180);
+    world.burst('pebble', boomAt, 30);
+    world.burst('candy', boomAt, 10, ['#ff8fab', '#ffd166', '#b9a6f2']);
+  };
+
   const label = new NumberLabel(0, { size: 1.1, placeColors: true });
   label.position.set(0, 2.2, -0.15);
   root.add(label);
@@ -178,14 +274,8 @@ export function createBombScene(world: RenderWorld, ctx: StageCtx): StageScene<B
           !!state.core.asked?.question.tags.includes('SIX_SEVEN'),
         );
       }
-      if (prev && prev.phase !== 'puff' && state.phase === 'puff') {
-        audio.play('wrong.duck');
-        spring.impulse(9);
-        shake.add(0.5 * ctx.shakeIntensity);
-        world.particles.emit('confetti', { x: 0, y: 2.5, z: -1.6 }, 70);
-        // the funny "puff": soft pebbles hop out of the bomb and roll away
-        world.burst('pebble', { x: 0, y: 2.2, z: -1.6 }, 14);
-      }
+      if (prev && prev.phase !== 'puff' && state.phase === 'puff') kaboom();
+      updateBoom(vdt);
       for (const [id, w] of wires) {
         const cut = state.cut.includes(id) || state.phase === 'defuse';
         w.whole.visible = !cut;
@@ -205,9 +295,12 @@ export function createBombScene(world: RenderWorld, ctx: StageCtx): StageScene<B
         gift.scale.setScalar(Math.max(0.001, giftT * (1 + Math.sin(giftT * Math.PI) * 0.15)));
         label.visible = giftT < 0.5;
       } else {
-        bombG.scale.set(s.x * breathe, s.y * breathe, s.z * breathe);
+        // the bomb vanishes inside the fireball, then pops back wobbling (spring) — funny, not scary
+        const gone = boomT >= 0 && boomT < 0.42;
+        const back = gone ? 0.001 : 1;
+        bombG.scale.set(s.x * breathe * back, s.y * breathe * back, s.z * breathe * back);
         gift.scale.setScalar(0.001);
-        label.visible = true;
+        label.visible = !gone;
       }
       if (!ctx.reducedMotion && Math.floor(t * 8) % 3 === 0)
         world.particles.emit('sparkle', { x: 0.55, y: 3.95, z: -1.6 }, 1);
