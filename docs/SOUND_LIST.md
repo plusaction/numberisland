@@ -24,6 +24,7 @@
 | ui.tap / ui.back | 버튼 | ✅ |
 | correct / correct.big | 정답 / 연속·큰 정답 | ✅ |
 | wrong.duck / wrong.boing / wrong.pfft | 웃긴 실패음(고무오리·뿅·뿡) | ✅ |
+| slime.squish / slime.grab | 슬라임 합체 철퍽·뽀글, 집을 때 쫀득한 소리 | ✅ |
 | boom | 폭탄 만화 폭발(부드러운 쿵 + 펑 + 미끄러지는 웃음소리) | ✅ |
 | coin / star | 보상 | ✅ |
 | splash / reel | ③ 시그니처: 물방울·줄 감기 | ✅ |

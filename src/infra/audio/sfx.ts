@@ -31,6 +31,8 @@ export type SfxId =
   | 'merge'
   | 'pop'
   | 'slime.split'
+  | 'slime.squish'
+  | 'slime.grab'
   | 'firework'
   | 'levelup'
   | 'whoosh'
@@ -86,6 +88,21 @@ export const SFX: Record<SfxId, Note[]> = {
   ],
   merge: [{ at: 0, freq: 220, to: 660, dur: 0.25, wave: 'sine', gain: 0.3 }],
   pop: [{ at: 0, freq: 700, to: 200, dur: 0.09, wave: 'sine', gain: 0.3 }],
+  // wet "blorp-squelch": falling blob + filtered wet noise + rubbery rebound + two little bubble pops
+  'slime.squish': [
+    { at: 0, freq: 520, to: 130, dur: 0.17, wave: 'sine', gain: 0.3 },
+    { at: 0, freq: 900, dur: 0.1, wave: 'sine', gain: 0.14, noise: true },
+    { at: 0.04, freq: 380, dur: 0.14, wave: 'sine', gain: 0.12, noise: true },
+    { at: 0.13, freq: 170, to: 330, dur: 0.16, wave: 'triangle', gain: 0.22 },
+    { at: 0.22, freq: 880, to: 1500, dur: 0.05, wave: 'sine', gain: 0.1 },
+    { at: 0.3, freq: 1100, to: 1800, dur: 0.04, wave: 'sine', gain: 0.08 },
+  ],
+  // picking a slime up: a soft sticky "schlup"
+  'slime.grab': [
+    { at: 0, freq: 240, to: 170, dur: 0.12, wave: 'sine', gain: 0.18 },
+    { at: 0, freq: 650, dur: 0.08, wave: 'sine', gain: 0.08, noise: true },
+    { at: 0.06, freq: 300, to: 420, dur: 0.07, wave: 'sine', gain: 0.1 },
+  ],
   'slime.split': [
     { at: 0, freq: 500, to: 900, dur: 0.07, wave: 'sine', gain: 0.2 },
     { at: 0.07, freq: 600, to: 1000, dur: 0.07, wave: 'sine', gain: 0.2 },

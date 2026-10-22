@@ -247,9 +247,10 @@ export function jellyMaterial(hex: ColorRepresentation): JellyMaterial {
   const base = color(new Color(hex));
   m.colorNode = base;
   m.emissiveNode = base.mul(float(0.16).add(rim(1.6).mul(0.4)));
-  const w = sin(time.mul(9).add(positionLocal.y.mul(5)))
+  // gooey wobble: slower, deeper ripples running up the body
+  const w = sin(time.mul(7).add(positionLocal.y.mul(4.5)))
     .mul(wobble)
-    .mul(0.06);
+    .mul(0.1);
   m.positionNode = positionLocal.add(normalLocal.mul(w));
   return { material: m, wobble };
 }

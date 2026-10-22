@@ -106,7 +106,7 @@ export function createSlimeScene(world: RenderWorld, ctx: StageCtx): StageScene<
     g.position.copy(home);
     root.add(g);
     proxies.push(proxy);
-    return { group: g, body, jelly, label, proxy, spring: new Spring(0, 180, 9), home, value };
+    return { group: g, body, jelly, label, proxy, spring: new Spring(0, 120, 4.2), home, value }; // soft + low damping = chewy jiggle
   };
 
   const rebuild = (s: SlimeState) => {
@@ -118,13 +118,37 @@ export function createSlimeScene(world: RenderWorld, ctx: StageCtx): StageScene<
     });
   };
 
+  const ghosts: { v: SlimeView; to: number; t: number }[] = [];
+  const ABSORB = 0.28;
+  const updateGhosts = (dt: number) => {
+    for (let i = ghosts.length - 1; i >= 0; i--) {
+      const g = ghosts[i] as (typeof ghosts)[number];
+      g.t += dt;
+      const target = views.get(g.to);
+      const k = Math.min(1, g.t / ABSORB);
+      if (target) g.v.group.position.lerp(target.group.position, 1 - Math.exp(-dt * 22));
+      const r = radiusFor(g.v.value);
+      const ease = 1 - k * k;
+      // stretched toward the partner like pulled taffy, then gone
+      g.v.body.scale.set(r * ease * 0.8, r * (ease + 0.35 * Math.sin(k * Math.PI)), r * ease * 0.8);
+      g.v.label.visible = k < 0.3;
+      if (k >= 1) {
+        disposeTree(g.v.group);
+        ghosts.splice(i, 1);
+      }
+    }
+  };
+
   const syncSlimes = (s: SlimeState) => {
     const ids = new Set(s.slimes.map((x) => x.id));
     for (const [id, v] of views) {
       if (!ids.has(id)) {
         proxies.splice(proxies.indexOf(v.proxy), 1);
-        disposeTree(v.group);
         views.delete(id);
+        // merged away: the slime is sucked into its partner (stretch + shrink) instead of vanishing
+        const ev = s.event;
+        if (ev?.kind === 'merge' && ev.from === id) ghosts.push({ v, to: ev.to, t: 0 });
+        else disposeTree(v.group);
       }
     }
     s.slimes.forEach((sl, i) => {
@@ -153,8 +177,10 @@ export function createSlimeScene(world: RenderWorld, ctx: StageCtx): StageScene<
         lastEventTick = ev.tick;
         const v = views.get(ev.to);
         if (ev.kind === 'merge' && v) {
-          audio.play('merge', { pitch: 0.9 + Math.min(0.5, v.value / 200) });
-          v.spring.impulse(-7); // big squash → overshoot → settle (signature)
+          // gooey squelch (bigger slimes sound a little lower)
+          audio.play('slime.squish', { pitch: 1.15 - Math.min(0.35, v.value / 150) });
+          audio.play('merge', { pitch: 0.9 + Math.min(0.5, v.value / 200), delay: 0.08 });
+          v.spring.impulse(-11); // deep squash → chewy overshoot → long wobbly settle (signature)
           v.jelly.wobble.value = 1;
           hitStop.trigger(40);
           world.particles.emit('sparkle', v.group.position, 25);
@@ -183,12 +209,20 @@ export function createSlimeScene(world: RenderWorld, ctx: StageCtx): StageScene<
           !!state.core.asked?.question.tags.includes('SIX_SEVEN'),
         );
       }
+      updateGhosts(vdt);
       for (const [id, v] of views) {
         const r = radiusFor(v.value);
-        const sq = squashScale(v.spring.update(vdt) * 0.12);
+        const sq = squashScale(v.spring.update(vdt) * 0.16);
         const breathe = ctx.reducedMotion ? 0 : Math.sin(t * 2.2 + id) * 0.02;
-        v.body.scale.set(r * sq.x * (1 - breathe), r * sq.y * (1 + breathe), r * sq.z * (1 - breathe));
-        v.jelly.wobble.value *= Math.exp(-vdt * 2.2);
+        // held up by the finger: hangs a little longer and thinner, like soft mochi
+        const hang = dragging === id ? 1.14 + Math.sin(t * 9) * 0.03 : 1;
+        const thin = 1 / Math.sqrt(hang);
+        v.body.scale.set(
+          r * sq.x * (1 - breathe) * thin,
+          r * sq.y * (1 + breathe) * hang,
+          r * sq.z * (1 - breathe) * thin,
+        );
+        v.jelly.wobble.value *= Math.exp(-vdt * 1.3);
         const target = dragging === id ? dragPos : v.home;
         v.group.position.lerp(target, 1 - Math.exp(-vdt * (dragging === id ? 25 : 10)));
         v.group.position.y =
@@ -211,7 +245,12 @@ export function createSlimeScene(world: RenderWorld, ctx: StageCtx): StageScene<
         if (id !== null && state.phase === 'play') {
           dragging = id;
           p.raycaster.ray.intersectPlane(plane, dragPos);
-          audio.play('pop');
+          audio.play('slime.grab');
+          const v = views.get(id);
+          if (v) {
+            v.spring.impulse(4); // stretches up as it is pulled off the tray
+            v.jelly.wobble.value = 0.7;
+          }
         }
       } else if (p.type === 'move' && dragging !== null) {
         p.raycaster.ray.intersectPlane(plane, dragPos);
