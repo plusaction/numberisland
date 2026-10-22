@@ -5,10 +5,10 @@
     "drawCalls": 122,
     "triangles": 88550,
     "geometries": 56,
-    "textures": 22,
+    "textures": 25,
     "fps": 1,
-    "frameMsP50": 1749.9,
-    "frameMsP95": 1749.9
+    "frameMsP50": 1583.4,
+    "frameMsP95": 1583.4
   },
   "high/placement": {
     "backend": "webgl2",
@@ -16,10 +16,10 @@
     "drawCalls": 122,
     "triangles": 88550,
     "geometries": 56,
-    "textures": 22,
+    "textures": 25,
     "fps": 1,
-    "frameMsP50": 1800,
-    "frameMsP95": 1800
+    "frameMsP50": 1750,
+    "frameMsP95": 1750
   },
   "high/hub": {
     "backend": "webgl2",
@@ -27,21 +27,21 @@
     "drawCalls": 104,
     "triangles": 80710,
     "geometries": 55,
-    "textures": 22,
+    "textures": 25,
     "fps": 1,
-    "frameMsP50": 1899.9,
-    "frameMsP95": 1899.9
+    "frameMsP50": 1733.2,
+    "frameMsP95": 1733.2
   },
   "high/fishing": {
     "backend": "webgl2",
     "tier": "high",
-    "drawCalls": 87,
-    "triangles": 35314,
+    "drawCalls": 93,
+    "triangles": 35326,
     "geometries": 61,
-    "textures": 23,
+    "textures": 26,
     "fps": 1,
-    "frameMsP50": 2166.6,
-    "frameMsP95": 2166.6
+    "frameMsP50": 1866.6,
+    "frameMsP95": 1866.6
   },
   "high/bomb": {
     "backend": "webgl2",
@@ -49,21 +49,21 @@
     "drawCalls": 60,
     "triangles": 28988,
     "geometries": 56,
-    "textures": 23,
+    "textures": 26,
     "fps": 1,
-    "frameMsP50": 1433.3,
-    "frameMsP95": 1433.3
+    "frameMsP50": 1283.3,
+    "frameMsP95": 1283.3
   },
   "high/slime": {
     "backend": "webgl2",
     "tier": "high",
-    "drawCalls": 93,
-    "triangles": 45512,
+    "drawCalls": 91,
+    "triangles": 45508,
     "geometries": 59,
-    "textures": 23,
+    "textures": 26,
     "fps": 1,
-    "frameMsP50": 1783.2,
-    "frameMsP95": 1783.2
+    "frameMsP50": 1566.6,
+    "frameMsP95": 1566.6
   },
   "high/hub-after-stages": {
     "backend": "webgl2",
@@ -71,86 +71,9 @@
     "drawCalls": 104,
     "triangles": 80710,
     "geometries": 79,
-    "textures": 23,
+    "textures": 26,
     "fps": 0.5,
-    "frameMsP50": 3174.8,
-    "frameMsP95": 3174.8
-  },
-  "balanced/welcome": {
-    "backend": "webgl2",
-    "tier": "balanced",
-    "drawCalls": 109,
-    "triangles": 88537,
-    "geometries": 56,
-    "textures": 8,
-    "fps": 1,
-    "frameMsP50": 1399.9,
-    "frameMsP95": 1399.9
-  },
-  "balanced/placement": {
-    "backend": "webgl2",
-    "tier": "balanced",
-    "drawCalls": 109,
-    "triangles": 88537,
-    "geometries": 56,
-    "textures": 8,
-    "fps": 1,
-    "frameMsP50": 1300,
-    "frameMsP95": 1300
-  },
-  "balanced/hub": {
-    "backend": "webgl2",
-    "tier": "balanced",
-    "drawCalls": 91,
-    "triangles": 80697,
-    "geometries": 55,
-    "textures": 8,
-    "fps": 1,
-    "frameMsP50": 1166.7,
-    "frameMsP95": 1166.7
-  },
-  "balanced/fishing": {
-    "backend": "webgl2",
-    "tier": "balanced",
-    "drawCalls": 74,
-    "triangles": 35301,
-    "geometries": 61,
-    "textures": 9,
-    "fps": 1,
-    "frameMsP50": 1399.9,
-    "frameMsP95": 1399.9
-  },
-  "balanced/bomb": {
-    "backend": "webgl2",
-    "tier": "balanced",
-    "drawCalls": 47,
-    "triangles": 28975,
-    "geometries": 56,
-    "textures": 9,
-    "fps": 1.5,
-    "frameMsP50": 900,
-    "frameMsP95": 916.5
-  },
-  "balanced/slime": {
-    "backend": "webgl2",
-    "tier": "balanced",
-    "drawCalls": 76,
-    "triangles": 45491,
-    "geometries": 59,
-    "textures": 9,
-    "fps": 1,
-    "frameMsP50": 1249.9,
-    "frameMsP95": 1249.9
-  },
-  "balanced/hub-after-stages": {
-    "backend": "webgl2",
-    "tier": "balanced",
-    "drawCalls": 91,
-    "triangles": 80697,
-    "geometries": 79,
-    "textures": 9,
-    "fps": 1,
-    "frameMsP50": 1266.7,
-    "frameMsP95": 1266.7
+    "frameMsP50": 2354.7,
+    "frameMsP95": 2354.7
   }
 }

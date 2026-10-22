@@ -29,32 +29,9 @@ import {
   vec4,
 } from 'three/tsl';
 import { type Camera, RenderPipeline, type Scene, type WebGPURenderer } from 'three/webgpu';
-import { LABEL_LAYER } from '../numbers/number-label';
+import { setLabelMask } from '../numbers/number-label';
 import type { TierConfig } from '../quality/quality';
 import type { Post } from './post-types';
-
-/** Second, tiny pass: only the number labels, straight onto the finished image (no AO/bloom on digits, P9). */
-function drawLabels(renderer: WebGPURenderer, scene: Scene, camera: Camera) {
-  const mask = camera.layers.mask;
-  const bg = scene.backgroundNode;
-  const autoClear = renderer.autoClear;
-  // shadow maps were just rendered for this frame: don't redraw them for the label pass
-  const casters: { shadow: { autoUpdate: boolean } }[] = [];
-  for (const o of scene.children) {
-    const l = o as { isLight?: boolean; castShadow?: boolean; shadow?: { autoUpdate: boolean } };
-    if (l.isLight && l.castShadow && l.shadow?.autoUpdate)
-      casters.push(l as { shadow: { autoUpdate: boolean } });
-  }
-  camera.layers.set(LABEL_LAYER);
-  scene.backgroundNode = null;
-  renderer.autoClear = false;
-  for (const c of casters) c.shadow.autoUpdate = false;
-  renderer.render(scene, camera);
-  for (const c of casters) c.shadow.autoUpdate = true;
-  renderer.autoClear = autoClear;
-  scene.backgroundNode = bg;
-  camera.layers.mask = mask;
-}
 
 /** Loaded on demand (separate chunk) only when a tier with contact shadows / reflections runs. */
 export function createAdvancedPost(
@@ -80,6 +57,7 @@ export function createAdvancedPost(
       mrt({
         output,
         normal: packNormalToRGB(normalView),
+        labelMask: vec4(0, 0, 0, 0),
         ...(full ? { metalrough: vec2(metalness, roughness) } : {}),
       }),
     );
@@ -115,16 +93,16 @@ export function createAdvancedPost(
     }
     const glow = bloom(lit, full ? 0.3 : 0.2, 0.45, 0.92);
     disposers.push(glow);
-    pipeline.outputNode = lit.add(glow).mul(vig);
+    // number labels write labelMask = 1 (alpha-blended): there the image keeps its original colours,
+    // untouched by contact shadows and bloom (P9 place-value colours stay exact)
+    setLabelMask(mrt({ labelMask: vec4(1, 1, 1, output.a) }));
+    const mask = scenePass.getTextureNode('labelMask').r;
+    pipeline.outputNode = mix(lit.add(glow), colorTex, mask).mul(vig);
   }
   return {
-    render: () => {
-      camera.layers.disable(LABEL_LAYER);
-      pipeline.render();
-      camera.layers.enable(LABEL_LAYER);
-      drawLabels(renderer, scene, camera);
-    },
+    render: () => pipeline.render(),
     dispose: () => {
+      setLabelMask(null);
       for (const d of disposers) d.dispose();
       pipeline.dispose();
       scenePass.dispose();

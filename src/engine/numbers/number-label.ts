@@ -21,10 +21,17 @@ let atlas: CanvasTexture | null = null;
 const materials = new Map<string, SpriteNodeMaterial>();
 
 /**
- * Number labels live on their own layer: tiers with screen-space effects draw them *after* post-processing,
- * so contact shadows and bloom never wash out the place-value colours and marks (P9).
+ * Tiers with contact shadows/bloom render an extra MRT channel `labelMask` (1 where a label is drawn) so the
+ * final composite shows labels with their original colours. Only valid while such a pipeline is active.
  */
-export const LABEL_LAYER = 2;
+let labelMRT: unknown = null;
+export function setLabelMask(node: unknown) {
+  labelMRT = node;
+  for (const m of materials.values()) {
+    (m as { mrtNode: unknown }).mrtNode = node;
+    m.needsUpdate = true;
+  }
+}
 
 /** Re-upload the atlas after a renderer was recreated (device/context loss). */
 export async function refreshDigitAtlas(): Promise<void> {
@@ -63,6 +70,7 @@ function glyphMaterial(g: Glyph, tint: string): SpriteNodeMaterial {
   m.opacityNode = t.a;
   m.sizeAttenuation = true;
   m.userData.shared = true; // cached per glyph+tint: scene teardown must not dispose it
+  (m as { mrtNode: unknown }).mrtNode = labelMRT;
   materials.set(key, m);
   return m;
 }
@@ -119,7 +127,6 @@ export class NumberLabel extends Group {
       b.scale.set(total + size * 0.55, size * 1.55, 1);
       b.position.set(0, placeColors && digitsOnly ? -size * 0.18 : 0, 0);
       b.renderOrder = 1;
-      b.layers.set(LABEL_LAYER);
       this.badgeSprite = b;
       this.add(b);
     }
@@ -131,7 +138,6 @@ export class NumberLabel extends Group {
       s.scale.set(size * (CELL_W / CELL_H), size, 1);
       s.position.set(-total / 2 + step * (i + 0.5), 0, 0);
       s.renderOrder = 2;
-      s.layers.set(LABEL_LAYER);
       s.center.set(0.5, 0.5);
       this.add(s);
       // shape mark under every digit (also single digits) so colour is never the only cue (P9)
@@ -146,7 +152,6 @@ export class NumberLabel extends Group {
         mark.scale.set(ms * (CELL_W / CELL_H), ms, 1);
         mark.position.set(-total / 2 + step * (i + 0.5), -size * 0.66, 0);
         mark.renderOrder = 2;
-        mark.layers.set(LABEL_LAYER);
         this.add(mark);
       }
     });

@@ -22,7 +22,7 @@ import {
 import { createRng } from '../domain/rng/rng';
 import { type Backend, createRenderer, type RendererHandle } from '../infra/render/renderer';
 import { createPost, type Post } from './fx/post';
-import { LABEL_LAYER, refreshDigitAtlas } from './numbers/number-label';
+import { refreshDigitAtlas } from './numbers/number-label';
 import { PALETTE } from './palette';
 import { createParticles, type ParticleSystem } from './particles';
 import type { BurstKind, PhysicsFx } from './physics/physics';
@@ -92,7 +92,6 @@ export class RenderWorld {
 
   private constructor(private opts: WorldOptions) {
     this.scene.add(this.sun, this.sun.target, this.hemi);
-    this.camera.layers.enable(LABEL_LAYER);
     this.sun.position.set(6, 12, 7);
     this.sun.castShadow = true;
     this.sun.shadow.mapSize.set(1024, 1024);
