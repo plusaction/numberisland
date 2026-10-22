@@ -12,6 +12,8 @@ export function celebrationSize(streak: number): { confetti: number; sparkle: nu
 export function celebrate(world: RenderWorld, at: Vector3Like, streak: number, sixSeven: boolean) {
   const c = celebrationSize(streak);
   world.particles.emit('confetti', at, c.confetti);
+  // real coins rain down, bounce and roll on the diorama (decorative physics; particles alone on low tiers)
+  world.burst('coin', { x: at.x, y: at.y + 1, z: at.z }, 5 + Math.min(4, Math.max(1, streak)) * 2);
   if (c.sparkle) world.particles.emit('sparkle', { x: at.x, y: at.y + 1, z: at.z }, c.sparkle);
   if (c.big) audio.play('star', { delay: 0.5, pitch: 1 + Math.min(streak, 6) * 0.05 });
   if (sixSeven) {

@@ -5,7 +5,7 @@ import { HitStop, Spring, squashScale } from '../../engine/fx/juice';
 import { ball, blob, disc, roundedBox } from '../../engine/geo/shapes';
 import { initDigitAtlas, NumberLabel } from '../../engine/numbers/number-label';
 import { PALETTE } from '../../engine/palette';
-import { addOutline, jellyMaterial, toyMaterial, waterMaterial } from '../../engine/tsl/materials';
+import { jellyMaterial, toyMaterial, waterMaterial } from '../../engine/tsl/materials';
 import type { RenderWorld } from '../../engine/world';
 
 export async function buildEngineDemo(world: RenderWorld) {
@@ -37,7 +37,6 @@ export async function buildEngineDemo(world: RenderWorld) {
     b.position.set(1 + (i % 3) * 1.0, 0.65 + Math.floor(i / 3) * 0.82, -1.5 + (i % 2) * 0.3);
     b.rotation.y = rng.float() * 0.6;
     b.castShadow = true;
-    addOutline(b, 0.03);
     root.add(b);
   }
   for (let i = 0; i < 6; i++) {

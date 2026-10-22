@@ -23,6 +23,9 @@ pnpm bench          # 실제 GPU 기기에서 프레임 타임 측정(JSON) → 
 ```
 URL 옵션: `?renderer=webgl`(WebGL2 강제), `?debug=1`(백엔드·티어·프레임 HUD), `?tier=low|balanced|high|ultra`, `?demo=engine`(엔진 데모).
 
+## 그래픽 측정
+`pnpm shots` — 장면별 스크린샷과 드로우콜·삼각형·메모리·프레임 시간을 `docs/review/gfx/`에 기록(소프트웨어 렌더라 프레임 시간은 비교용).
+
 ## 배포
 정적 호스팅(Cloudflare Pages / Netlify / GitHub Pages 등)에 `dist/`를 그대로 올리면 됩니다. `dist/_headers`에 보안 헤더(CSP 등)가 들어 있습니다.
 

@@ -1,14 +1,13 @@
 /** Procedural mini models for the 8 stage portals (SPEC §10: "스테이지 아이콘(3D 미니 모형)"). */
 import { ConeGeometry, Group, Mesh, TorusGeometry } from 'three/webgpu';
 import type { StageId } from '../../domain/stage/types';
-import { ball, capsule, disc, roundedBox } from '../../engine/geo/shapes';
+import { ball, capsule, disc, roundedBox, waterPlane } from '../../engine/geo/shapes';
 import { PALETTE } from '../../engine/palette';
-import { addOutline, jellyMaterial, toyMaterial, waterMaterial } from '../../engine/tsl/materials';
+import { jellyMaterial, toyMaterial, waterMaterial } from '../../engine/tsl/materials';
 
-function m(geo: ConstructorParameters<typeof Mesh>[0], color: string, outline = true): Mesh {
+function m(geo: ConstructorParameters<typeof Mesh>[0], color: string, _outline = true): Mesh {
   const mesh = new Mesh(geo, toyMaterial(color));
   mesh.castShadow = true;
-  if (outline) addOutline(mesh, 0.025);
   return mesh;
 }
 
@@ -48,7 +47,7 @@ export function portalModel(stage: StageId): Group {
       break;
     }
     case 'fishing': {
-      const pond = new Mesh(disc(0.6, 0.06), waterMaterial());
+      const pond = new Mesh(waterPlane(0.6, 24), waterMaterial(undefined, undefined, 0.6));
       pond.position.y = 0.12;
       const fish = m(capsule(0.12, 0.25), PALETTE.peach);
       fish.rotation.z = Math.PI / 2;

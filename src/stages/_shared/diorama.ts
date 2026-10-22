@@ -7,9 +7,10 @@ import {
   type Object3D,
   SphereGeometry,
 } from 'three/webgpu';
+import { releaseTree } from '../../engine/geo/release';
 import { disc } from '../../engine/geo/shapes';
 import { PALETTE } from '../../engine/palette';
-import { toyMaterial } from '../../engine/tsl/materials';
+import { sandMaterial, tableMaterial, woodMaterial } from '../../engine/tsl/materials';
 import type { RenderWorld } from '../../engine/world';
 
 export function stageCamera(world: RenderWorld, dist = 12, height = 9, fov = 38, lookY = 0.4) {
@@ -17,29 +18,48 @@ export function stageCamera(world: RenderWorld, dist = 12, height = 9, fov = 38,
   world.camera.updateProjectionMatrix();
   world.camera.position.set(0, height, dist);
   world.camera.lookAt(0, lookY, 0);
+  world.setGround(0, 7); // diorama top (bodies roll off the edge onto the table)
 }
 
+/**
+ * Diorama on a polished wooden play table: felt-like top (grainy, coloured), wooden rim, and a glossy table
+ * that reflects the toys (environment reflections everywhere, screen-space reflections on the ultra tier).
+ * All parts are static and share cached geometry/materials.
+ */
 export function baseDiorama(color: string = PALETTE.sand, radius = 7): Group {
   const g = new Group();
-  const base = new Mesh(disc(radius, 0.9, 64), toyMaterial(color));
+  const base = new Mesh(disc(radius, 0.9, 96), sandMaterial(color));
   base.position.y = -0.45;
   base.receiveShadow = true;
   g.add(base);
-  const rim = new Mesh(disc(radius + 0.25, 0.4, 64), toyMaterial(PALETTE.cocoa));
+  const rim = new Mesh(disc(radius + 0.25, 0.4, 96), woodMaterial('#9a6a48'));
   rim.position.y = -0.95;
+  rim.castShadow = true;
   g.add(rim);
+  const table = new Mesh(disc(30, 0.3, 64), tableMaterial('#c4936a'));
+  table.position.y = -1.3;
+  table.receiveShadow = true;
+  g.add(table);
   return g;
 }
 
 const proxyMat = new MeshBasicNodeMaterial({ transparent: true, opacity: 0, depthWrite: false });
+proxyMat.userData.shared = true;
+/**
+ * Hit proxies live on their own layer: the camera never renders them (no invisible draw calls, no ghost
+ * shapes in the depth/normal buffers used by contact shadows), but the pointer raycaster tests it.
+ */
+export const HIT_LAYER = 1;
 /** Invisible generous tap target (≥ 64 px at 1080p). */
 export function hitSphere(radius: number, id: number): Mesh {
   const m = new Mesh(new SphereGeometry(radius, 8, 6), proxyMat);
+  m.layers.set(HIT_LAYER);
   m.userData.hit = id;
   return m;
 }
 export function hitCylinder(radius: number, height: number, id: number): Mesh {
   const m = new Mesh(new CylinderGeometry(radius, radius, height, 8), proxyMat);
+  m.layers.set(HIT_LAYER);
   m.userData.hit = id;
   return m;
 }
@@ -54,12 +74,5 @@ export function hitId(
 }
 
 export function disposeTree(root: Object3D) {
-  root.traverse((o) => {
-    if (o instanceof Mesh) {
-      o.geometry.dispose();
-      const m = o.material as { dispose?: () => void };
-      if (m !== proxyMat) m.dispose?.();
-    }
-  });
-  root.removeFromParent();
+  releaseTree(root);
 }

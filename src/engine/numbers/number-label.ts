@@ -56,6 +56,7 @@ function glyphMaterial(g: Glyph, tint: string): SpriteNodeMaterial {
   m.colorNode = t.rgb.mul(color(new Color(tint)));
   m.opacityNode = t.a;
   m.sizeAttenuation = true;
+  m.userData.shared = true; // cached per glyph+tint: scene teardown must not dispose it
   materials.set(key, m);
   return m;
 }

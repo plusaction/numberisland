@@ -28,5 +28,17 @@
     "path": "dist/assets/slime-*.js",
     "limit": "6 kB",
     "gzip": true
+  },
+  {
+    "name": "lazy: advanced post (GTAO+SSR+bloom, high/ultra only)",
+    "path": "dist/assets/post-advanced-*.js",
+    "limit": "14 kB",
+    "gzip": true
+  },
+  {
+    "name": "lazy: decorative physics",
+    "path": "dist/assets/physics-*.js",
+    "limit": "4 kB",
+    "gzip": true
   }
 ]

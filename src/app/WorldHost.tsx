@@ -45,6 +45,7 @@ export function WorldHost({ children }: { children: ReactNode }) {
       const input = new InputManager(window);
       let controller: SceneController | null = null;
       const ray = new Raycaster();
+      ray.layers.enable(1); // hit proxies (not rendered) live on layer 1
       const ndc = new Vector2();
       let world: RenderWorld | null = null;
       // one finger at a time: the first pointer owns the gesture; capture keeps drags alive outside the canvas
@@ -105,6 +106,7 @@ export function WorldHost({ children }: { children: ReactNode }) {
         input,
         setController(c) {
           controller?.dispose();
+          w.clearFx();
           controller = c;
         },
       });

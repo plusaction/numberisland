@@ -2,10 +2,18 @@
 import { ConeGeometry, CylinderGeometry, Group, Mesh, Quaternion, Vector3 } from 'three/webgpu';
 import { createRng } from '../../domain/rng/rng';
 import { HitStop, Shake, Spring } from '../../engine/fx/juice';
-import { ball, blob, capsule, disc, roundedBox } from '../../engine/geo/shapes';
+import { ball, blob, capsule, disc, roundedBox, waterPlane } from '../../engine/geo/shapes';
 import { NumberLabel } from '../../engine/numbers/number-label';
 import { PALETTE } from '../../engine/palette';
-import { addOutline, toyMaterial, waterMaterial } from '../../engine/tsl/materials';
+import {
+  metalMaterial,
+  sandMaterial,
+  toyMaterial,
+  waterMaterial,
+  waterTime,
+  woodMaterial,
+} from '../../engine/tsl/materials';
+import { WAVES_POND, waveHeight } from '../../engine/water/waves';
 import type { RenderWorld } from '../../engine/world';
 import { audio } from '../../infra/audio/audio';
 import type { PointerInfo } from '../../scenes/common/controller';
@@ -46,11 +54,12 @@ export function createFishingScene(
   stageCamera(world, 11.5, 10, 38);
   root.add(baseDiorama(PALETTE.leaf, 7));
   const rng = createRng('fishing-deco');
-  const sand = new Mesh(disc(5.2, 0.12, 64), toyMaterial(PALETTE.sand));
+  const sand = new Mesh(disc(5.2, 0.12, 64), sandMaterial(PALETTE.sand, true));
   sand.position.y = 0.02;
   root.add(sand);
-  const pond = new Mesh(disc(4.6, 0.08, 96), waterMaterial());
-  pond.position.y = 0.12;
+  const pond = new Mesh(waterPlane(4.6, 96), waterMaterial());
+  pond.position.y = 0.16;
+  pond.receiveShadow = true;
   root.add(pond);
   for (let i = 0; i < 10; i++) {
     const a = (i / 10) * Math.PI * 2 + 0.3;
@@ -64,7 +73,7 @@ export function createFishingScene(
   }
   // rod on the near-left shore
   const rod = new Group();
-  const pole = new Mesh(new CylinderGeometry(0.06, 0.09, 4.2, 10), toyMaterial(PALETTE.cocoa));
+  const pole = new Mesh(new CylinderGeometry(0.06, 0.09, 4.2, 10), woodMaterial('#8a5a3c'));
   pole.rotation.z = -0.75;
   pole.position.set(0.9, 1.5, 0);
   const reel = new Mesh(disc(0.25, 0.18, 20), toyMaterial(PALETTE.berry));
@@ -78,9 +87,8 @@ export function createFishingScene(
   const line = new Mesh(new CylinderGeometry(0.015, 0.015, 1, 6), toyMaterial(PALETTE.white));
   line.visible = false;
   root.add(line);
-  const bucket = new Mesh(disc(0.55, 0.7, 24), toyMaterial(PALETTE.sea));
+  const bucket = new Mesh(disc(0.55, 0.7, 24), metalMaterial('#4aa7c4', 0.28));
   bucket.position.set(-4.6, 0.35, 4.6);
-  addOutline(bucket, 0.03);
   root.add(bucket);
 
   const fishViews = new Map<number, FishView>();
@@ -121,7 +129,6 @@ export function createFishingScene(
       const body = new Mesh(capsule(0.32, 0.6), toyMaterial(color));
       body.rotation.z = Math.PI / 2;
       body.castShadow = true;
-      addOutline(body, 0.03);
       const tail = new Mesh(new ConeGeometry(0.3, 0.45, 14), toyMaterial(color));
       tail.rotation.z = -Math.PI / 2;
       tail.position.x = -0.75;
@@ -182,6 +189,7 @@ export function createFishingScene(
           if (v) {
             v.jumpT = 0;
             world.particles.emit('droplet', v.group.position, 60);
+            world.burst('drop', v.group.position, 12);
           }
         }
         celebrate(
@@ -234,6 +242,8 @@ export function createFishingScene(
           v.group.visible = false;
         } else {
           v.group.position.copy(v.pos);
+          // ride the visible waves (same Gerstner set and clock as the water shader)
+          v.group.position.y += waveHeight(WAVES_POND, v.pos.x, v.pos.z, waterTime.value);
           const ahead = fishPos(state, id, t + 0.05, new Vector3());
           v.group.lookAt(ahead.x, v.group.position.y, ahead.z);
           v.group.rotateY(-Math.PI / 2);

@@ -32,8 +32,28 @@ export function wantsForcedWebGL(search: string = globalThis.location?.search ??
   return new URLSearchParams(search).get('renderer') === 'webgl';
 }
 
+/**
+ * WebGPU is preferred, but a *software* WebGPU adapter (`isFallbackAdapter`, e.g. SwiftShader on machines
+ * without a usable GPU driver) is much slower than hardware WebGL2 through ANGLE — pick WebGL2 then.
+ */
+async function webgpuIsHardware(): Promise<boolean> {
+  const gpu = (globalThis.navigator as { gpu?: { requestAdapter(o?: object): Promise<unknown> } } | undefined)
+    ?.gpu;
+  if (!gpu) return false;
+  try {
+    const adapter = (await gpu.requestAdapter({ powerPreference: 'high-performance' })) as {
+      info?: { isFallbackAdapter?: boolean };
+      isFallbackAdapter?: boolean;
+    } | null;
+    if (!adapter) return false;
+    return !(adapter.info?.isFallbackAdapter ?? adapter.isFallbackAdapter ?? false);
+  } catch {
+    return false;
+  }
+}
+
 export async function createRenderer(opts: RendererOptions): Promise<RendererHandle> {
-  const forceWebGL = opts.forceWebGL ?? wantsForcedWebGL();
+  const forceWebGL = (opts.forceWebGL ?? wantsForcedWebGL()) || !(await webgpuIsHardware());
   installWebGPUCompat();
   const renderer = new WebGPURenderer({ canvas: opts.canvas, antialias: true, forceWebGL, alpha: false });
   await renderer.init();

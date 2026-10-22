@@ -4,7 +4,7 @@ import { HitStop, Shake, Spring, squashScale } from '../../engine/fx/juice';
 import { ball, ring, roundedBox } from '../../engine/geo/shapes';
 import { NumberLabel } from '../../engine/numbers/number-label';
 import { PALETTE } from '../../engine/palette';
-import { addOutline, type JellyMaterial, jellyMaterial, toyMaterial } from '../../engine/tsl/materials';
+import { type JellyMaterial, jellyMaterial, toyMaterial } from '../../engine/tsl/materials';
 import type { RenderWorld } from '../../engine/world';
 import { audio } from '../../infra/audio/audio';
 import type { PointerInfo } from '../../scenes/common/controller';
@@ -50,7 +50,6 @@ export function createSlimeScene(world: RenderWorld, ctx: StageCtx): StageScene<
   const tray = new Mesh(roundedBox(11, 0.5, 6.4, 0.4), toyMaterial(PALETTE.lavender));
   tray.position.y = 0.25;
   tray.receiveShadow = true;
-  addOutline(tray, 0.04);
   root.add(tray);
   for (let s = 0; s < 8; s++) {
     const pad = new Mesh(roundedBox(1.6, 0.06, 1.6, 0.3), toyMaterial('#d9cdfb'));
@@ -77,7 +76,6 @@ export function createSlimeScene(world: RenderWorld, ctx: StageCtx): StageScene<
     const jelly = jellyMaterial(minus ? '#ff6b7f' : (COLORS[colorIdx % COLORS.length] as string));
     const body = new Mesh(ball(1, 40), jelly.material);
     body.castShadow = true;
-    addOutline(body, 0.035);
     // friendly face: big eyes with highlights, small smile, blush
     const face = new Group();
     for (const x of [-0.28, 0.28]) {
@@ -158,6 +156,7 @@ export function createSlimeScene(world: RenderWorld, ctx: StageCtx): StageScene<
           v.jelly.wobble.value = 1;
           hitStop.trigger(40);
           world.particles.emit('sparkle', v.group.position, 25);
+          world.burst('drop', v.group.position, 8, ['#ff8fab', '#b9a6f2', '#a8ebd8']);
         } else if (ev.kind === 'split' && v) {
           audio.play('slime.split');
           v.spring.impulse(5);

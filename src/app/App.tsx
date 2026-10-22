@@ -36,6 +36,7 @@ function Screens({ app }: { app: AppHandle }) {
     case 'welcome':
       return (
         <WelcomeScreen
+          reducedMotion={reduced}
           onStart={(nick) => {
             const p = newProfile(nick);
             void db.setMeta('lastProfile', p.id);
@@ -47,6 +48,7 @@ function Screens({ app }: { app: AppHandle }) {
     case 'placement':
       return profile ? (
         <PlacementScreen
+          reducedMotion={reduced}
           settings={{
             ...DEFAULT_SETTINGS,
             term: profile.settings.term,

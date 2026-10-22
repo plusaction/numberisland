@@ -1,34 +1,45 @@
-/** Post-processing per tier (SPEC §7.1): bloom (high+), vignette (min+). Low tier renders directly. */
-
-import { bloom } from 'three/addons/tsl/display/BloomNode.js';
+/**
+ * Post-processing per tier (D16). `none`/`min` are built in; the GTAO + SSR + bloom pipeline for high/ultra
+ * lives in a lazy chunk (`post-advanced.ts`): until it has loaded the scene renders directly, so low tiers and
+ * phones never download or compile it.
+ */
 import { float, mix, pass, screenUV, smoothstep } from 'three/tsl';
 import { type Camera, RenderPipeline, type Scene, type WebGPURenderer } from 'three/webgpu';
 import type { TierConfig } from '../quality/quality';
 
-export interface Post {
-  render(): void;
-  dispose(): void;
-}
+import type { Post } from './post-types';
+
+export type { Post };
 
 export function createPost(renderer: WebGPURenderer, scene: Scene, camera: Camera, cfg: TierConfig): Post {
   if (cfg.post === 'none') {
     return { render: () => renderer.render(scene, camera), dispose: () => {} };
   }
-  const pipeline = new RenderPipeline(renderer);
-  const scenePass = pass(scene, camera);
-  const color = scenePass.getTextureNode('output');
-  const withBloom =
-    cfg.post === 'partial' || cfg.post === 'full'
-      ? color.add(bloom(color, cfg.post === 'full' ? 0.35 : 0.22, 0.45, 0.82))
-      : color;
-  const d = screenUV.sub(0.5).length().mul(1.35);
-  const vig = mix(float(1), float(0.84), smoothstep(0.45, 1.0, d));
-  pipeline.outputNode = withBloom.mul(vig);
+  if (cfg.post === 'min') {
+    const pipeline = new RenderPipeline(renderer);
+    const scenePass = pass(scene, camera);
+    const d = screenUV.sub(0.5).length().mul(1.35);
+    pipeline.outputNode = scenePass
+      .getTextureNode('output')
+      .mul(mix(float(1), float(0.86), smoothstep(0.45, 1.0, d)));
+    return {
+      render: () => pipeline.render(),
+      dispose: () => {
+        pipeline.dispose();
+        scenePass.dispose();
+      },
+    };
+  }
+  let inner: Post | null = null;
+  let disposed = false;
+  void import('./post-advanced').then(({ createAdvancedPost }) => {
+    if (!disposed) inner = createAdvancedPost(renderer, scene, camera, cfg);
+  });
   return {
-    render: () => pipeline.render(),
+    render: () => (inner ? inner.render() : renderer.render(scene, camera)),
     dispose: () => {
-      pipeline.dispose();
-      scenePass.dispose();
+      disposed = true;
+      inner?.dispose();
     },
   };
 }

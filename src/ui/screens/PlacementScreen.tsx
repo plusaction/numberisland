@@ -11,16 +11,20 @@ import { SpeakButton } from '../components/SpeakButton';
 import { ChoiceCross } from '../question/ChoiceCross';
 import { questionText } from '../question/format';
 import { PlaceDigits } from '../question/PlaceDigits';
+import { useIslandBackdrop } from './useIslandBackdrop';
 
 export function PlacementScreen({
   settings,
   seed,
   onDone,
+  reducedMotion = false,
 }: {
   settings: AdaptiveSettings;
   seed: string;
   onDone(level: LevelId): void;
+  reducedMotion?: boolean;
 }) {
+  const island = useIslandBackdrop(reducedMotion);
   const rng = useMemo(() => createRng(`placement-${seed}`), [seed]);
   const [state, setState] = useState(() => startPlacement(settings));
   const [_n, setN] = useState(0);
@@ -29,6 +33,7 @@ export function PlacementScreen({
   const pick = (v: number) => {
     const ok = v === question.answer;
     audio.play(ok ? 'correct' : 'wrong.boing');
+    island.current?.cheer(ok);
     const next = placementAnswer(state, ok, settings);
     if (next.done && next.result) onDone(next.result);
     else {
@@ -37,7 +42,7 @@ export function PlacementScreen({
     }
   };
   return (
-    <div className="screen-center">
+    <div className="screen-center screen-over-3d">
       <div className="card w-full max-w-3xl text-center" data-testid="placement">
         <p className="text-2xl font-bold">{ko.welcome.meet}</p>
         <p className="text-xl">{ko.welcome.meetHint}</p>

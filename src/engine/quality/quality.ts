@@ -10,22 +10,65 @@ export interface TierConfig {
   gpuParticles: boolean;
   maxParticles: number;
   shadows: 'soft' | 'basic' | 'off';
+  shadowMapSize: number;
+  /** Decorative rigid-body bursts (coins, candy, drops). */
+  physics: boolean;
 }
 
 export const TIER_CONFIG: Record<Tier, TierConfig> = {
-  ultra: { dprCap: 1.5, post: 'full', gpuParticles: true, maxParticles: 50_000, shadows: 'soft' },
-  high: { dprCap: 1.5, post: 'partial', gpuParticles: true, maxParticles: 20_000, shadows: 'soft' },
-  balanced: { dprCap: 1.25, post: 'min', gpuParticles: false, maxParticles: 2_000, shadows: 'basic' },
-  low: { dprCap: 1, post: 'none', gpuParticles: false, maxParticles: 600, shadows: 'basic' },
+  ultra: {
+    dprCap: 1.75,
+    post: 'full',
+    gpuParticles: true,
+    maxParticles: 50_000,
+    shadows: 'soft',
+    shadowMapSize: 2048,
+    physics: true,
+  },
+  high: {
+    dprCap: 1.5,
+    post: 'partial',
+    gpuParticles: true,
+    maxParticles: 20_000,
+    shadows: 'soft',
+    shadowMapSize: 2048,
+    physics: true,
+  },
+  balanced: {
+    dprCap: 1.25,
+    post: 'min',
+    gpuParticles: false,
+    maxParticles: 2_000,
+    shadows: 'basic',
+    shadowMapSize: 1024,
+    physics: true,
+  },
+  low: {
+    dprCap: 1,
+    post: 'none',
+    gpuParticles: false,
+    maxParticles: 600,
+    shadows: 'basic',
+    shadowMapSize: 512,
+    physics: false,
+  },
 };
 
-export function initialTier(backend: Backend): Tier {
+/** Phones/tablets (coarse pointer): lower pixel ratio cap and start one tier lower (thermals, battery). */
+export const isMobile = (): boolean => globalThis.matchMedia?.('(pointer: coarse)').matches ?? false;
+export const MOBILE_DPR_CAP = 1.25;
+
+export function initialTier(backend: Backend, mobile = false): Tier {
+  if (mobile) return 'balanced';
   return backend === 'webgpu' ? 'high' : 'balanced';
 }
 
-/** Highest tier a backend can run (compute particles need WebGPU). */
+/**
+ * Highest tier a backend may reach. WebGL2 can run contact shadows (high, CPU particles) when the governor
+ * measures headroom; screen-space reflections + compute particles (ultra) are WebGPU only.
+ */
 export function maxTier(backend: Backend): Tier {
-  return backend === 'webgpu' ? 'ultra' : 'balanced';
+  return backend === 'webgpu' ? 'ultra' : 'high';
 }
 
 export interface QualityGovernor {
@@ -39,7 +82,12 @@ export interface QualityGovernor {
  * Down-tier when EMA > 24 ms (≈ <42 fps) for 2 s; up-tier when EMA < 12 ms for 6 s.
  * Hysteresis prevents oscillation; a locked governor never changes (parent setting).
  */
-export function createGovernor(backend: Backend, start?: Tier, locked = false): QualityGovernor {
+export function createGovernor(
+  backend: Backend,
+  start?: Tier,
+  locked = false,
+  mobile = false,
+): QualityGovernor {
   let ema = 16.7;
   let slowFor = 0;
   let fastFor = 0;
@@ -56,7 +104,7 @@ export function createGovernor(backend: Backend, start?: Tier, locked = false): 
   };
   const top = TIERS.indexOf(maxTier(backend));
   const gov: QualityGovernor = {
-    tier: start ?? initialTier(backend),
+    tier: start ?? initialTier(backend, mobile),
     locked,
     sample(frameMs) {
       ema = ema * 0.9 + frameMs * 0.1;

@@ -15,7 +15,7 @@ import { HitStop, Shake, Spring, squashScale } from '../../engine/fx/juice';
 import { ball, capsule, roundedBox } from '../../engine/geo/shapes';
 import { NumberLabel } from '../../engine/numbers/number-label';
 import { PALETTE, PLACE_COLORS } from '../../engine/palette';
-import { addOutline, toyMaterial } from '../../engine/tsl/materials';
+import { metalMaterial, toyMaterial } from '../../engine/tsl/materials';
 import type { RenderWorld } from '../../engine/world';
 import { audio } from '../../infra/audio/audio';
 import type { PointerInfo } from '../../scenes/common/controller';
@@ -69,9 +69,8 @@ export function createBombScene(world: RenderWorld, ctx: StageCtx): StageScene<B
 
   const bombG = new Group();
   bombG.position.set(0, 2.05, -1.6);
-  const bomb = new Mesh(ball(1.25), toyMaterial('#5b5f8f', { rimStrength: 0.35 }));
+  const bomb = new Mesh(ball(1.25), metalMaterial('#3f4470', 0.3));
   bomb.castShadow = true;
-  addOutline(bomb, 0.04);
   const cap = new Mesh(new CylinderGeometry(0.35, 0.4, 0.4, 16), toyMaterial('#8a8fb8'));
   cap.position.y = 1.25;
   const fuse = new Mesh(capsule(0.06, 0.6), toyMaterial(PALETTE.cocoa));
@@ -137,7 +136,6 @@ export function createBombScene(world: RenderWorld, ctx: StageCtx): StageScene<B
       const post = new Mesh(roundedBox(0.9, 0.5, 0.7, 0.12), toyMaterial(groupColor));
       post.position.set(end.x, 0.85, end.z + 0.2);
       post.castShadow = true;
-      addOutline(post, 0.03);
       const lab = new NumberLabel(w.value, { size: 0.6, placeColors: true });
       lab.position.set(end.x, 1.65, end.z + 0.4);
       const proxy = hitSphere(0.8, w.id);
@@ -166,6 +164,13 @@ export function createBombScene(world: RenderWorld, ctx: StageCtx): StageScene<B
         slowmo = 0.3; // signature: 0.3 s slow motion on the last snip, then gift box
         audio.play('gift', { delay: 0.3 });
         audio.play('correct.big', { delay: 0.45 });
+        world.burst('candy', { x: 0, y: 2.6, z: -1.6 }, 22, [
+          '#ff8fab',
+          '#ffd166',
+          '#8bd48f',
+          '#6fd0e3',
+          '#b9a6f2',
+        ]);
         celebrate(
           world,
           { x: 0, y: 3, z: -1.6 },
@@ -178,6 +183,8 @@ export function createBombScene(world: RenderWorld, ctx: StageCtx): StageScene<B
         spring.impulse(9);
         shake.add(0.5 * ctx.shakeIntensity);
         world.particles.emit('confetti', { x: 0, y: 2.5, z: -1.6 }, 70);
+        // the funny "puff": soft pebbles hop out of the bomb and roll away
+        world.burst('pebble', { x: 0, y: 2.2, z: -1.6 }, 14);
       }
       for (const [id, w] of wires) {
         const cut = state.cut.includes(id) || state.phase === 'defuse';

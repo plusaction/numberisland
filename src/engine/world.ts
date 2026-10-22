@@ -3,13 +3,20 @@
  * Owns resize, tier switching and renderer recovery after device/context loss (SPEC §6.5, §7.2).
  */
 
-import { color, mix, screenUV, smoothstep } from 'three/tsl';
+import { color, mix, positionWorld, screenUV, smoothstep, vec3 } from 'three/tsl';
 import {
+  BackSide,
   Color,
   DirectionalLight,
+  Fog,
   HemisphereLight,
+  Mesh,
+  MeshBasicNodeMaterial,
   PerspectiveCamera,
+  PMREMGenerator,
+  type RenderTarget,
   Scene,
+  SphereGeometry,
   type WebGPURenderer,
 } from 'three/webgpu';
 import { createRng } from '../domain/rng/rng';
@@ -18,14 +25,18 @@ import { createPost, type Post } from './fx/post';
 import { refreshDigitAtlas } from './numbers/number-label';
 import { PALETTE } from './palette';
 import { createParticles, type ParticleSystem } from './particles';
+import type { BurstKind, PhysicsFx } from './physics/physics';
 import {
   createGovernor,
+  isMobile,
+  MOBILE_DPR_CAP,
   maxTier,
   type QualityGovernor,
   TIER_CONFIG,
   TIERS,
   type Tier,
 } from './quality/quality';
+import { invalidateSharedMaterials, waterTime } from './tsl/materials';
 
 export interface WorldOptions {
   canvas: HTMLCanvasElement;
@@ -57,8 +68,13 @@ export class RenderWorld {
   readonly camera = new PerspectiveCamera(40, 16 / 9, 0.1, 200);
   /** Number of renderer recoveries (debug HUD / tests). */
   recoveries = 0;
-  readonly sun = new DirectionalLight('#fff4e0', 2.4);
-  readonly hemi = new HemisphereLight('#dff3ff', '#f2d9b8', 1.5);
+  readonly sun = new DirectionalLight('#fff1d8', 3.2);
+  /** Ambient fill is mostly image-based now (sky environment map); the hemisphere only lifts shadows. */
+  readonly hemi = new HemisphereLight('#dff3ff', '#f2d9b8', 0.45);
+  private sky: SkyPreset = SKIES.day;
+  private envTarget: RenderTarget | null = null;
+  /** Last frame's renderer counters (debug HUD, bench, e2e budgets). */
+  readonly stats = { drawCalls: 0, triangles: 0, geometries: 0, textures: 0, frameMs: 0 };
   particles!: ParticleSystem;
   governor!: QualityGovernor;
   private post!: Post;
@@ -69,6 +85,10 @@ export class RenderWorld {
   fatal = false;
   private disposed = false;
   drawCalls = 0;
+  /** Decorative physics, lazy-loaded (separate chunk) once a tier that allows it is running. */
+  physics: PhysicsFx | null = null;
+  private physicsLoading: Promise<void> | null = null;
+  private ground = { y: 0, radius: 7 };
 
   private constructor(private opts: WorldOptions) {
     this.scene.add(this.sun, this.sun.target, this.hemi);
@@ -84,6 +104,7 @@ export class RenderWorld {
     s.bottom = -10;
     s.near = 1;
     s.far = 40;
+    this.scene.fog = new Fog('#fff1d6', 34, 95);
     this.setSky(SKIES.day);
   }
 
@@ -123,8 +144,12 @@ export class RenderWorld {
       this.handle.backend,
       prev ? start : undefined,
       this.opts.lockTier ?? false,
+      isMobile(),
     );
     this.applyTier();
+    this.bakeEnvironment();
+    // warm the physics chunk in the background so the first celebration already has bodies
+    globalThis.setTimeout?.(() => this.loadPhysics(), 1500);
     this.resize();
     if (!this.resizeObs && typeof ResizeObserver !== 'undefined') {
       this.resizeObs = new ResizeObserver(() => this.resize());
@@ -163,6 +188,7 @@ export class RenderWorld {
         }
       }
       await refreshDigitAtlas();
+      invalidateSharedMaterials();
       // GPU resources belonged to the lost device: force every material/texture to re-upload.
       this.scene.traverse((o) => {
         const mat = (o as { material?: { dispose?: () => void; needsUpdate?: boolean } }).material;
@@ -184,8 +210,89 @@ export class RenderWorld {
   }
 
   setSky(sky: SkyPreset) {
+    this.sky = sky;
     const t = smoothstep(0.0, 1.0, screenUV.y.oneMinus());
     this.scene.backgroundNode = mix(color(new Color(sky.bottom)), color(new Color(sky.top)), t);
+    (this.scene.fog as Fog).color.set(sky.bottom);
+    if (this.handle) this.bakeEnvironment();
+  }
+
+  /**
+   * Image-based lighting + reflections: a tiny procedural sky (gradient dome, warm sun disc, sandy ground
+   * bounce) is pre-filtered once into a PMREM cube and used as `scene.environment`. Glossy plastic, jelly
+   * and water reflect it; no image files are loaded (P1). Rebaked only when the sky preset changes.
+   */
+  private bakeEnvironment() {
+    const env = new Scene();
+    const mat = new MeshBasicNodeMaterial({ side: BackSide });
+    const up = smoothstep(-0.05, 0.6, positionWorld.normalize().y);
+    const sky = mix(color(new Color(this.sky.bottom)), color(new Color(this.sky.top)), up);
+    const ground = color(new Color('#d9c3a0')).mul(0.55);
+    const horizon = smoothstep(-0.08, 0.02, positionWorld.normalize().y);
+    const sunDir = vec3(this.sun.position.x, this.sun.position.y, this.sun.position.z).normalize();
+    const sunDisc = smoothstep(0.995, 0.999, positionWorld.normalize().dot(sunDir)).mul(40);
+    mat.colorNode = mix(ground, sky, horizon).add(vec3(1, 0.95, 0.85).mul(sunDisc));
+    const dome = new Mesh(new SphereGeometry(10, 48, 24), mat);
+    env.add(dome);
+    const gen = new PMREMGenerator(this.renderer);
+    try {
+      const rt = gen.fromScene(env, 0.02, 0.1, 50);
+      this.envTarget?.dispose();
+      this.envTarget = rt;
+      this.scene.environment = rt.texture;
+      this.scene.environmentIntensity = 0.6;
+    } catch (err) {
+      console.warn('[render] environment bake failed; using lights only', err);
+    } finally {
+      gen.dispose();
+      dome.geometry.dispose();
+      mat.dispose();
+    }
+  }
+
+  private loadPhysics(): Promise<void> {
+    if (this.physicsLoading || this.disposed || !TIER_CONFIG[this.governor.tier].physics) {
+      return this.physicsLoading ?? Promise.resolve();
+    }
+    this.physicsLoading = import('./physics/physics')
+      .then(({ createPhysicsFx }) => {
+        const fx = createPhysicsFx();
+        if (this.disposed) {
+          fx.dispose();
+          return;
+        }
+        fx.setGround(this.ground.y, this.ground.radius);
+        this.physics = fx;
+        this.scene.add(fx.object);
+      })
+      .catch((err) => console.warn('[physics] unavailable; particles only', err));
+    return this.physicsLoading;
+  }
+
+  /**
+   * Physical burst (coins, candy, pebbles, drops). Returns false when physics is off for this tier, the child
+   * prefers reduced motion, or the chunk is still loading — callers keep their particle effect either way.
+   */
+  burst(kind: BurstKind, at: { x: number; y: number; z: number }, count: number, colors?: readonly string[]) {
+    if (!TIER_CONFIG[this.governor.tier].physics) return false;
+    if (globalThis.matchMedia?.('(prefers-reduced-motion: reduce)').matches) return false;
+    if (!this.physics) {
+      void this.loadPhysics();
+      return false;
+    }
+    this.physics.burst(kind, at, count, colors);
+    return true;
+  }
+
+  /** Scene ground for physics bodies (top height + radius of the play area). */
+  setGround(y: number, radius: number) {
+    this.ground = { y, radius };
+    this.physics?.setGround(y, radius);
+  }
+
+  /** Called on scene changes: drop leftover bodies. */
+  clearFx() {
+    this.physics?.clear();
   }
 
   setTier(tier: Tier) {
@@ -195,9 +302,15 @@ export class RenderWorld {
 
   private applyTier() {
     const cfg = TIER_CONFIG[this.governor.tier];
-    this.renderer.setPixelRatio(Math.min(globalThis.devicePixelRatio || 1, cfg.dprCap));
+    const cap = isMobile() ? Math.min(cfg.dprCap, MOBILE_DPR_CAP) : cfg.dprCap;
+    this.renderer.setPixelRatio(Math.min(globalThis.devicePixelRatio || 1, cap));
     this.renderer.shadowMap.enabled = cfg.shadows !== 'off';
     this.sun.shadow.radius = cfg.shadows === 'soft' ? 4 : 1;
+    if (this.sun.shadow.mapSize.x !== cfg.shadowMapSize) {
+      this.sun.shadow.mapSize.set(cfg.shadowMapSize, cfg.shadowMapSize);
+      this.sun.shadow.map?.dispose();
+      this.sun.shadow.map = null;
+    }
     this.post?.dispose();
     this.post = createPost(this.renderer, this.scene, this.camera, cfg);
     const wantGpu = this.backend === 'webgpu' && cfg.gpuParticles;
@@ -224,12 +337,44 @@ export class RenderWorld {
   /** Per-frame: particles + render + quality sampling. */
   frame(dt: number, frameMs: number) {
     if (this.recovering || this.fatal) return;
+    waterTime.value += Math.min(dt, 1 / 20);
+    this.physics?.step(Math.min(dt, 1 / 20));
     this.particles.update(Math.min(dt, 1 / 20), this.renderer);
     this.post.render();
-    const info = this.renderer.info as { render?: { drawCalls?: number; calls?: number } };
+    const info = this.renderer.info as {
+      render?: { drawCalls?: number; calls?: number; triangles?: number };
+      memory?: { geometries?: number; textures?: number };
+    };
     this.drawCalls = info.render?.drawCalls ?? info.render?.calls ?? 0;
+    this.stats.drawCalls = this.drawCalls;
+    this.stats.triangles = info.render?.triangles ?? 0;
+    this.stats.geometries = info.memory?.geometries ?? 0;
+    this.stats.textures = info.memory?.textures ?? 0;
+    this.stats.frameMs = frameMs;
     const changed = this.governor.sample(frameMs);
     if (changed) this.applyTier();
+    this.checkBackendSpeed(frameMs);
+  }
+
+  private emaMs = 16.7;
+  private slowAtLowMs = 0;
+  private triedWebGL = false;
+  /**
+   * Measured backend choice: if WebGPU is still too slow at the lowest tier (some mobile drivers), switch
+   * once to WebGL2 through the recovery path (same scene, fresh canvas) and let the governor re-tier there.
+   */
+  private checkBackendSpeed(frameMs: number) {
+    this.emaMs = this.emaMs * 0.9 + frameMs * 0.1;
+    if (this.backend !== 'webgpu' || this.triedWebGL || this.governor.locked || this.tier !== 'low') {
+      this.slowAtLowMs = 0;
+      return;
+    }
+    this.slowAtLowMs = this.emaMs > 30 ? this.slowAtLowMs + frameMs : 0;
+    if (this.slowAtLowMs > 4000) {
+      this.triedWebGL = true;
+      console.info('[render] WebGPU too slow at the lowest tier; trying WebGL2');
+      void this.recover(true);
+    }
   }
 
   dispose() {
@@ -237,6 +382,8 @@ export class RenderWorld {
     this.resizeObs?.disconnect();
     this.post?.dispose();
     this.particles?.dispose();
+    this.physics?.dispose();
+    this.envTarget?.dispose();
     this.handle?.dispose();
   }
 }

@@ -57,7 +57,7 @@ test('[S3] recovers after a simulated device/context loss', async ({ page }, inf
     };
   });
   expect(state.recoveries).toBeGreaterThanOrEqual(1);
-  expect(['low', 'balanced']).toContain(state.tier); // WebGL2 cannot run compute tiers
+  expect(['low', 'balanced', 'high']).toContain(state.tier); // WebGL2 never runs the WebGPU-only ultra tier
   expect(state.labels).toBe(3); // numbers survive the renderer swap
   expect(state.canvases).toBe(1);
   await page.screenshot({ path: `docs/review/m2/recovered-${info.project.name}.png` });

@@ -25,8 +25,9 @@ describe('quality governor', () => {
     for (let i = 0; i < 4000; i++) g.sample(5);
     expect(g.tier).toBe('low'); // never upgrades back into a tier that was too slow
     const w = createGovernor('webgl2', 'low');
-    for (let i = 0; i < 6000; i++) w.sample(5);
-    expect(w.tier).toBe('balanced'); // WebGL2 cannot reach compute tiers
+    for (let i = 0; i < 12000; i++) w.sample(5);
+    expect(w.tier).toBe('high'); // WebGL2 may earn contact shadows, never the WebGPU-only ultra tier
+    expect(TIER_CONFIG.high.post).toBe('partial');
     expect(TIER_CONFIG.balanced.gpuParticles).toBe(false);
   });
   it('cooldown: no change within 10 s of the previous change', () => {

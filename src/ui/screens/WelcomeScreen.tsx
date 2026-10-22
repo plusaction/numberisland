@@ -2,11 +2,19 @@ import { useState } from 'react';
 import { ko } from '../../i18n/ko';
 import { Button } from '../components/Button';
 import { SpeakButton } from '../components/SpeakButton';
+import { useIslandBackdrop } from './useIslandBackdrop';
 
-export function WelcomeScreen({ onStart }: { onStart(nickname: string): void }) {
+export function WelcomeScreen({
+  onStart,
+  reducedMotion = false,
+}: {
+  onStart(nickname: string): void;
+  reducedMotion?: boolean;
+}) {
   const [name, setName] = useState('');
+  useIslandBackdrop(reducedMotion);
   return (
-    <div className="screen-center">
+    <div className="screen-center screen-over-3d">
       <div className="card max-w-xl text-center">
         <h1 className="title">{ko.welcome.hello}</h1>
         <SpeakButton text={ko.welcome.hello} className="mx-auto mt-2" />
