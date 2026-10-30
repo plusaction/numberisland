@@ -70,7 +70,7 @@ export function GoalTiles({ goal }: { goal: string }) {
           );
         if (t.kind === 'op')
           return (
-            <span key={key} className={`gt-op ${t.text === '=' ? 'gt-eq' : ''}`} aria-hidden="true">
+            <span key={key} className="gt-op" aria-hidden="true">
               {t.text === '-' ? '−' : t.text}
             </span>
           );

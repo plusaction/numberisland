@@ -387,21 +387,14 @@
       background: color-mix(in oklab, var(--color-sun) 40%, transparent);
     }
   }
+  /* operators are bare symbols (no chip): + − = all read the same, quieter than the number tiles */
   .gt-op {
     display: inline-grid;
     place-items: center;
-    width: 2.6rem;
-    height: 2.6rem;
-    border-radius: 999px;
-    background: var(--color-ink);
-    color: #fff;
-    font-size: 1.8rem;
-    line-height: 1;
-  }
-  .gt-eq {
-    background: transparent;
+    padding: 0 0.1rem;
     color: var(--color-ink);
     font-size: 2.6rem;
+    line-height: 1;
   }
   .d-ones {
     color: var(--color-ones);
@@ -626,9 +619,7 @@
       padding: 0 0.45rem;
     }
     .gt-op {
-      width: 2rem;
-      height: 2rem;
-      font-size: 1.4rem;
+      font-size: 2rem;
     }
     .hud-bottom {
       right: 0.6rem;

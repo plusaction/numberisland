@@ -1,9 +1,9 @@
 /** ③ 숫자 낚시 diorama: TSL pond, number fish, rod & line; reel = slow-mo parabola + droplets (signature). */
-import { ConeGeometry, CylinderGeometry, Group, Mesh, Vector3 } from 'three/webgpu';
+import { CylinderGeometry, Group, Mesh, Vector3 } from 'three/webgpu';
 import { createRng } from '../../domain/rng/rng';
 import { HitStop, Shake, Spring } from '../../engine/fx/juice';
 import { createWake } from '../../engine/fx/wake';
-import { ball, blob, capsule, disc, waterPlane } from '../../engine/geo/shapes';
+import { blob, disc, waterPlane } from '../../engine/geo/shapes';
 import { NumberLabel } from '../../engine/numbers/number-label';
 import { PALETTE } from '../../engine/palette';
 import {
@@ -20,6 +20,7 @@ import type { PointerInfo } from '../../scenes/common/controller';
 import { baseDiorama, disposeTree, hitCylinder, hitId, hitSphere, stageCamera } from '../_shared/diorama';
 import { celebrate } from '../_shared/fx';
 import type { StageCtx, StageScene } from '../_shared/module';
+import { fishModel } from './fish-model';
 import { createOddItems, oddPath } from './odd-items';
 import { BOUNCE_TICKS, type FishingAction, type FishingState, REEL_TICKS } from './rules';
 
@@ -38,7 +39,7 @@ const ODD_ID = 1000;
 interface FishView {
   group: Group;
   label: NumberLabel;
-  body: Mesh;
+  tail: Group;
   spring: Spring;
   proxy: Mesh;
   pos: Vector3;
@@ -130,14 +131,7 @@ export function createFishingScene(
     p.fish.forEach((f, i) => {
       const g = new Group();
       const color = FISH_COLORS[i % FISH_COLORS.length] as string;
-      const body = new Mesh(capsule(0.32, 0.6), toyMaterial(color));
-      body.rotation.z = Math.PI / 2;
-      body.castShadow = true;
-      const tail = new Mesh(new ConeGeometry(0.3, 0.45, 14), toyMaterial(color));
-      tail.rotation.z = -Math.PI / 2;
-      tail.position.x = -0.75;
-      const eye = new Mesh(ball(0.08, 12), toyMaterial(PALETTE.ink));
-      eye.position.set(0.45, 0.12, 0.25);
+      const model = fishModel(color);
       const label = new NumberLabel(f.value, { size: 0.7, placeColors: true });
       label.position.set(0, 1.0, 0);
       // tall tap column: the fish body and the number badge above it both count
@@ -145,13 +139,13 @@ export function createFishingScene(
       proxy.position.y = 0.5;
       // the number badge is NOT a child of the turning fish: it follows the fish but never rotates,
       // so "70" can never read "07" when the fish swims the other way
-      g.add(body, tail, eye, proxy);
+      g.add(model.group, proxy);
       root.add(g, label);
       proxies.push(proxy);
       fishViews.set(f.id, {
         group: g,
         label,
-        body,
+        tail: model.tail,
         spring: new Spring(0, 200, 11),
         proxy,
         pos: new Vector3(),
@@ -269,6 +263,7 @@ export function createFishingScene(
           v.group.scale.setScalar((picked ? 1.2 : 1) * s);
           v.group.position.y += picked ? 0.35 : 0;
           v.group.visible = true;
+          if (!ctx.reducedMotion) v.tail.rotation.y = Math.sin(t * 7 + f.phase * 3) * 0.4;
           if (cursorId === id && !picked) v.group.position.y += 0.15 + Math.sin(t * 6) * 0.08;
           if (glowId === id && !picked) {
             v.group.scale.multiplyScalar(1 + Math.abs(Math.sin(t * 4)) * 0.25);
