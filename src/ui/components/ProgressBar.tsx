@@ -9,7 +9,7 @@ export function ProgressBar({ value, max, label }: { value: number; max: number;
       aria-valuemax={max}
       aria-valuenow={value}
     >
-      <div className="h-5 w-44 overflow-hidden rounded-full border-[3px] border-[var(--color-ink)] bg-white">
+      <div className="h-4 w-24 overflow-hidden rounded-full bg-[color-mix(in_oklab,var(--color-ink)_12%,white)] sm:w-44">
         <div
           className="h-full rounded-full bg-[var(--color-sun)] transition-[width] duration-700"
           style={{ width: `${pct}%` }}

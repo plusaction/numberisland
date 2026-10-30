@@ -10,6 +10,7 @@ import { audio } from '../../infra/audio/audio';
 import { SpeakButton } from '../components/SpeakButton';
 import { ChoiceCross } from '../question/ChoiceCross';
 import { questionText } from '../question/format';
+import { GoalTiles, tokenize } from '../question/GoalTiles';
 import { PlaceDigits } from '../question/PlaceDigits';
 import { useIslandBackdrop } from './useIslandBackdrop';
 
@@ -44,16 +45,18 @@ export function PlacementScreen({
   return (
     <div className="screen-center screen-over-3d">
       <div className="card w-full max-w-3xl text-center" data-testid="placement">
-        <p className="text-2xl font-bold">{ko.welcome.meet}</p>
-        <p className="text-xl">{ko.welcome.meetHint}</p>
+        <p className="title text-[2rem]">{ko.welcome.meet}</p>
+        <p className="text-lg opacity-75">{ko.welcome.meetHint}</p>
         {text.pre && <p className="mt-4 text-3xl font-bold">{text.pre}</p>}
-        <p className="question-main mt-4" data-testid="question-main">
+        <div className="question-main mt-4 flex justify-center" data-testid="question-main">
           {question.form === 'PLACE' && question.target !== undefined ? (
             <PlaceDigits n={question.operands[0] ?? 0} place={question.target} />
+          ) : tokenize(text.main).every((t) => t.kind !== 'icon') ? (
+            <GoalTiles goal={text.main} />
           ) : (
             text.main
           )}
-        </p>
+        </div>
         {text.prompt !== text.main && (
           <p className="mt-2 text-2xl font-bold" data-testid="question-prompt">
             {text.prompt}

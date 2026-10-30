@@ -104,8 +104,8 @@ export function HubScreen({ store, reducedMotion }: { store: GameStore; reducedM
       <section className="hub-card card" aria-live="polite" data-testid="info-card" data-stage={selected}>
         <div className="flex items-start justify-between gap-3">
           <div>
-            <p className="text-lg font-bold opacity-70">{ko.groups[STAGE_GROUP[selected]]}</p>
-            <h2 className="text-4xl font-extrabold">{name}</h2>
+            <p className="stage-group">{ko.groups[STAGE_GROUP[selected]]}</p>
+            <h2 className="stage-name">{name}</h2>
           </div>
           <SpeakButton text={name} />
         </div>
@@ -154,7 +154,7 @@ export function HubScreen({ store, reducedMotion }: { store: GameStore; reducedM
               >
                 {ko.hub.start}
               </Button>
-              <Button tone="sun" onClick={random}>
+              <Button tone="sea" onClick={random}>
                 {ko.hub.random}
               </Button>
             </div>

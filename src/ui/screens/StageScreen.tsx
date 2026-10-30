@@ -16,6 +16,7 @@ import { type AnyStageModule, STAGE_LOADERS } from '../../stages/registry';
 import { Button } from '../components/Button';
 import { FeedbackOverlay } from '../hints/FeedbackOverlay';
 import { HintPanel } from '../hints/HintPanel';
+import { GoalTiles } from '../question/GoalTiles';
 import { Tutorial } from './Tutorial';
 
 /** Local calendar day number (the child's device clock, e.g. Asia/Seoul). */
@@ -182,7 +183,7 @@ export function StageScreen({ store, reducedMotion }: { store: GameStore; reduce
     >
       <header className="hud-top">
         <Button onClick={exit} aria-label={ko.stageHud.exit} data-testid="exit">
-          ✕ <span className="ml-1 text-xl">{ko.stageHud.exit}</span>
+          ✕ <span className="hide-narrow ml-1 text-xl">{ko.stageHud.exit}</span>
         </Button>
         <div
           className="pill"
@@ -204,7 +205,7 @@ export function StageScreen({ store, reducedMotion }: { store: GameStore; reduce
       </header>
 
       <section className="hud-goal card" data-testid="goal" aria-live="polite">
-        <p className="question-main text-5xl">{hud.goal}</p>
+        <GoalTiles goal={hud.goal} />
       </section>
 
       <div className="hud-bottom">

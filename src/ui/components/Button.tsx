@@ -1,16 +1,19 @@
 import type { ButtonHTMLAttributes, ReactNode } from 'react';
 import { audio } from '../../infra/audio/audio';
 
-type Tone = 'primary' | 'secondary' | 'ghost' | 'sun';
+type Tone = 'primary' | 'secondary' | 'ghost' | 'sun' | 'sea' | 'berry';
 
+/** Molded-plastic key colours (D22): body + a deeper rim of the same hue (see `.toy-btn` in index.css). */
 const TONES: Record<Tone, string> = {
-  primary: 'bg-[var(--color-berry)] text-[var(--color-ink)]',
-  secondary: 'bg-[var(--color-cream)] text-[var(--color-ink)]',
-  ghost: 'bg-white/70 text-[var(--color-ink)]',
-  sun: 'bg-[var(--color-sun)] text-[var(--color-ink)]',
+  primary: 'key-sun',
+  secondary: '',
+  ghost: 'key-ghost',
+  sun: 'key-sun',
+  sea: 'key-sea',
+  berry: 'key-berry',
 };
 
-/** Big toy button (ART_BIBLE §8): ≥64px, hover lift, press squash, thick focus ring. */
+/** Big toy key (ART_BIBLE §8): ≥64px, presses down into its rim, double focus ring. */
 export function Button({
   tone = 'secondary',
   children,
@@ -28,7 +31,7 @@ export function Button({
         audio.play('ui.tap');
         onClick?.(e);
       }}
-      className={`toy-btn ${TONES[tone]} ${big ? 'min-h-20 px-10 text-3xl' : 'min-h-16 px-6 text-2xl'} ${className}`}
+      className={`toy-btn ${TONES[tone]} ${big ? 'min-h-20 px-10 text-[2rem]' : 'min-h-16 px-6 text-[1.6rem]'} ${className}`}
     >
       {children}
     </button>

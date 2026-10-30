@@ -354,6 +354,8 @@ export class RenderWorld {
     const h = c.clientHeight || 1;
     this.renderer.setSize(w, h, false);
     this.camera.aspect = w / h;
+    // portrait phones: widen the view so the diorama's sides are not cut off (scenes frame for landscape)
+    this.camera.zoom = Math.min(1, Math.max(0.55, this.camera.aspect / 0.85));
     this.camera.updateProjectionMatrix();
   }
 
