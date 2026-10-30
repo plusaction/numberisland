@@ -3,7 +3,7 @@ import { ConeGeometry, CylinderGeometry, Group, Mesh, Vector3 } from 'three/webg
 import { createRng } from '../../domain/rng/rng';
 import { HitStop, Shake, Spring } from '../../engine/fx/juice';
 import { createWake } from '../../engine/fx/wake';
-import { ball, blob, capsule, disc, roundedBox, waterPlane } from '../../engine/geo/shapes';
+import { ball, blob, capsule, disc, waterPlane } from '../../engine/geo/shapes';
 import { NumberLabel } from '../../engine/numbers/number-label';
 import { PALETTE } from '../../engine/palette';
 import {
@@ -20,6 +20,7 @@ import type { PointerInfo } from '../../scenes/common/controller';
 import { baseDiorama, disposeTree, hitCylinder, hitId, hitSphere, stageCamera } from '../_shared/diorama';
 import { celebrate } from '../_shared/fx';
 import type { StageCtx, StageScene } from '../_shared/module';
+import { createOddItems, oddPath } from './odd-items';
 import { BOUNCE_TICKS, type FishingAction, type FishingState, REEL_TICKS } from './rules';
 
 const FISH_COLORS = [
@@ -105,18 +106,12 @@ export function createFishingScene(
   let t = 0;
   let slowmo = 0;
 
-  // odd fish (boot / duck / key)
-  const odd = new Group();
-  const oddBody = [
-    new Mesh(roundedBox(0.5, 0.7, 0.35), toyMaterial(PALETTE.cocoa)),
-    new Mesh(ball(0.35), toyMaterial(PALETTE.sun)),
-    new Mesh(new CylinderGeometry(0.08, 0.08, 0.8, 10), toyMaterial('#e0c060')),
-  ];
-  for (const m of oddBody) {
-    m.castShadow = true;
-    odd.add(m);
-  }
+  // bonus thing drifting by (boot / duck / key) with a coin hint above it
+  const oddItems = createOddItems();
+  const odd = oddItems.group;
+  let oddWakeT = 0;
   const oddProxy = hitSphere(0.9, ODD_ID);
+  oddProxy.position.y = 0.4;
   odd.add(oddProxy);
   odd.visible = false;
   root.add(odd);
@@ -234,7 +229,11 @@ export function createFishingScene(
       }
       if (prev?.odd && !state.odd && state.oddCaught > prev.oddCaught) {
         audio.play('coin');
-        world.particles.emit('sparkle', odd.position, 40);
+        audio.play('correct', { delay: 0.1 });
+        world.particles.emit('sparkle', odd.position, 60);
+        world.burst('coin', { x: odd.position.x, y: odd.position.y + 0.8, z: odd.position.z }, 8);
+        for (let r = 0; r < 2; r++)
+          wake.spawn(odd.position.x, pond.position.y + 0.05, odd.position.z, r * 1.4, 1);
       }
       // fish motion
       for (const [id, v] of fishViews) {
@@ -318,12 +317,20 @@ export function createFishingScene(
       // odd fish crossing
       if (state.odd) {
         odd.visible = true;
-        const k = (state.core.tick - state.odd.born) / state.odd.life;
-        odd.position.set(-5 + k * 10, 0.5 + Math.sin(k * 20) * 0.08, -2 + state.odd.lane * 0.6);
-        oddBody.forEach((m, i) => {
-          m.visible = i === state.odd?.kind;
-        });
-        odd.rotation.y = Math.sin(t * 3) * 0.3;
+        const k = Math.min(1, (state.core.tick - state.odd.born) / state.odd.life);
+        // a different, gently curving way across the pond every time (from the rules' seeded id/lane)
+        const p = oddPath(state.odd.id, state.odd.lane, k);
+        const y = pond.position.y + waveHeight(WAVES_POND, p.x, p.z, waterTime.value);
+        odd.position.set(p.x, y, p.z);
+        odd.rotation.set(0, p.heading + Math.sin(t * 2) * 0.12, Math.sin(t * 2.6) * 0.08);
+        oddItems.update(state.odd.kind, t);
+        oddWakeT -= vdt;
+        if (oddWakeT <= 0) {
+          oddWakeT = 0.13;
+          wake.spawn(p.x, y + 0.05, p.z, p.heading, 0.7);
+        }
+        if (!ctx.reducedMotion && Math.floor(t * 5) % 3 === 0)
+          world.particles.emit('sparkle', { x: p.x, y: y + 1.2, z: p.z }, 1);
       } else odd.visible = false;
       const sh = shake.update(dt);
       world.camera.position.x = sh.x;
