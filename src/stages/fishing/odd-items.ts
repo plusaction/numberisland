@@ -88,7 +88,8 @@ export function createOddItems(): OddItems {
     group.add(it);
   }
   // spinning coin above = "tap it for a coin" (the same gold as the coins that fall when it is caught)
-  const coin = new Mesh(disc(0.2, 0.05, 24), metalMaterial('#ffc83d', 0.2));
+  // bright, self-lit gold (a metal shader would mirror the dark pond and read brown at this size)
+  const coin = new Mesh(disc(0.26, 0.06, 28), toyMaterial('#ffc83d', { rimStrength: 0.9 }));
   coin.rotation.x = Math.PI / 2;
   coin.position.y = 1.25;
   group.add(coin);

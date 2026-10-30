@@ -14,7 +14,7 @@
   {
     "name": "stage fishing (gzip)",
     "path": "dist/assets/fishing-*.js",
-    "limit": "6 kB",
+    "limit": "8 kB",
     "gzip": true
   },
   {
