@@ -33,19 +33,20 @@ for (const stage of ['fishing', 'bomb', 'slime'] as const) {
     await page.getByTestId('hint').click();
     await expect(page.getByTestId('hint-panel')).toHaveAttribute('data-level', '1');
     await page.getByText('알았어!').click();
+    let wound = false;
     for (let k = 0; k < 150; k++) {
       if (await page.getByTestId('result').isVisible()) break;
-      // fishing: a hooked fish is wound in with the big "감아요!" key (the real button, like a child)
-      const primary = page.getByTestId('primary');
-      if (await primary.isVisible().catch(() => false)) {
-        await primary.click({ force: true }).catch(() => {});
-        await page.waitForTimeout(300);
-        continue;
-      }
       await page.evaluate(() => (globalThis as { __stage?: { solveOne(): void } }).__stage?.solveOne());
       await page.waitForTimeout(900);
+      // fishing: wind one hooked fish with the real "감아요!" key, like a child (the solver winds the rest;
+      // checking every loop would skew the latency sample below, which times the solver's dispatches)
+      if (stage === 'fishing' && !wound && (await page.getByTestId('primary').isVisible())) {
+        await page.getByTestId('primary').click({ force: true });
+        wound = true;
+      }
     }
     await expect(page.getByTestId('result')).toBeVisible({ timeout: 60_000 });
+    if (stage === 'fishing') expect(wound).toBe(true);
     await expect(page.getByTestId('result-stars')).toHaveAttribute('data-stars', /[1-3]/);
     await expect(page.getByTestId('new-thing')).toBeVisible();
     await expect(page.getByTestId('new-thing')).not.toBeEmpty();
