@@ -179,7 +179,7 @@ describe('[E5] 난이도 선택(쉽게/어렵게)에서도 적응이 계속됨',
         while (s.phase !== 'done' && tick < 20000)
           s = fishingModule.rules.step(s, {
             tick: ++tick,
-            actions: s.phase === 'play' ? fishingModule.solution(s) : [],
+            actions: s.phase === 'play' || s.phase === 'hook' ? fishingModule.solution(s) : [],
           });
         adaptive = s.core.session.adaptive;
       }

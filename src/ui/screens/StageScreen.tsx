@@ -16,6 +16,7 @@ import { type AnyStageModule, STAGE_LOADERS } from '../../stages/registry';
 import { Button } from '../components/Button';
 import { FeedbackOverlay } from '../hints/FeedbackOverlay';
 import { HintPanel } from '../hints/HintPanel';
+import { flyToGoal } from '../question/flyToGoal';
 import { GoalTiles } from '../question/GoalTiles';
 import { Tutorial } from './Tutorial';
 
@@ -58,7 +59,7 @@ export function StageScreen({ store, reducedMotion }: { store: GameStore; reduce
       mod,
       api.world,
       init,
-      { reducedMotion, shakeIntensity: profile.settings.shakeIntensity },
+      { reducedMotion, shakeIntensity: profile.settings.shakeIntensity, toys: profile.toys },
       (final) => {
         const result = mod.rules.summary(final);
         const outcome = applyRoundResult(
@@ -87,15 +88,26 @@ export function StageScreen({ store, reducedMotion }: { store: GameStore; reduce
     let lastCorrect = init.core.correct;
     let lastHints = init.core.puzzleHints;
     let lastSig = '';
+    let lastPicks = mod.picks?.(init)?.length ?? 0;
     const rng = createRng(seed);
     const update = (s: typeof init) => {
       // re-render the HUD only when something it shows changed (state changes every tick)
       const c = s.core;
-      const sig = `${s.phase}|${c.asked?.question.key ?? ''}|${c.index}|${c.coins}|${c.correct}|${c.wrong}|${c.puzzleHints}|${(s as { puzzle?: unknown }).puzzle ? 1 : 0}|${(s as { undo?: unknown[] }).undo?.length ?? 0}|${(s as { slimes?: unknown[] }).slimes?.length ?? 0}|${(s as { cut?: unknown[] }).cut?.length ?? 0}|${(s as { picked?: unknown[] }).picked?.length ?? 0}`;
+      const sig = `${s.phase}|${c.asked?.question.key ?? ''}|${c.index}|${c.coins}|${c.correct}|${c.wrong}|${c.puzzleHints}|${(s as { puzzle?: unknown }).puzzle ? 1 : 0}|${(s as { undo?: unknown[] }).undo?.length ?? 0}|${(s as { slimes?: unknown[] }).slimes?.length ?? 0}|${(s as { cut?: unknown[] }).cut?.length ?? 0}|${(s as { picked?: unknown[] }).picked?.length ?? 0}|${(s as { reelLeft?: number }).reelLeft ?? 0}`;
       if (sig !== lastSig) {
         lastSig = sig;
         setHud(mod.hud(s));
       }
+      // a picked number flies from the 3D thing into its ? box (bomb wires)
+      const picks = mod.picks?.(s);
+      if (picks && picks.length > lastPicks && !reducedMotion) {
+        const id = picks[picks.length - 1] as number;
+        const from = rt.screenPos(id);
+        const value = mod.pickValue?.(s, id);
+        if (from && value !== undefined)
+          requestAnimationFrame(() => requestAnimationFrame(() => flyToGoal(from, String(value))));
+      }
+      lastPicks = picks?.length ?? 0;
       if (c.puzzleHints > lastHints) setHintOpen(true); // keyboard H / pad X opens the panel too
       lastHints = c.puzzleHints;
       if (s.core.correct > lastCorrect) {
@@ -223,6 +235,22 @@ export function StageScreen({ store, reducedMotion }: { store: GameStore; reduce
         )}
       </div>
 
+      {hud.primary && mod.primaryAction && (
+        <Button
+          tone="sea"
+          className="hud-primary"
+          onClick={() => rtRef.current?.dispatch(mod.primaryAction)}
+          data-testid="primary"
+          aria-keyshortcuts="Space"
+        >
+          {hud.primary.label}
+          <span className="primary-dots" aria-hidden="true">
+            {['a', 'b', 'c', 'd', 'e'].slice(0, hud.primary.left).map((k) => (
+              <span key={k} />
+            ))}
+          </span>
+        </Button>
+      )}
       {hud.stuck && (
         <p className="toast" data-testid="stuck">
           {ko.stageHud.stuck}

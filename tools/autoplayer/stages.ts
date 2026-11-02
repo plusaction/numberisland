@@ -2,6 +2,7 @@
  * Headless bots for the Gold Slice stages (QUALITY96 §4.6). A bot is a policy (accuracy, reaction time,
  * strategy A/B) that turns a rules state into input frames; frames are recorded for replay tests.
  */
+import { BALANCE } from '../../src/domain/balance';
 import type { LevelId } from '../../src/domain/edu/types';
 import { createRng, type Rng } from '../../src/domain/rng/rng';
 import type { InputFrame, RoundResult } from '../../src/domain/stage/types';
@@ -117,6 +118,8 @@ export function fishingBot(seed: string, level: LevelId, policy: BotPolicy) {
           ? sorted[0]
           : r.pick(wrong.length ? wrong : correct);
       const acts: FishingAction[] = pick.map((id) => ({ t: 'tap', id }));
+      // a right pair hooks the fish: wind the reel (extra winds after a wrong pair are harmless no-ops)
+      for (let w = 0; w < BALANCE.fishing.reelWinds; w++) acts.push({ t: 'reel' });
       if (s.odd && policy.strategy === 'B') acts.unshift({ t: 'odd' }); // B also grabs odd fish (coins)
       return acts;
     },

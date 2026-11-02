@@ -9,6 +9,8 @@ import type { RoundCore, RoundOptions } from './round';
 export interface StageCtx {
   reducedMotion: boolean;
   shakeIntensity: number;
+  /** Gift toys the child already has (bomb shelf); the next one is the reward for finishing this round. */
+  toys?: readonly string[];
 }
 
 export interface StageScene<S, A> {
@@ -52,6 +54,8 @@ export interface HudView {
   hintMode?: 'standard' | 'pair';
   target?: number;
   pairOp?: '+' | '-';
+  /** A big one-tap key the child should press now (e.g. "감아요!"), with dots for the presses left. */
+  primary?: { label: string; left: number };
 }
 
 export interface StageModule<S extends { phase: string; core: RoundCore }, A> {
@@ -69,4 +73,9 @@ export interface StageModule<S extends { phase: string; core: RoundCore }, A> {
   /** One correct item to glow at hint step 3+ (pair puzzles). */
   glowTarget?(state: S): number | null;
   undoAction?: A;
+  /** Ids picked so far, in order (their numbers fly into the goal's ? boxes). */
+  picks?(state: S): readonly number[];
+  pickValue?(state: S, id: number): number | undefined;
+  /** Dispatched by the HUD's big `primary` key. */
+  primaryAction?: A;
 }

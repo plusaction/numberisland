@@ -81,6 +81,7 @@ export const ProfileSchema = v.object({
   history: v.array(answerLog),
   dailyPlayMs: v.object({ date: v.string(), ms: nonNeg }),
   firsts: v.array(skillId),
+  toys: v.array(v.pipe(v.string(), v.maxLength(24))),
   version: v.literal(PROFILE_VERSION),
 });
 
@@ -89,6 +90,7 @@ type Raw = Record<string, unknown>;
 /** Ordered migrations: index n migrates version n → n+1. Version 0 = pre-release drafts. */
 const MIGRATIONS: ((p: Raw) => Raw)[] = [
   (p) => ({ ...p, firsts: Array.isArray(p.firsts) ? p.firsts : [], version: 1 }),
+  (p) => ({ ...p, toys: Array.isArray(p.toys) ? p.toys : [], version: 2 }),
 ];
 
 export interface LoadResult {

@@ -2,11 +2,13 @@
  * Applying a finished round to the profile + the result screen's "새로 해낸 것" line and "다음 목표"
  * (SPEC §12, §12.2). Pure: profile in → profile out. Nothing ever decreases (P2).
  */
+
 import { BALANCE } from '../balance';
 import type { SkillId } from '../edu/types';
 import { type Profile, pushHistory } from '../profile';
 import { coinsForClear, type Stars, trophiesFor } from '../scoring/medals';
 import type { RoundResult, StageId } from '../stage/types';
+import { nextToy, type ToyId } from '../toys';
 
 export type Achievement =
   | { kind: 'firstSkill'; skill: SkillId }
@@ -38,6 +40,8 @@ export interface ApplyOutcome {
   coins: number;
   trophies: number;
   newFirsts: SkillId[];
+  /** Bomb round cleared: the gift toy added to the shelf this time. */
+  newToy?: ToyId;
 }
 
 /**
@@ -119,6 +123,7 @@ export function applyRoundResult(
     }
   }
   const prev = before.stageStats[result.stage];
+  const newToy = result.stage === 'bomb' && result.cleared ? nextToy(before.toys) : null;
   const profile: Profile = {
     ...before,
     economy: {
@@ -137,6 +142,7 @@ export function applyRoundResult(
     },
     history,
     firsts: [...firsts],
+    toys: newToy ? [...before.toys, newToy] : before.toys,
     ...(result.adaptiveAfter ? { adaptive: result.adaptiveAfter } : {}),
   };
   const rankAfter = rankFor(profile.trophies.total);
@@ -147,6 +153,7 @@ export function applyRoundResult(
     coins,
     trophies,
     newFirsts,
+    ...(newToy ? { newToy } : {}),
   };
 }
 

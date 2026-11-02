@@ -15,6 +15,7 @@ import {
   TubeGeometry,
   Vector3,
 } from 'three/webgpu';
+import { nextToy, TOY_IDS } from '../../domain/toys';
 import { HitStop, Shake, Spring, squashScale } from '../../engine/fx/juice';
 import { createSmoke } from '../../engine/fx/smoke';
 import { ball, capsule, roundedBox } from '../../engine/geo/shapes';
@@ -28,6 +29,7 @@ import { baseDiorama, disposeTree, hitCylinder, hitId, hitSphere, stageCamera } 
 import { celebrate } from '../_shared/fx';
 import type { StageCtx, StageScene } from '../_shared/module';
 import { type BombAction, type BombState, DEFUSE_TICKS } from './rules';
+import { toyModel } from './toys3d';
 
 // green and blue are reserved for place value (일·십) — wires use other hues + patterns
 export const WIRE_COLORS = ['#ff6f91', '#ffc93c', '#a77bff', '#ff9a52', '#c98a5c', '#ff8fd0'];
@@ -60,6 +62,39 @@ interface WireView {
   proxy: Mesh;
   wireProxy: Mesh;
   end: Vector3;
+  /** Where the scissors snip (the gap between the two stubs). */
+  cutAt: Vector3;
+}
+
+/** Toy safety scissors: two metal blades + two red finger loops on a pivot; `open` 0 = closed. */
+function scissors() {
+  const g = new Group();
+  const steel = metalMaterial('#cfd6e4', 0.2);
+  const grip = toyMaterial(PALETTE.berry);
+  const half = (side: number) => {
+    const h = new Group();
+    const blade = new Mesh(roundedBox(0.9, 0.12, 0.05, 0.03), steel);
+    blade.position.x = 0.45;
+    const loop = new Mesh(new TorusGeometry(0.16, 0.05, 8, 20), grip);
+    loop.position.set(-0.32, side * 0.12, 0);
+    const arm = new Mesh(roundedBox(0.22, 0.08, 0.06, 0.03), grip);
+    arm.position.set(-0.12, side * 0.05, 0);
+    h.add(blade, loop, arm);
+    return h;
+  };
+  const a = half(1);
+  const b = half(-1);
+  b.position.z = 0.06;
+  const pin = new Mesh(ball(0.06, 12), steel);
+  pin.position.z = 0.03;
+  g.add(a, b, pin);
+  return {
+    group: g,
+    setOpen(open: number) {
+      a.rotation.z = open * 0.5;
+      b.rotation.z = -open * 0.5;
+    },
+  };
 }
 
 export function createBombScene(world: RenderWorld, ctx: StageCtx): StageScene<BombState, BombAction> {
@@ -224,6 +259,47 @@ export function createBombScene(world: RenderWorld, ctx: StageCtx): StageScene<B
   let giftT = 0;
   let slowmo = 0;
   let t = 0;
+  // snip! toy scissors pop in at the wire, snap shut, then hop away (one shared pair)
+  const snips = scissors();
+  snips.group.visible = false;
+  root.add(snips.group);
+  let snipT = -1;
+  // toy shelf along the back of the bench: the toys won so far, and a glowing "?" spot for the next one —
+  // the gift of the LAST bomb in this round pops it out and it hops onto the shelf
+  const owned = TOY_IDS.filter((id) => ctx.toys?.includes(id));
+  const prize = nextToy(ctx.toys ?? []);
+  const shelfX = (i: number) => (i < 5 ? -1 : 1) * (1.95 + (i % 5) * 0.86);
+  const SHELF_SCALE = 1.3;
+  const SHELF_Y = 0.95;
+  const SHELF_Z = -3.0;
+  for (const side of [-1, 1]) {
+    const plank = new Mesh(roundedBox(4.4, 0.12, 0.8, 0.05), toyMaterial('#c98a5c', { finish: 'satin' }));
+    plank.position.set(side * 3.7, SHELF_Y - 0.06, SHELF_Z);
+    plank.receiveShadow = true;
+    root.add(plank);
+  }
+  owned.forEach((id) => {
+    const m = toyModel(id);
+    m.position.set(shelfX(TOY_IDS.indexOf(id)), SHELF_Y, SHELF_Z);
+    m.rotation.y = 0.35;
+    m.scale.setScalar(SHELF_SCALE);
+    root.add(m);
+  });
+  const prizeSlot = prize ? TOY_IDS.indexOf(prize) : -1;
+  const spot = new Mesh(ball(0.22, 16), toyMaterial(PALETTE.sun, { rimStrength: 0.8 }));
+  spot.scale.set(1, 0.18, 1);
+  spot.position.set(prizeSlot >= 0 ? shelfX(prizeSlot) : 0, SHELF_Y + 0.02, SHELF_Z);
+  spot.visible = prizeSlot >= 0;
+  root.add(spot);
+  const prizeModel = prize ? toyModel(prize) : null;
+  if (prizeModel) {
+    prizeModel.visible = false;
+    root.add(prizeModel);
+  }
+  let prizeT = -1;
+  const PRIZE_SECS = 1.5;
+  const snipAt = new Vector3();
+  const SNIP_SECS = 0.55;
 
   const build = (s: BombState) => {
     for (const w of wires.values())
@@ -268,7 +344,17 @@ export function createBombScene(world: RenderWorld, ctx: StageCtx): StageScene<B
       wireProxy.position.copy(curve.getPoint(0.82));
       proxies.push(proxy, wireProxy);
       root.add(whole, stubA, stubB, post, lab, proxy, wireProxy);
-      wires.set(w.id, { whole, stubA, stubB, label: lab, post, proxy, wireProxy, end });
+      wires.set(w.id, {
+        whole,
+        stubA,
+        stubB,
+        label: lab,
+        post,
+        proxy,
+        wireProxy,
+        end,
+        cutAt: curve.getPoint(0.52),
+      });
     });
   };
 
@@ -281,10 +367,19 @@ export function createBombScene(world: RenderWorld, ctx: StageCtx): StageScene<B
         puzzleRef = state.puzzle;
         build(state);
         giftT = 0;
+        bow.position.y = 0.95;
+        bow.visible = true;
       }
       if (prev && state.cut.length > prev.cut.length) {
         audio.play('snip', { pitch: 1 + state.cut.length * 0.08 });
         hitStop.trigger(35);
+        const w = wires.get(state.cut[state.cut.length - 1] as number);
+        if (w) {
+          snipAt.copy(w.cutAt);
+          snipT = 0;
+          world.particles.emit('sparkle', snipAt, 24);
+          world.particles.emit('dust', snipAt, 6);
+        }
       }
       if (prev && prev.phase !== 'defuse' && state.phase === 'defuse') {
         slowmo = 0.3; // signature: 0.3 s slow motion on the last snip, then gift box
@@ -303,6 +398,16 @@ export function createBombScene(world: RenderWorld, ctx: StageCtx): StageScene<B
           state.core.streak,
           !!state.core.asked?.question.tags.includes('SIX_SEVEN'),
         );
+      }
+      if (
+        prev &&
+        prev.phase !== 'defuse' &&
+        state.phase === 'defuse' &&
+        state.core.index + 1 >= state.core.puzzles &&
+        prizeModel
+      ) {
+        prizeT = 0; // the last gift of the round holds the new toy
+        audio.play('levelup', { delay: 0.5 });
       }
       if (prev && prev.phase !== 'puff' && state.phase === 'puff') kaboom();
       updateBoom(vdt);
@@ -335,6 +440,46 @@ export function createBombScene(world: RenderWorld, ctx: StageCtx): StageScene<B
       }
       if (!ctx.reducedMotion && Math.floor(t * 8) % 3 === 0)
         world.particles.emit('sparkle', { x: 0.55, y: 3.95, z: -1.6 }, 1);
+      // the shelf's "?" spot breathes; the prize toy pops out of the gift, spins, then hops to its spot
+      spot.scale.set(1, 0.18, 1).multiplyScalar(ctx.reducedMotion ? 1 : 1 + Math.sin(t * 3) * 0.12);
+      if (prizeT >= 0 && prizeModel) {
+        prizeT += dt;
+        const k = Math.min(1, prizeT / PRIZE_SECS);
+        const rise = Math.min(1, k / 0.4);
+        const hop = Math.max(0, (k - 0.45) / 0.55);
+        const from = { x: gift.position.x, y: gift.position.y + 0.9 + rise * 1.3, z: gift.position.z + 0.6 };
+        const to = { x: spot.position.x, y: SHELF_Y, z: SHELF_Z };
+        prizeModel.position.set(
+          from.x + (to.x - from.x) * hop,
+          from.y + (to.y - from.y) * hop + Math.sin(hop * Math.PI) * 1.4,
+          from.z + (to.z - from.z) * hop,
+        );
+        prizeModel.scale.setScalar((0.3 + rise * 1.9) * (1 - hop) + SHELF_SCALE * hop);
+        prizeModel.rotation.y = ctx.reducedMotion ? 0.35 : prizeT * 7 * (1 - hop) + 0.35;
+        prizeModel.visible = true;
+        bow.position.y = 0.95 + rise * 1.4; // the bow pops off the lid
+        bow.visible = hop < 0.2;
+        if (Math.floor(t * 20) % 2 === 0) world.particles.emit('sparkle', prizeModel.position, 3);
+        if (k >= 1) {
+          prizeT = -2; // landed: stays on the shelf
+          spot.visible = false;
+          audio.play('pop');
+          world.particles.emit('confetti', prizeModel.position, 30);
+        }
+      }
+      // scissors: open wide at the wire → snap shut (snip) → hop up and away
+      if (snipT >= 0) {
+        snipT += dt; // real time: the snip reads the same even during hit-stop / slow motion
+        const k = Math.min(1, snipT / SNIP_SECS);
+        const close = Math.min(1, k / 0.35);
+        snips.setOpen(1 - close * close);
+        const away = Math.max(0, (k - 0.55) / 0.45);
+        snips.group.position.set(snipAt.x + 0.15, snipAt.y + 0.25 + away * 1.2, snipAt.z + 0.35);
+        snips.group.rotation.set(-0.5, 0.3, -0.9 + (ctx.reducedMotion ? 0 : away * 1.4));
+        snips.group.scale.setScalar(1.4 * (1 - away * away));
+        snips.group.visible = k < 1;
+        if (k >= 1) snipT = -1;
+      }
       const sh = shake.update(dt);
       world.camera.position.x = sh.x;
       world.camera.position.y = 6.6 + sh.y;

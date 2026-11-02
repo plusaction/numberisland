@@ -35,6 +35,13 @@ for (const stage of ['fishing', 'bomb', 'slime'] as const) {
     await page.getByText('알았어!').click();
     for (let k = 0; k < 150; k++) {
       if (await page.getByTestId('result').isVisible()) break;
+      // fishing: a hooked fish is wound in with the big "감아요!" key (the real button, like a child)
+      const primary = page.getByTestId('primary');
+      if (await primary.isVisible().catch(() => false)) {
+        await primary.click({ force: true }).catch(() => {});
+        await page.waitForTimeout(300);
+        continue;
+      }
       await page.evaluate(() => (globalThis as { __stage?: { solveOne(): void } }).__stage?.solveOne());
       await page.waitForTimeout(900);
     }

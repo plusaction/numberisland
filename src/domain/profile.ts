@@ -5,7 +5,7 @@ import type { LevelId, SkillId } from './edu/types';
 import type { Stars } from './scoring/medals';
 import { STAGE_IDS, type StageId } from './stage/types';
 
-export const PROFILE_VERSION = 1;
+export const PROFILE_VERSION = 2;
 export const MAX_PROFILES = 3;
 export const HISTORY_LIMIT = 500;
 
@@ -62,6 +62,8 @@ export interface Profile {
   dailyPlayMs: { date: string; ms: number };
   /** Skills that have had a first success (for ceremonies / "새로 해낸 것"). */
   firsts: SkillId[];
+  /** Gift toys collected in the bomb stage, in the order they were won (only ever grows). */
+  toys: string[];
   version: number;
 }
 
@@ -100,6 +102,7 @@ export function defaultProfile(id: string, nickname: string, now: string): Profi
     history: [],
     dailyPlayMs: { date: now.slice(0, 10), ms: 0 },
     firsts: [],
+    toys: [],
     version: PROFILE_VERSION,
   };
 }

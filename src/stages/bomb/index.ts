@@ -46,6 +46,8 @@ export const bombModule: StageModule<BombState, BombAction> = {
   glowTarget: (s) => (s.puzzle && s.puzzle.mode !== 'PLACE' ? (solveBomb(s.puzzle)[0]?.[0] ?? null) : null),
   solution: (s) => (s.puzzle ? (solveBomb(s.puzzle)[0] ?? []).map((id) => ({ t: 'cut' as const, id })) : []),
   hintAction: { t: 'hint' },
+  picks: (s) => s.cut,
+  pickValue: (s, id) => s.puzzle?.wires.find((w) => w.id === id)?.value,
   undoAction: { t: 'undo' },
   retryAction: { t: 'retry' },
 };

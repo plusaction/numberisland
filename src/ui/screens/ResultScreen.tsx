@@ -100,6 +100,17 @@ export function ResultScreen({ store }: { store: GameStore }) {
             {goal}
           </p>
         </motion.div>
+        {outcome.newToy && (
+          <motion.p
+            className="ribbon toy-prize mx-auto mt-4"
+            data-testid="new-toy"
+            initial={reduce ? false : { scale: 0, rotate: -6 }}
+            animate={{ scale: 1, rotate: 0 }}
+            transition={{ type: 'spring', stiffness: 260, damping: 11, delay: delay(5) }}
+          >
+            🎁 {fmt(ko.result.newToy, { toy: ko.toys[outcome.newToy] })}
+          </motion.p>
+        )}
         <p className="mt-3 text-xl">
           {fmt(ko.result.coins, { n: outcome.coins })} · {fmt(ko.result.trophies, { n: outcome.trophies })}
         </p>

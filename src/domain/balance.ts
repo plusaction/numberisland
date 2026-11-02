@@ -9,8 +9,11 @@ export const BALANCE = {
     clearByStars: [10, 10, 20, 30] as const, // index = stars (0 → still 10 for finishing)
     coopMultiplier: 1.5,
     oddFishBonus: 3,
+    goldenFish: 2,
   },
   snacks: { perCorrect: 3 },
+  /** Winds of the reel after a right catch (taps, never timed). */
+  fishing: { reelWinds: 3 },
   evolution: { stage2: 5, stage3: 12 },
   eggs: { playsToHatch: 3 },
   trophies: { byStars: [1, 2, 3, 5] as const },

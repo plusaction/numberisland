@@ -7,12 +7,14 @@ import { Color, Group, Mesh, Quaternion, Vector3 } from 'three/webgpu';
 import { markStatic, mergeStatic } from '../../engine/geo/merge';
 import { ball } from '../../engine/geo/shapes';
 import { PALETTE } from '../../engine/palette';
-import { toyMaterial } from '../../engine/tsl/materials';
+import { metalMaterial, toyMaterial } from '../../engine/tsl/materials';
 
 export interface FishModel {
   group: Group;
   /** Wag this around Y. */
   tail: Group;
+  /** Both eyes, pivoting on the eye centre: squash Y to blink / smile, scale up to look surprised. */
+  eyes: Group;
 }
 
 const part = (
@@ -57,13 +59,17 @@ function onSkin(
   return markStatic(m);
 }
 
-export function fishModel(hex: string): FishModel {
+const EYE_X = 0.355;
+const EYE_Y = 0.07;
+
+/** `gold`: polished metal instead of glossy plastic (the golden fish). */
+export function fishModel(hex: string, gold = false): FishModel {
   const base = new Color(hex);
-  const skin = toyMaterial(hex);
-  const belly = toyMaterial(`#${base.clone().lerp(new Color('#ffffff'), 0.55).getHexString()}`, {
-    finish: 'satin',
-  });
-  const fin = toyMaterial(`#${base.clone().offsetHSL(0, 0.05, -0.12).getHexString()}`, { finish: 'satin' });
+  const tone = (c: Color, finish: 'plastic' | 'satin') =>
+    gold ? metalMaterial(c, 0.22) : toyMaterial(`#${c.getHexString()}`, { finish });
+  const skin = tone(base, 'plastic');
+  const belly = tone(base.clone().lerp(new Color('#ffffff'), gold ? 0.3 : 0.55), 'satin');
+  const fin = tone(base.clone().offsetHSL(0, 0.05, -0.12), 'satin');
   const white = toyMaterial(PALETTE.white);
   const ink = toyMaterial(PALETTE.ink);
   const lip = toyMaterial(`#${base.clone().offsetHSL(0, 0.1, -0.3).getHexString()}`, { finish: 'satin' });
@@ -82,14 +88,26 @@ export function fishModel(hex: string): FishModel {
   for (const z of [-1, 1]) {
     group.add(
       part(0.13, fin, [0.08, -0.14, z * 0.27], [1.2, 0.45, 0.3], [0, z * 0.5, -0.3]),
-      // eye: white rim, big dark iris, one catch-light (upper front) — all flush with the skin
-      onSkin(0.1, white, 0.34, 0.07, z, 0.0),
-      onSkin(0.074, ink, 0.355, 0.07, z, 0.018),
-      onSkin(0.022, glint, 0.375, 0.1, z, 0.034, 0.6),
       onSkin(0.055, cheekMat, 0.44, -0.11, z, 0.0, 0.2),
     );
   }
   mergeStatic(group);
+
+  // eyes: white rim, big dark iris, one catch-light (upper front) — all flush with the skin
+  const eyes = new Group();
+  eyes.position.set(EYE_X, EYE_Y, 0);
+  for (const z of [-1, 1]) {
+    for (const m of [
+      onSkin(0.1, white, 0.34, 0.07, z, 0.0),
+      onSkin(0.074, ink, 0.355, 0.07, z, 0.018),
+      onSkin(0.022, glint, 0.375, 0.1, z, 0.034, 0.6),
+    ]) {
+      m.position.sub(eyes.position);
+      eyes.add(m);
+    }
+  }
+  mergeStatic(eyes);
+  group.add(eyes);
 
   // forked tail, hinged at the back of the body
   const tail = new Group();
@@ -101,5 +119,5 @@ export function fishModel(hex: string): FishModel {
   );
   mergeStatic(tail);
   group.add(tail);
-  return { group, tail };
+  return { group, tail, eyes };
 }

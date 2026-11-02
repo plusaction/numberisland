@@ -143,6 +143,19 @@ export const ko = {
     nextGoal: '다음 목표',
     coins: '+{n} 코인',
     trophies: '+{n} 트로피',
+    newToy: '새 장난감: {toy}!',
+  },
+  toys: {
+    top: '팽이',
+    robot: '로봇',
+    dino: '공룡',
+    rocket: '로켓',
+    car: '자동차',
+    bear: '곰 인형',
+    tumbler: '오뚝이',
+    plane: '비행기',
+    octopus: '문어',
+    crown: '왕관',
   },
   achievements: {
     firstSkill: '{skill} 첫 성공!',
@@ -222,6 +235,8 @@ export const ko = {
     sum: '더해서',
     diff: '차이가',
     oddFish: '이상한 물고기!',
+    goldenFish: '황금 물고기!',
+    reel: '감아요!',
     fireworks: '6 + 7 = 13 펑!',
   },
   errors: {

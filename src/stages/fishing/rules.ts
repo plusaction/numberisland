@@ -60,7 +60,8 @@ export interface OddFish {
   lane: number;
 }
 
-export type FishingPhase = 'play' | 'reel' | 'bounce' | 'done';
+/** 'hook': the right fish bit — the child winds the reel (taps, no time limit) before it flies out. */
+export type FishingPhase = 'play' | 'hook' | 'reel' | 'bounce' | 'done';
 
 export interface FishingState {
   core: RoundCore;
@@ -75,6 +76,11 @@ export interface FishingState {
   lastWrong: { value: number; made: number; tag?: string } | null;
   /** Fish ids reeled in this puzzle (signature moment). */
   reeled: number[];
+  /** Reel winds still to go in the 'hook' phase. */
+  reelLeft: number;
+  /** This catch brings up the golden fish (fixed rule, never chance): every 3rd right answer in a row. */
+  goldenNow: boolean;
+  goldenCaught: number;
 }
 
 export type FishingAction =
@@ -83,7 +89,9 @@ export type FishingAction =
   | { t: 'odd' }
   | { t: 'retry' }
   /** Put back the last picked fish (a mis-tap); never costs anything (P2). */
-  | { t: 'undo' };
+  | { t: 'undo' }
+  /** Wind the reel once ('hook' phase). Any tap on the pond counts too. */
+  | { t: 'reel' };
 
 export const REEL_TICKS = 70;
 export const BOUNCE_TICKS = 40;
@@ -216,6 +224,9 @@ export function initFishing(
     oddCaught: 0,
     lastWrong: null,
     reeled: [],
+    reelLeft: 0,
+    goldenNow: false,
+    goldenCaught: 0,
   };
   return newPuzzle(base);
 }
@@ -242,16 +253,21 @@ function evaluate(s: FishingState): FishingState {
   // misconception tags only describe the *answer slot* (□ mode); in pair mode the child chose fish, not a result
   const tag = p.mode === 'missing' ? q.misconceptionMap[given] : undefined;
   if (ok) {
-    const core = recordAttempt(s.core, true, given);
+    let core = recordAttempt(s.core, true, given);
     const fish = p.fish.map((f) => (s.picked.includes(f.id) ? { ...f, caught: true } : f));
+    const goldenNow = isGoldenCatch(core.streak);
+    if (goldenNow) core = { ...core, coins: core.coins + BALANCE.coins.goldenFish };
     return {
       ...s,
       core,
       puzzle: { ...p, fish },
-      phase: 'reel',
-      phaseLeft: REEL_TICKS,
+      phase: 'hook',
+      phaseLeft: 0,
+      reelLeft: BALANCE.fishing.reelWinds,
       reeled: s.picked,
       picked: [],
+      goldenNow,
+      goldenCaught: s.goldenCaught + (goldenNow ? 1 : 0),
     };
   }
   const core = recordAttempt(s.core, false, given, tag);
@@ -263,6 +279,9 @@ function evaluate(s: FishingState): FishingState {
     lastWrong: tag ? { value: given, made, tag } : { value: given, made },
   };
 }
+
+/** The golden fish jumps on every 3rd right answer in a row — a fixed, learnable rule (no chance draw). */
+export const isGoldenCatch = (streak: number) => streak > 0 && streak % 3 === 0;
 
 export function stepFishing(state: FishingState, input: InputFrame<FishingAction>): FishingState {
   if (state.phase === 'done') return state;
@@ -280,6 +299,11 @@ export function stepFishing(state: FishingState, input: InputFrame<FishingAction
         oddCaught: s.oddCaught + 1,
         core: { ...s.core, coins: s.core.coins + BALANCE.coins.oddFishBonus },
       };
+    }
+    if ((a.t === 'reel' || a.t === 'tap') && s.phase === 'hook') {
+      const left = s.reelLeft - 1;
+      s = left > 0 ? { ...s, reelLeft: left } : { ...s, reelLeft: 0, phase: 'reel', phaseLeft: REEL_TICKS };
+      continue;
     }
     if (a.t === 'tap' && s.phase === 'play' && s.puzzle) {
       const f = s.puzzle.fish.find((x) => x.id === a.id && !x.caught);
@@ -321,6 +345,9 @@ export const fishingRules: StageRules<FishingState, FishingAction> = {
   isDone: (s) => s.phase === 'done',
   summary: (s): RoundResult => {
     const r = roundSummary(s.core);
-    return { ...r, highlights: s.oddCaught ? [...r.highlights, 'oddFish'] : r.highlights };
+    const highlights = [...r.highlights];
+    if (s.oddCaught) highlights.push('oddFish');
+    if (s.goldenCaught) highlights.push('goldenFish');
+    return { ...r, highlights };
   },
 };
