@@ -3,11 +3,14 @@ import { CURRICULUM } from '../../src/domain/curriculum/curriculum';
 import { generateQuestion } from '../../src/domain/edu/generate';
 import { createRng } from '../../src/domain/rng/rng';
 import {
+  allFound,
+  ENTER_TICKS,
   type EscapeAction,
   type EscapeState,
   escapeRules,
-  HANDLE,
   JAM_TICKS,
+  KEY,
+  KEYS,
   roomFromQuestion,
   sentence,
   shownNumbers,
@@ -72,23 +75,40 @@ describe('[G1:escape] 방탈출 규칙', () => {
     }
   });
 
-  it('a wrong code only rattles the lock: nothing lost, the wheels stay, then it can be opened', () => {
+  it('a room opens with a short entry cut (input waits), keys only work once every clue is found', () => {
+    let s = escapeRules.init('enter-1', 'A3');
+    let tick = 0;
+    expect(s.phase).toBe('enter');
+    const room = s.room as NonNullable<EscapeState['room']>;
+    const right = KEY(room.options.indexOf(room.code));
+    s = step(s, ++tick, [{ t: 'tap', id: 0 }]);
+    expect(s.found).toEqual([]); // ignored during the cut
+    for (let i = 0; i < ENTER_TICKS; i++) s = step(s, ++tick);
+    expect(s.phase).toBe('play');
+    s = step(s, ++tick, [{ t: 'pick', id: right }]);
+    expect(s.phase).toBe('play'); // clues not found yet: the keys are not ready
+    expect(room.options).toHaveLength(KEYS);
+    expect(new Set(room.options).size).toBe(KEYS);
+    expect(room.options).toContain(room.code);
+  });
+
+  it('a wrong key only rattles the lock and dims that key; nothing is lost, then it opens', () => {
     let s = escapeRules.init('jam-1', 'A3');
     let tick = 0;
+    for (let i = 0; i < ENTER_TICKS; i++) s = step(s, ++tick);
     const room = s.room as NonNullable<EscapeState['room']>;
+    const clues = room.things.filter((t) => t.clue !== null).map((t) => ({ t: 'tap' as const, id: t.id }));
+    s = step(s, ++tick, clues);
+    expect(allFound(room, s.found)).toBe(true);
     const coins = s.core.coins;
-    const wrongDial = room.code === 0 ? 1 : 0;
-    s = step(s, ++tick, [{ t: 'dial', wheel: 1, dir: wrongDial === 1 ? 1 : 1 }]);
-    s = { ...s, dial: [0, room.code % 10 === 9 ? 8 : (room.code % 10) + 1] };
-    const dial = s.dial.slice();
-    s = step(s, ++tick, [{ t: 'open' }]);
+    const wrong = room.options.findIndex((v) => v !== room.code);
+    s = step(s, ++tick, [{ t: 'pick', id: KEY(wrong) }]);
     expect(s.phase).toBe('jam');
+    expect(s.tried).toEqual([room.options[wrong]]);
     expect(s.core.coins).toBeGreaterThanOrEqual(coins);
     for (let i = 0; i < JAM_TICKS; i++) s = step(s, ++tick);
     expect(s.phase).toBe('play');
-    expect(s.dial).toEqual(dial);
     s = step(s, ++tick, solveEscape(s));
     expect(s.phase).toBe('open');
-    expect(HANDLE).toBeGreaterThan(100);
   });
 });

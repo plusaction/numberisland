@@ -47,6 +47,8 @@ describe('[E4] 힌트 4단계 후 다른 숫자로 재도전 (스테이지)', ()
         let s = m.rules.init(`retry-${seed}`, 'A3');
         const before = s.core.asked.question;
         let tick = 0;
+        // stages with an entry cut (escape) take input once it is over
+        while (s.phase !== 'play' && tick < 600) s = m.rules.step(s, { tick: ++tick, actions: [] });
         for (let i = 0; i < 4; i++) s = m.rules.step(s, { tick: ++tick, actions: [m.hintAction] });
         s = m.rules.step(s, { tick: ++tick, actions: [m.retryAction] });
         const after = s.core.asked.question;

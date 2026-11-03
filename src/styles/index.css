@@ -413,6 +413,147 @@
     font-size: 2.6rem;
     line-height: 1;
   }
+  /* step guide under the goal: find → think → pick (current lit, done ✓) */
+  .step-guide {
+    display: flex;
+    justify-content: center;
+    gap: 0.4rem;
+    margin: 0;
+    list-style: none;
+    padding: 0;
+  }
+  .step {
+    white-space: nowrap;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+    padding: 0.2rem 0.7rem;
+    border-radius: 999px;
+    font-family: var(--font-display);
+    font-size: 1.15rem;
+    color: color-mix(in oklab, var(--color-ink) 45%, transparent);
+    background: color-mix(in oklab, var(--color-ink) 7%, var(--color-milk));
+  }
+  .step-now {
+    color: var(--color-ink);
+    background: var(--color-sun);
+    box-shadow: 0 3px 0 var(--color-sun-deep);
+    animation: step-bob 1.2s ease-in-out infinite;
+  }
+  .step-done {
+    color: #fff;
+    background: var(--color-ones);
+  }
+  .step-count {
+    font-family: var(--font-num);
+  }
+  @keyframes step-bob {
+    50% {
+      translate: 0 -2px;
+    }
+  }
+  /* the friend's speech bubble (bottom left); tap to tuck it away */
+  .stage-hud > .say-bubble {
+    position: absolute;
+    left: 1rem;
+    bottom: 6.6rem;
+    display: flex;
+    align-items: center;
+    gap: 0.7rem;
+    max-width: min(26rem, 70vw);
+    padding: 0.7rem 1.1rem 0.7rem 0.7rem;
+    border: 0;
+    border-radius: 1.4rem 1.4rem 1.4rem 0.3rem;
+    background: var(--color-milk);
+    box-shadow:
+      0 6px 0 color-mix(in oklab, var(--color-ink) 15%, var(--color-milk)),
+      0 14px 24px -12px rgb(30 58 86 / 0.5);
+    font-family: var(--font-display);
+    font-size: 1.45rem;
+    color: var(--color-ink);
+    text-align: left;
+    cursor: pointer;
+    animation: say-in 0.35s cubic-bezier(0.3, 1.5, 0.5, 1);
+    transition:
+      scale 0.25s ease,
+      opacity 0.25s ease;
+    transform-origin: left bottom;
+  }
+  .stage-hud > .say-bubble.say-small {
+    scale: 0.82;
+    opacity: 0.9;
+  }
+  .say-face {
+    flex: none;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.35rem;
+    width: 3rem;
+    height: 2.6rem;
+    border-radius: 50% 50% 45% 45%;
+    background: #9b7cf0;
+  }
+  .say-face > i {
+    width: 0.55rem;
+    height: 0.55rem;
+    border-radius: 999px;
+    background: #fff;
+    box-shadow: inset 0.14rem 0.1rem 0 0.1rem var(--color-ink);
+  }
+  @keyframes say-in {
+    from {
+      scale: 0.4;
+      opacity: 0;
+    }
+  }
+  /* room cut: an iris opens on the new room (a hole growing in a navy curtain), its name in big letters */
+  .stage-hud > .room-cut {
+    position: absolute;
+    inset: 0;
+    display: grid;
+    place-items: center;
+    pointer-events: none;
+  }
+  .room-cut-iris {
+    position: absolute;
+    inset: 0;
+    background: #1e3a56;
+    mask-image: radial-gradient(circle at 50% 55%, transparent var(--iris), #000 calc(var(--iris) + 1%));
+    animation: iris-open 1.5s ease-in forwards;
+  }
+  .room-cut-title {
+    position: relative;
+    font-family: var(--font-display);
+    font-size: clamp(2.6rem, 9vw, 4.6rem);
+    color: #fff;
+    text-shadow: 0 5px 0 rgb(30 58 86 / 0.6);
+    animation: cut-title 1.5s ease forwards;
+  }
+  @keyframes iris-open {
+    0%,
+    30% {
+      --iris: 0%;
+    }
+    100% {
+      --iris: 80%;
+    }
+  }
+  @keyframes cut-title {
+    0% {
+      scale: 0.6;
+      opacity: 0;
+    }
+    20%,
+    65% {
+      scale: 1;
+      opacity: 1;
+    }
+    100% {
+      scale: 1.1;
+      opacity: 0;
+    }
+  }
   .ribbon.toy-prize {
     font-size: 1.7rem;
     padding: 0.3rem 1.1rem;
@@ -464,6 +605,12 @@
   }
 }
 
+@property --iris {
+  syntax: "<percentage>";
+  inherits: false;
+  initial-value: 0%;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .gt-slot,
   .gt-new {
@@ -505,8 +652,9 @@
     left: 50%;
     transform: translateX(-50%);
     display: flex;
+    flex-direction: column;
     align-items: center;
-    gap: 1rem;
+    gap: 0.35rem;
     padding: 0.65rem 1.1rem;
     border-radius: calc(var(--radius-tile) + 0.9rem);
     background: color-mix(in oklab, var(--color-ink) 10%, var(--color-milk));

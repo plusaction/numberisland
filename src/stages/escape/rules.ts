@@ -2,10 +2,11 @@
  * ⑤ 이상한 자물쇠 방탈출 — pure rules (P5).
  *
  * A round is a short trip through toy rooms; the last one is the treasure room with a two-step "boss" lock.
- * In each room some things hide a number clue (the rest are funny empties). The clues fill a sentence like
- * `3 + ? = □`; the □ is the lock code, set with two number wheels and tried with "열어요!". A wrong code
- * only rattles the lock — nothing is lost, the wheels stay where they were (P2). Even if the child finds
- * just the clue things (never the empties), the room is always solvable.
+ * Three clear steps per room (grade 1): ① tap the "?" things to find the hidden numbers (the rest are funny
+ * empties) — each number flies into a sentence like `3 + ? = □`; ② think; ③ pick the lock's number from
+ * three big keys, which appear once every clue is found. A wrong key only rattles the lock and dims that key
+ * — nothing is lost (P2). Finding just the clue things is always enough. Each room starts with a short
+ * 'enter' cut (the camera swoops in, the friend says where we are) during which input waits.
  */
 import { BALANCE } from '../../domain/balance';
 import { levelSpec } from '../../domain/curriculum/curriculum';
@@ -40,14 +41,14 @@ export const ESCAPE_SKILLS: readonly SkillId[] = [
 export const ROOM_THEMES = ['kitchen', 'study', 'attic', 'garden', 'treasure'] as const;
 export type RoomTheme = (typeof ROOM_THEMES)[number];
 
-/** Things per room; ids 0..THINGS-1. Dial controls and the handle use the ids below. */
+/** Things per room; ids 0..THINGS-1. The lock's number keys are KEY(0..KEYS-1). */
 export const THINGS = 5;
-export const DIAL_UP = (wheel: number) => 100 + wheel * 2;
-export const DIAL_DOWN = (wheel: number) => 101 + wheel * 2;
-export const HANDLE = 110;
-export const WHEELS = 2;
-export const OPEN_TICKS = 100;
+export const KEYS = 3;
+export const KEY = (i: number) => 100 + i;
+export const OPEN_TICKS = 130;
 export const JAM_TICKS = 50;
+/** Room-entry cut (camera swoop + room name + narration); input waits, nothing is timed. */
+export const ENTER_TICKS = 95;
 
 export interface Thing {
   id: number;
@@ -68,17 +69,19 @@ export interface Room {
   hole: number;
   code: number;
   things: Thing[];
+  /** The lock's three number keys (the code + two misconception-flavoured neighbours), in key order. */
+  options: number[];
 }
 
-export type EscapePhase = 'play' | 'open' | 'jam' | 'done';
+export type EscapePhase = 'enter' | 'play' | 'open' | 'jam' | 'done';
 
 export interface EscapeState {
   core: RoundCore;
   room: Room | null;
   /** Thing ids tapped so far in this room (clues and empties). */
   found: number[];
-  /** Wheel digits (tens, ones). */
-  dial: number[];
+  /** Keys already tried in this room (dimmed). */
+  tried: number[];
   phase: EscapePhase;
   phaseLeft: number;
   lastWrong: { value: number; made: number; tag?: string } | null;
@@ -87,8 +90,8 @@ export interface EscapeState {
 
 export type EscapeAction =
   | { t: 'tap'; id: number }
-  | { t: 'dial'; wheel: number; dir: 1 | -1 }
-  | { t: 'open' }
+  /** Press lock key `id` (KEY(i)); only once every clue is found. */
+  | { t: 'pick'; id: number }
   | { t: 'hint' }
   | { t: 'retry' };
 
@@ -126,8 +129,19 @@ export function roomFromQuestion(q: Question, theme: RoomTheme, boss: boolean, r
       t.pos = i;
     }
   });
-  return { theme, boss, ...s, things };
+  // three keys: the code and two near misses (the question's misconception choices first)
+  const opts = new Set<number>([s.code]);
+  for (const c of rng.shuffle(q.choices.map((x) => x.value)))
+    if (opts.size < KEYS && c !== s.code && c >= 0 && c <= 99) opts.add(c);
+  for (const d of rng.shuffle([1, -1, 10, -10, 2, -2]))
+    if (opts.size < KEYS && s.code + d >= 0 && s.code + d <= 99) opts.add(s.code + d);
+  const options = [...opts].sort((a, b) => a - b);
+  return { theme, boss, ...s, things, options };
 }
+
+/** Every clue thing has been opened (the lock keys show). */
+export const allFound = (room: Room, found: readonly number[]) =>
+  room.things.every((t) => t.clue === null || found.includes(t.id));
 
 /** Clue numbers of the sentence in order (null = not found yet). */
 export function shownNumbers(room: Room, found: readonly number[]): (number | null)[] {
@@ -135,8 +149,6 @@ export function shownNumbers(room: Room, found: readonly number[]): (number | nu
     i !== room.hole && room.things.some((t) => t.pos === i && found.includes(t.id)) ? n : null,
   );
 }
-
-const dialValue = (d: readonly number[]) => (d[0] ?? 0) * 10 + (d[1] ?? 0);
 
 function bossQuestion(core: RoundCore, rng: Rng, avoid: readonly string[]): Question | null {
   const settings = { ...DEFAULT_SETTINGS, term: core.term };
@@ -158,7 +170,9 @@ function newRoom(s: EscapeState): EscapeState {
   );
   const q = core.asked?.question;
   if (!q) return { ...s, core };
-  const theme: RoomTheme = last ? 'treasure' : (ROOM_THEMES[s.core.index % 4] as RoomTheme);
+  // the round walks through different rooms each time (seeded), the treasure room is always last
+  const turn = (s.core.rng[0] >>> 0) % 4;
+  const theme: RoomTheme = last ? 'treasure' : (ROOM_THEMES[(s.core.index + turn) % 4] as RoomTheme);
   const r = withRng(core, (rng) => roomFromQuestion(q, theme, last, rng));
   core = r.core;
   return {
@@ -166,9 +180,9 @@ function newRoom(s: EscapeState): EscapeState {
     core,
     room: r.value,
     found: [],
-    dial: Array(WHEELS).fill(0),
-    phase: 'play',
-    phaseLeft: 0,
+    tried: [],
+    phase: 'enter',
+    phaseLeft: ENTER_TICKS,
     lastWrong: null,
   };
 }
@@ -182,7 +196,7 @@ export function initEscape(
     core: initRound('escape', seed, level, { ...opts, puzzles: opts.puzzles ?? BALANCE.escape.rooms }),
     room: null,
     found: [],
-    dial: Array(WHEELS).fill(0),
+    tried: [],
     phase: 'play',
     phaseLeft: 0,
     lastWrong: null,
@@ -190,20 +204,14 @@ export function initEscape(
   });
 }
 
-/** Actions that open the current room: find the clue things, turn the wheels, try the handle. */
+/** Actions that open the current room: open the clue things, then press the right key. */
 export function solveEscape(s: EscapeState): EscapeAction[] {
   const room = s.room;
   if (!room) return [];
   const acts: EscapeAction[] = room.things
     .filter((t) => t.clue !== null && !s.found.includes(t.id))
     .map((t) => ({ t: 'tap', id: t.id }));
-  const want = [Math.floor(room.code / 10), room.code % 10];
-  want.forEach((digit, wheel) => {
-    const diff = (digit - (s.dial[wheel] ?? 0) + 10) % 10;
-    const dir: 1 | -1 = diff <= 5 ? 1 : -1;
-    for (let k = 0; k < (diff <= 5 ? diff : 10 - diff); k++) acts.push({ t: 'dial', wheel, dir });
-  });
-  acts.push({ t: 'open' });
+  acts.push({ t: 'pick', id: KEY(room.options.indexOf(room.code)) });
   return acts;
 }
 
@@ -212,8 +220,10 @@ export function stepEscape(state: EscapeState, input: InputFrame<EscapeAction>):
   let s: EscapeState = { ...state, core: { ...state.core, tick: state.core.tick + 1 } };
   for (const a of input.actions) {
     const room = s.room;
+    // a hint may be asked for while the room is still swooping in; everything else waits for 'play'
+    if (a.t === 'hint' && room && (s.phase === 'play' || s.phase === 'enter'))
+      s = { ...s, core: takeHint(s.core) };
     if (!room || s.phase !== 'play') continue;
-    if (a.t === 'hint') s = { ...s, core: takeHint(s.core) };
     if (a.t === 'retry' && s.core.puzzleHints >= 4) {
       const core = sameKindQuestion(s.core, preferEscape);
       const q = core.asked?.question;
@@ -224,13 +234,9 @@ export function stepEscape(state: EscapeState, input: InputFrame<EscapeAction>):
     }
     if (a.t === 'tap' && room.things.some((t) => t.id === a.id) && !s.found.includes(a.id))
       s = { ...s, found: [...s.found, a.id] };
-    if (a.t === 'dial' && a.wheel >= 0 && a.wheel < WHEELS) {
-      const dial = s.dial.slice();
-      dial[a.wheel] = ((dial[a.wheel] ?? 0) + a.dir + 10) % 10;
-      s = { ...s, dial };
-    }
-    if (a.t === 'open') {
-      const given = dialValue(s.dial);
+    if (a.t === 'pick' && allFound(room, s.found)) {
+      const given = room.options[a.id - KEY(0)];
+      if (given === undefined) continue;
       const q = s.core.asked?.question;
       if (given === room.code) {
         s = { ...s, core: recordAttempt(s.core, true, given), phase: 'open', phaseLeft: OPEN_TICKS };
@@ -241,15 +247,16 @@ export function stepEscape(state: EscapeState, input: InputFrame<EscapeAction>):
           core: recordAttempt(s.core, false, given, tag),
           phase: 'jam',
           phaseLeft: JAM_TICKS,
+          tried: s.tried.includes(given) ? s.tried : [...s.tried, given],
           lastWrong: tag ? { value: given, made: given, tag } : { value: given, made: given },
         };
       }
     }
   }
-  if (s.phase === 'open' || s.phase === 'jam') {
+  if (s.phase === 'enter' || s.phase === 'open' || s.phase === 'jam') {
     const left = s.phaseLeft - 1;
     if (left > 0) return { ...s, phaseLeft: left };
-    if (s.phase === 'jam') return { ...s, phase: 'play', phaseLeft: 0 };
+    if (s.phase === 'jam' || s.phase === 'enter') return { ...s, phase: 'play', phaseLeft: 0 };
     const rescued = s.rescued || !!s.room?.boss;
     const core = advancePuzzle(s.core);
     if (core.done) return { ...s, core, phase: 'done', rescued };

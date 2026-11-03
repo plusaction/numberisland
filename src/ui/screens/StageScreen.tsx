@@ -16,6 +16,7 @@ import { type AnyStageModule, STAGE_LOADERS } from '../../stages/registry';
 import { Button } from '../components/Button';
 import { FeedbackOverlay } from '../hints/FeedbackOverlay';
 import { HintPanel } from '../hints/HintPanel';
+import { RoomCut, SayBubble, StepGuide } from '../hud/StageGuide';
 import { flyToGoal } from '../question/flyToGoal';
 import { GoalTiles } from '../question/GoalTiles';
 import { Tutorial } from './Tutorial';
@@ -27,6 +28,7 @@ export function StageScreen({ store, reducedMotion }: { store: GameStore; reduce
   const api = useWorld();
   const selected = useStore(store, (s) => s.selected);
   const runId = useStore(store, (s) => s.runId);
+  const voice = useStore(store, (s) => s.profile?.settings.tts ?? false);
   const [mod, setMod] = useState<AnyStageModule | null>(null);
   const [hud, setHud] = useState<HudView | null>(null);
   const [hintOpen, setHintOpen] = useState(false);
@@ -219,7 +221,10 @@ export function StageScreen({ store, reducedMotion }: { store: GameStore; reduce
 
       <section className="hud-goal card" data-testid="goal" aria-live="polite">
         <GoalTiles goal={hud.goal} />
+        {hud.steps && <StepGuide steps={hud.steps} />}
       </section>
+      {hud.say && !tutorial && <SayBubble say={hud.say} voice={voice} />}
+      {hud.cut && <RoomCut cut={hud.cut} />}
 
       <div className="hud-bottom">
         <Button tone="sun" onClick={openHint} disabled={!q} data-testid="hint" aria-keyshortcuts="H">

@@ -56,6 +56,12 @@ export interface HudView {
   pairOp?: '+' | '-';
   /** A big one-tap key the child should press now (e.g. "감아요!"), with dots for the presses left. */
   primary?: { label: string; left: number };
+  /** The friend says this (speech bubble + read-aloud); spoken again only when `key` changes. */
+  say?: { key: string; text: string };
+  /** Scene-change card (iris wipe + big title) while `key` is the same. */
+  cut?: { key: string; title: string };
+  /** Step guide: 0 find, 1 think, 2 pick; `found`/`need` for the find step. */
+  steps?: { at: 0 | 1 | 2; found: number; need: number };
 }
 
 export interface StageModule<S extends { phase: string; core: RoundCore }, A> {
