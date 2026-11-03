@@ -26,6 +26,7 @@ export type SfxId =
   | 'star'
   | 'splash'
   | 'reel'
+  | 'reel.crank'
   | 'snip'
   | 'gift'
   | 'merge'
@@ -77,6 +78,18 @@ export const SFX: Record<SfxId, Note[]> = {
     { at: 0.02, freq: 400, to: 1200, dur: 0.12, wave: 'sine', gain: 0.12 },
   ],
   reel: [{ at: 0, freq: 300, to: 900, dur: 0.4, wave: 'triangle', gain: 0.12 }],
+  // one turn of the reel handle: ratchet clicks that slow down as the spool coasts, over a low whirr
+  'reel.crank': [
+    { at: 0, freq: 140, to: 230, dur: 0.42, wave: 'triangle', gain: 0.1 },
+    { at: 0.0, freq: 2600, dur: 0.018, wave: 'square', gain: 0.09, noise: true },
+    { at: 0.032, freq: 2510, dur: 0.018, wave: 'square', gain: 0.09, noise: true },
+    { at: 0.071, freq: 2420, dur: 0.018, wave: 'square', gain: 0.09, noise: true },
+    { at: 0.119, freq: 2330, dur: 0.018, wave: 'square', gain: 0.09, noise: true },
+    { at: 0.177, freq: 2240, dur: 0.018, wave: 'square', gain: 0.09, noise: true },
+    { at: 0.248, freq: 2150, dur: 0.018, wave: 'square', gain: 0.09, noise: true },
+    { at: 0.334, freq: 2060, dur: 0.018, wave: 'square', gain: 0.09, noise: true },
+    { at: 0.44, freq: 1970, dur: 0.018, wave: 'square', gain: 0.09, noise: true },
+  ],
   snip: [
     { at: 0, freq: 3000, dur: 0.05, wave: 'sine', gain: 0.18, noise: true },
     { at: 0.05, freq: 1200, to: 600, dur: 0.08, wave: 'triangle', gain: 0.18 },

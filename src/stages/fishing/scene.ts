@@ -1,10 +1,10 @@
 /** ③ 숫자 낚시 diorama: TSL pond, number fish, rod & line; reel = slow-mo parabola + droplets (signature). */
-import { CylinderGeometry, Group, Mesh, Vector3 } from 'three/webgpu';
+import { CylinderGeometry, Group, InstancedMesh, Matrix4, Mesh, Quaternion, Vector3 } from 'three/webgpu';
 import { BALANCE } from '../../domain/balance';
 import { createRng } from '../../domain/rng/rng';
 import { HitStop, Shake, Spring } from '../../engine/fx/juice';
 import { createWake } from '../../engine/fx/wake';
-import { blob, capsule, disc, waterPlane } from '../../engine/geo/shapes';
+import { ball, blob, capsule, disc, waterPlane } from '../../engine/geo/shapes';
 import { NumberLabel } from '../../engine/numbers/number-label';
 import { PALETTE } from '../../engine/palette';
 import {
@@ -53,7 +53,15 @@ interface FishView {
   hook: Vector3;
   /** Seconds of "oops" face left (wrong pick: puffed cheeks, wide eyes). */
   oops: number;
+  /** Hooked: where it is fighting on the line, its last step, how far it has been pulled in (0–1, eased). */
+  fight: Vector3;
+  fightVel: Vector3;
+  pull: number;
 }
+
+/** Hooked fish are pulled toward this spot in the pond (in front of the rod) as the reel winds. */
+const SHORE = new Vector3(-3.0, 0, 2.3);
+const LINE_SEGS = 10;
 
 export function createFishingScene(
   world: RenderWorld,
@@ -90,19 +98,52 @@ export function createFishingScene(
   const reel = new Mesh(disc(0.25, 0.18, 20), toyMaterial(PALETTE.berry));
   reel.rotation.x = Math.PI / 2;
   reel.position.set(0.15, 0.7, 0.1);
-  const handle = new Mesh(capsule(0.04, 0.16), toyMaterial(PALETTE.white));
-  handle.position.set(0.17, 0.12, 0);
-  reel.add(handle);
+  // the spool (wound line gets thicker as you reel) and a crank arm with a big knob that visibly turns
+  const spool = new Mesh(disc(0.17, 0.2, 20), toyMaterial('#f4f1e6', { finish: 'satin' }));
+  const crank = new Group();
+  crank.position.y = 0.11;
+  const arm = new Mesh(capsule(0.035, 0.26), toyMaterial(PALETTE.ink));
+  arm.rotation.z = Math.PI / 2;
+  arm.position.x = 0.13;
+  const knob = new Mesh(ball(0.07, 14), toyMaterial(PALETTE.sun));
+  knob.position.set(0.27, 0.07, 0);
+  crank.add(arm, knob);
+  reel.add(spool, crank);
   rod.add(pole, reel);
   const rodBend = new Spring(0, 160, 7);
   let reelSpin = 0;
+  let reelSpinVel = 0;
+  let tension = 0;
   rod.position.set(-5.2, 0.2, 3.4);
   rod.rotation.y = 0.5;
   root.add(rod);
   const tip = new Vector3();
-  const line = new Mesh(new CylinderGeometry(0.015, 0.015, 1, 6), toyMaterial(PALETTE.white));
+  // fishing line: a sagging curve (quadratic) drawn as short segments in ONE instanced draw call
+  const line = new InstancedMesh(
+    new CylinderGeometry(0.016, 0.016, 1, 5),
+    toyMaterial(PALETTE.white),
+    LINE_SEGS * 2,
+  );
+  line.frustumCulled = false;
   line.visible = false;
+  line.raycast = () => {};
   root.add(line);
+  const segM = new Matrix4();
+  const segQ = new Quaternion();
+  const segS = new Vector3();
+  const UP = new Vector3(0, 1, 0);
+  const pA = new Vector3();
+  const pB = new Vector3();
+  const pC = new Vector3();
+  const pD = new Vector3();
+  const mouth = new Vector3();
+  const tgt = new Vector3();
+  const bez = (a: Vector3, c: Vector3, b: Vector3, u: number, out: Vector3) =>
+    out
+      .copy(a)
+      .multiplyScalar((1 - u) * (1 - u))
+      .addScaledVector(c, 2 * u * (1 - u))
+      .addScaledVector(b, u * u);
   const bucket = new Mesh(disc(0.55, 0.7, 24), toyMaterial('#7cc8e0'));
   bucket.position.set(-4.6, 0.35, 4.6);
   root.add(bucket);
@@ -172,6 +213,9 @@ export function createFishingScene(
         jumpT: -1,
         hook: new Vector3(),
         oops: 0,
+        fight: new Vector3(),
+        fightVel: new Vector3(),
+        pull: 0,
       });
     });
   };
@@ -214,6 +258,9 @@ export function createFishingScene(
           const v = fishViews.get(id);
           if (!v) continue;
           v.hook.copy(v.pos);
+          v.fight.copy(v.pos);
+          v.fightVel.set(0, 0, 0);
+          v.pull = 0;
           v.spring.impulse(6);
           world.particles.emit('droplet', v.group.position, 30);
           for (let r = 0; r < 2; r++) wake.spawn(v.pos.x, pond.position.y + 0.02, v.pos.z, r * 1.6, 1);
@@ -222,18 +269,23 @@ export function createFishingScene(
       if (prev?.phase === 'hook' && (state.reelLeft < prev.reelLeft || state.phase !== 'hook')) {
         // one wind of the reel: click-whirr rising in pitch, rod tugs, the fish splashes up a bit more
         const wound = BALANCE.fishing.reelWinds - state.reelLeft;
-        audio.play('reel', { pitch: 0.85 + wound * 0.15 });
-        rodBend.impulse(-6);
-        reelSpin += Math.PI * 1.5;
+        audio.play('reel.crank', { pitch: 0.9 + wound * 0.12 });
+        rodBend.impulse(-9);
+        reelSpinVel = 26; // ~2 turns, coasting to a stop (rad/s, decays)
+        tension = 1;
         for (const id of state.reeled) {
           const v = fishViews.get(id);
           if (!v) continue;
           v.spring.impulse(5);
           world.particles.emit('droplet', v.group.position, 18);
-          wake.spawn(v.hook.x, pond.position.y + 0.02, v.hook.z, wound, 0.9);
+          wake.spawn(v.fight.x, pond.position.y + 0.02, v.fight.z, wound, 0.9);
         }
       }
       if (prev && prev.phase !== 'reel' && state.phase === 'reel') {
+        for (const id of state.reeled) {
+          const v = fishViews.get(id);
+          if (v && prev.phase === 'hook') v.hook.copy(v.fight); // fly out from where it was fighting
+        }
         audio.play('reel');
         audio.play('correct.big', { delay: 0.2 });
         slowmo = 0.35; // signature: slow-motion jump
@@ -306,28 +358,61 @@ export function createFishingScene(
           v.group.scale.setScalar(1 - k * 0.5);
           v.label.visible = k < 0.6;
         } else if (f.caught && state.phase === 'hook' && state.reeled.includes(id)) {
-          // hooked: stays where it bit, thrashes and rises a little with every wind of the reel
-          const wound = BALANCE.fishing.reelWinds - state.reelLeft;
-          v.group.position.copy(v.hook);
+          // hooked: it fights on the line — darting this way and that in loops that shrink and drift toward
+          // the rod as the reel winds, now and then leaping out of the water
+          const k = state.reeled.indexOf(id);
+          const winds = BALANCE.fishing.reelWinds;
+          v.pull += ((winds - state.reelLeft) / winds - v.pull) * (1 - Math.exp(-4 * vdt));
+          if (ctx.reducedMotion) {
+            tgt.copy(v.hook).lerp(SHORE, v.pull * 0.75);
+          } else {
+            const r = 1.5 * (1 - v.pull * 0.65);
+            const ang = t * 1.9 * (k ? -1 : 1) + Math.sin(t * 0.8 + f.phase * 7) * 1.3 + k * Math.PI;
+            tgt
+              .copy(v.hook)
+              .lerp(SHORE, v.pull * 0.75)
+              .add(pD.set(Math.cos(ang) * r, 0, Math.sin(ang) * r * 0.8));
+          }
+          const lim = Math.hypot(tgt.x, tgt.z / 0.78);
+          if (lim > 4.0) tgt.multiplyScalar(4.0 / lim);
+          pA.copy(v.fight);
+          v.fight.lerp(tgt, 1 - Math.exp(-3.2 * vdt));
+          v.fightVel.copy(v.fight).sub(pA);
+          const speed = vdt > 0 ? v.fightVel.length() / vdt : 0;
+          // leap: a short arc every ~1.6 s (per fish phase)
+          const j = (t * 0.62 + f.phase) % 1;
+          const leap = ctx.reducedMotion || j > 0.2 ? 0 : Math.sin((j / 0.2) * Math.PI) * 0.6;
+          if (leap > 0 && (t * 0.62 + f.phase - vdt * 0.62) % 1 > 0.2)
+            world.particles.emit('droplet', v.fight, 20);
+          v.group.position.copy(v.fight);
           v.group.position.y +=
-            waveHeight(WAVES_POND, v.hook.x, v.hook.z, waterTime.value) +
-            0.2 +
-            wound * 0.3 +
+            waveHeight(WAVES_POND, v.fight.x, v.fight.z, waterTime.value) +
+            0.15 +
+            leap +
             v.spring.update(vdt) * 0.06;
-          pole.updateWorldMatrix(true, false);
-          tip.set(0, 2.1, 0).applyMatrix4(pole.matrixWorld);
-          v.group.lookAt(tip.x, v.group.position.y, tip.z);
+          if (speed > 0.05) v.group.lookAt(pB.copy(v.group.position).add(v.fightVel));
           v.group.rotateY(-Math.PI / 2);
           if (!ctx.reducedMotion) {
-            v.group.rotateX(Math.sin(t * 22) * 0.3);
+            v.group.rotateX(Math.sin(t * 20 + k) * 0.25);
+            v.group.rotateZ(leap * 0.8);
             v.model.tail.rotation.y = Math.sin(t * 30) * 0.7;
           }
           v.group.scale.setScalar(1.15);
           v.model.eyes.scale.set(1.15, 1.15, 1.15); // big surprised eyes
           v.group.visible = true;
           v.label.visible = true;
-          if (!ctx.reducedMotion && Math.floor(t * 10) % 3 === 0)
-            world.particles.emit('droplet', v.group.position, 1);
+          // foam trail while it runs
+          v.wakeT -= vdt;
+          if (speed > 0.3 && v.wakeT <= 0 && leap === 0) {
+            v.wakeT = 0.09;
+            wake.spawn(
+              v.fight.x,
+              pond.position.y + 0.04,
+              v.fight.z,
+              Math.atan2(-v.fightVel.z, v.fightVel.x),
+              Math.min(1, 0.5 + speed * 0.3),
+            );
+          }
         } else if (f.caught) {
           v.group.visible = false;
           v.label.visible = false;
@@ -392,19 +477,36 @@ export function createFishingScene(
         if (!f.caught && v.jumpT < 0) v.label.visible = v.group.visible;
       }
       // fishing line to the picked fish
-      const pickedId = state.phase === 'reel' || state.phase === 'hook' ? state.reeled[0] : state.picked[0];
-      const pv = pickedId !== undefined ? fishViews.get(pickedId) : undefined;
-      if (pv) {
-        pole.updateWorldMatrix(true, false);
-        tip.set(0, 2.1, 0).applyMatrix4(pole.matrixWorld);
-        const end = pv.group.position;
-        const mid = tip.clone().add(end).multiplyScalar(0.5);
-        line.position.copy(mid);
-        line.scale.set(1, tip.distanceTo(end), 1);
-        line.lookAt(end);
-        line.rotateX(Math.PI / 2);
-        line.visible = true;
-      } else line.visible = false;
+      // one line per hooked fish (a pair = two lines); otherwise to the first picked fish
+      const lineIds =
+        state.phase === 'reel' || state.phase === 'hook' ? state.reeled : state.picked.slice(0, 1);
+      // line tension: tight while a hooked fish pulls (and right after each wind), slack otherwise
+      tension = Math.max(0, tension - vdt * 1.6);
+      const pulling = state.phase === 'hook' ? 0.45 + 0.4 * Math.abs(Math.sin(t * 3.1)) : 0.6;
+      const tight = Math.max(tension, pulling);
+      let segs = 0;
+      pole.updateWorldMatrix(true, false);
+      tip.set(0, 2.1, 0).applyMatrix4(pole.matrixWorld);
+      for (const lid of lineIds) {
+        const pv = fishViews.get(lid);
+        if (!pv || segs + LINE_SEGS > line.instanceMatrix.count) continue;
+        // the line ends at the fish's mouth (nose = +X in its own space)
+        pv.group.updateMatrixWorld();
+        mouth.set(0.62, 0, 0).applyMatrix4(pv.group.matrixWorld);
+        pC.copy(tip).add(mouth).multiplyScalar(0.5);
+        pC.y -= (1 - tight) * 1.1 + 0.15;
+        for (let i = 0; i < LINE_SEGS; i++) {
+          bez(tip, pC, mouth, i / LINE_SEGS, pA);
+          bez(tip, pC, mouth, (i + 1) / LINE_SEGS, pB);
+          const len = pA.distanceTo(pB);
+          segQ.setFromUnitVectors(UP, pD.copy(pB).sub(pA).normalize());
+          segM.compose(pA.add(pB).multiplyScalar(0.5), segQ, segS.set(1, len, 1));
+          line.setMatrixAt(segs++, segM);
+        }
+      }
+      line.count = segs;
+      line.instanceMatrix.needsUpdate = segs > 0;
+      line.visible = segs > 0;
       // odd fish crossing
       if (state.odd) {
         odd.visible = true;
@@ -424,8 +526,14 @@ export function createFishingScene(
           world.particles.emit('sparkle', { x: p.x, y: y + 1.2, z: p.z }, 1);
       } else odd.visible = false;
       // rod tugs (spring) and leans toward a hooked fish; the reel spins as it winds
-      pole.rotation.z = -0.75 + rodBend.update(vdt) * 0.04 + (state.phase === 'hook' ? 0.12 : 0);
+      // the rod bows harder the tighter the line; the crank turns ~2 times per wind and coasts to a stop
+      pole.rotation.z =
+        -0.75 + rodBend.update(vdt) * 0.04 + (state.phase === 'hook' ? 0.08 + tight * 0.14 : 0);
+      reelSpin += reelSpinVel * vdt;
+      reelSpinVel *= Math.exp(-5 * vdt);
       reel.rotation.set(Math.PI / 2, reelSpin, 0);
+      const wound = state.phase === 'hook' ? BALANCE.fishing.reelWinds - state.reelLeft : 0;
+      spool.scale.set(1 + wound * 0.12, 1, 1 + wound * 0.12);
       // golden fish leap: up out of the middle of the pond, a somersault, sparkles + coins, splash back
       if (goldenT >= 0) {
         goldenT += vdt;
