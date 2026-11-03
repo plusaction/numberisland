@@ -1,5 +1,14 @@
 /** ④ 슬라임 합체 diorama: jelly tray, drag-to-merge, overshoot squash on merge (signature). */
-import { Group, Mesh, Plane, TorusGeometry, Vector3 } from 'three/webgpu';
+import { float, smoothstep, uv } from 'three/tsl';
+import {
+  Group,
+  Mesh,
+  MeshBasicNodeMaterial,
+  Plane,
+  PlaneGeometry,
+  TorusGeometry,
+  Vector3,
+} from 'three/webgpu';
 import { HitStop, Shake, Spring, squashScale } from '../../engine/fx/juice';
 import { ball, ring, roundedBox } from '../../engine/geo/shapes';
 import { NumberLabel } from '../../engine/numbers/number-label';
@@ -80,9 +89,16 @@ export function createSlimeScene(world: RenderWorld, ctx: StageCtx): StageScene<
   for (let s = 0; s < 8; s++) {
     const pad = new Mesh(roundedBox(1.6, 0.06, 1.6, 0.3), toyMaterial('#d9cdfb'));
     pad.position.copy(SLOT_POS(s)).setY(0.52);
+    pad.receiveShadow = true; // the sun shadow falls on the cushions too, not only on the tray
     root.add(pad);
   }
 
+  // soft contact shadow right under each slime (grounds it on every tier, even without shadow maps)
+  const contactMat = new MeshBasicNodeMaterial({ transparent: true, depthWrite: false });
+  contactMat.color.set('#3a2a66');
+  contactMat.opacityNode = float(0.38).mul(float(1).sub(smoothstep(0.1, 0.5, uv().sub(0.5).length())));
+  const contactGeo = new PlaneGeometry(2, 2).rotateX(-Math.PI / 2);
+  const contacts = new Map<number, Mesh>();
   const views = new Map<number, SlimeView>();
   const proxies: Mesh[] = [];
   let puzzleRef: SlimeState['puzzle'] = null;
@@ -226,6 +242,8 @@ export function createSlimeScene(world: RenderWorld, ctx: StageCtx): StageScene<
   };
 
   const rebuild = (s: SlimeState) => {
+    for (const c of contacts.values()) c.removeFromParent();
+    contacts.clear();
     for (const v of views.values()) disposeTree(v.group);
     views.clear();
     proxies.length = 0;
@@ -261,6 +279,8 @@ export function createSlimeScene(world: RenderWorld, ctx: StageCtx): StageScene<
       if (!ids.has(id)) {
         proxies.splice(proxies.indexOf(v.proxy), 1);
         views.delete(id);
+        contacts.get(id)?.removeFromParent(); // its shadow goes with it
+        contacts.delete(id);
         // merged away: the slime is sucked into its partner (stretch + shrink) instead of vanishing
         const ev = s.event;
         if (ev?.kind === 'merge' && ev.from === id) ghosts.push({ v, to: ev.to, t: 0 });
@@ -357,6 +377,20 @@ export function createSlimeScene(world: RenderWorld, ctx: StageCtx): StageScene<
           if (Math.floor(t * 6) % 4 === 0) world.particles.emit('sparkle', v.group.position, 2);
         }
         updateSoft(v, id, r, vdt);
+        let shadow = contacts.get(id);
+        if (!shadow) {
+          shadow = new Mesh(contactGeo, contactMat);
+          shadow.raycast = () => {};
+          shadow.renderOrder = 0;
+          root.add(shadow);
+          contacts.set(id, shadow);
+        }
+        // lifted (held, hovered, hopping) → the shadow shrinks and fades
+        const lift = Math.max(0, v.group.position.y - (0.55 + r));
+        const k = 1 / (1 + lift * 1.4);
+        shadow.visible = v.group.visible;
+        shadow.position.set(v.group.position.x, 0.565, v.group.position.z);
+        shadow.scale.setScalar(r * 1.15 * k);
         updateFace(v, id, state);
       }
       const sh = shake.update(dt);

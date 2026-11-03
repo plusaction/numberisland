@@ -26,7 +26,7 @@
   {
     "name": "stage slime (gzip)",
     "path": "dist/assets/slime-*.js",
-    "limit": "6 kB",
+    "limit": "8 kB",
     "gzip": true
   },
   {
