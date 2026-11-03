@@ -38,17 +38,17 @@ for (const stage of ['fishing', 'bomb', 'slime', 'escape'] as const) {
       if (await page.getByTestId('result').isVisible()) break;
       // like a child: act only when the stage takes input — taps during a catch/miss animation are ignored
       // by the rules and would only time a CPU-rendered transition frame in the latency sample
-      // …and only once the scene has been taking input since the last look (a room-entry cut just ended
-      // is still a heavy CPU-rendered frame here; a child would not tap in that instant either)
-      await page.evaluate(() => {
+      // escape: also wait one more look after a room-entry cut (its last frames are heavy CPU-rendered
+      // frames here; a child would not tap in that instant either)
+      await page.evaluate((settle) => {
         const g = globalThis as {
           __stage?: { solveOne(): void; runtime: { state: { phase: string } } };
           __wasReady?: boolean;
         };
         const ready = !!g.__stage && ['play', 'hook'].includes(g.__stage.runtime.state.phase);
-        if (ready && g.__wasReady) g.__stage?.solveOne();
+        if (ready && (!settle || g.__wasReady)) g.__stage?.solveOne();
         g.__wasReady = ready;
-      });
+      }, stage === 'escape');
       await page.waitForTimeout(900);
       // fishing: wind one hooked fish with the real "감아요!" key, like a child (the solver winds the rest;
       // checking every loop would skew the latency sample below, which times the solver's dispatches)
