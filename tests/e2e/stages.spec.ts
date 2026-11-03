@@ -36,23 +36,13 @@ for (const stage of ['fishing', 'bomb', 'slime'] as const) {
     let wound = false;
     for (let k = 0; k < 150; k++) {
       if (await page.getByTestId('result').isVisible()) break;
-      // act like a child: tap once the scene has settled into a state that takes input (not mid-animation),
-      // so the latency sample measures input → reaction, not a CPU-rendered transition frame
-      await page
-        .waitForFunction(
-          () => {
-            const ph = (globalThis as { __stage?: { runtime: { state: { phase: string } } } }).__stage
-              ?.runtime.state.phase;
-            return ph === 'play' || ph === 'hook' || ph === 'done';
-          },
-          undefined,
-          { timeout: 20_000 },
-        )
-        .catch(() => {});
-      await page.evaluate(
-        () => new Promise<void>((done) => requestAnimationFrame(() => requestAnimationFrame(() => done()))),
-      );
-      await page.evaluate(() => (globalThis as { __stage?: { solveOne(): void } }).__stage?.solveOne());
+      // like a child: act only when the stage takes input — taps during a catch/miss animation are ignored
+      // by the rules and would only time a CPU-rendered transition frame in the latency sample
+      await page.evaluate(() => {
+        const st = (globalThis as { __stage?: { solveOne(): void; runtime: { state: { phase: string } } } })
+          .__stage;
+        if (st && ['play', 'hook'].includes(st.runtime.state.phase)) st.solveOne();
+      });
       await page.waitForTimeout(900);
       // fishing: wind one hooked fish with the real "감아요!" key, like a child (the solver winds the rest;
       // checking every loop would skew the latency sample below, which times the solver's dispatches)

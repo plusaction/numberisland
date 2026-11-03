@@ -153,7 +153,6 @@ export function createFishingScene(
 
   const fishViews = new Map<number, FishView>();
   let puzzleRef: FishingState['puzzle'] = null;
-  let puzzleKey = '';
   const proxies: Mesh[] = [];
   let cursorId: number | null = null;
   let glowId: number | null = null;
@@ -182,7 +181,12 @@ export function createFishingScene(
   let goldenT = -1;
   const GOLDEN_SECS = 1.9;
 
+  // where each fish was on screen before a rebuild (a right pick rebuilds with the caught fish marked):
+  // carried over so nothing jumps — the hooked fish starts fighting right where it bit
+  const carry = new Map<number, { pos: Vector3; at: Vector3 }>();
   const buildFish = (state: FishingState) => {
+    carry.clear();
+    for (const [id, v] of fishViews) carry.set(id, { pos: v.pos.clone(), at: v.group.position.clone() });
     for (const v of fishViews.values()) {
       disposeTree(v.group);
       disposeTree(v.label);
@@ -205,13 +209,15 @@ export function createFishingScene(
       g.add(model.group, proxy);
       root.add(g, label);
       proxies.push(proxy);
+      const was = carry.get(f.id);
+      if (was) g.position.copy(was.at);
       fishViews.set(f.id, {
         group: g,
         label,
         model,
         spring: new Spring(0, 200, 11),
         proxy,
-        pos: new Vector3(),
+        pos: was ? was.pos : new Vector3(),
         prev: new Vector3(Number.NaN, 0, 0),
         wakeT: Math.random() * 0.1,
         jumpT: -1,
@@ -249,16 +255,10 @@ export function createFishingScene(
       wake.update(vdt);
       slowmo = Math.max(0, slowmo - dt);
       t += vdt;
-      // rebuild only for a NEW puzzle — a right pick just marks fish as caught (a new object, same fish), and
-      // rebuilding then would reset every fish to the pond centre (the hooked one would start from there)
-      const key = state.puzzle
-        ? `${state.puzzle.mode}|${state.puzzle.target}|${state.puzzle.fish.map((f) => `${f.id}:${f.value}`).join(',')}`
-        : '';
-      if (key !== puzzleKey) {
-        puzzleKey = key;
+      if (state.puzzle !== puzzleRef) {
+        puzzleRef = state.puzzle;
         buildFish(state);
       }
-      puzzleRef = state.puzzle;
       // one-shot effects on transitions
       if (prev && prev.phase === 'play' && state.phase === 'hook') {
         // a bite! the right fish is hooked; the child now winds the reel (no timer)
