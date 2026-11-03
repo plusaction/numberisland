@@ -53,9 +53,11 @@ describe('[P4] 데이터 안정성', () => {
     delete p.firsts;
     p.version = 0;
     const { profile, repaired } = parseProfile(p, now);
-    expect(profile.version).toBe(2);
+    expect(profile.version).toBe(3);
+    expect(profile.bombEasyStep).toBe(1);
     expect(repaired).toContain('migrated to v1');
     expect(repaired).toContain('migrated to v2');
+    expect(repaired).toContain('migrated to v3');
     expect(profile.toys).toEqual([]);
     expect(() => parseProfile({ ...p, version: 99 }, now)).toThrow();
   });

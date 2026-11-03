@@ -5,7 +5,7 @@ import type { LevelId, SkillId } from './edu/types';
 import type { Stars } from './scoring/medals';
 import { STAGE_IDS, type StageId } from './stage/types';
 
-export const PROFILE_VERSION = 2;
+export const PROFILE_VERSION = 3;
 export const MAX_PROFILES = 3;
 export const HISTORY_LIMIT = 500;
 
@@ -64,6 +64,8 @@ export interface Profile {
   firsts: SkillId[];
   /** Gift toys collected in the bomb stage, in the order they were won (only ever grows). */
   toys: string[];
+  /** Bomb "쉽게" ladder step reached (1–5): goes up one per cleared easy round, never down. */
+  bombEasyStep: number;
   version: number;
 }
 
@@ -103,6 +105,7 @@ export function defaultProfile(id: string, nickname: string, now: string): Profi
     dailyPlayMs: { date: now.slice(0, 10), ms: 0 },
     firsts: [],
     toys: [],
+    bombEasyStep: 1,
     version: PROFILE_VERSION,
   };
 }

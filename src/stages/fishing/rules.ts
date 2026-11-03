@@ -76,8 +76,9 @@ export interface FishingState {
   lastWrong: { value: number; made: number; tag?: string } | null;
   /** Fish ids reeled in this puzzle (signature moment). */
   reeled: number[];
-  /** Reel winds still to go in the 'hook' phase. */
+  /** Reel winds still to go in the 'hook' phase, out of `reelTotal` (more when two fish are hooked). */
   reelLeft: number;
+  reelTotal: number;
   /** This catch brings up the golden fish (fixed rule, never chance): every 3rd right answer in a row. */
   goldenNow: boolean;
   goldenCaught: number;
@@ -225,6 +226,7 @@ export function initFishing(
     lastWrong: null,
     reeled: [],
     reelLeft: 0,
+    reelTotal: 0,
     goldenNow: false,
     goldenCaught: 0,
   };
@@ -256,6 +258,7 @@ function evaluate(s: FishingState): FishingState {
     let core = recordAttempt(s.core, true, given);
     const fish = p.fish.map((f) => (s.picked.includes(f.id) ? { ...f, caught: true } : f));
     const goldenNow = isGoldenCatch(core.streak);
+    const winds = s.picked.length >= 2 ? BALANCE.fishing.reelWindsPair : BALANCE.fishing.reelWinds;
     if (goldenNow) core = { ...core, coins: core.coins + BALANCE.coins.goldenFish };
     return {
       ...s,
@@ -263,7 +266,8 @@ function evaluate(s: FishingState): FishingState {
       puzzle: { ...p, fish },
       phase: 'hook',
       phaseLeft: 0,
-      reelLeft: BALANCE.fishing.reelWinds,
+      reelLeft: winds,
+      reelTotal: winds,
       reeled: s.picked,
       picked: [],
       goldenNow,

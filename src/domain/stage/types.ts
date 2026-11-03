@@ -72,6 +72,8 @@ export interface RoundResult {
   highlights: string[];
   /** Adaptive state after the round (written back to the profile). */
   adaptiveAfter?: AdaptiveState;
+  /** The hub "쉽게" step this round was played at (bomb ladder). */
+  easyStep?: number;
 }
 
 /**

@@ -143,6 +143,11 @@ export function applyRoundResult(
     history,
     firsts: [...firsts],
     toys: newToy ? [...before.toys, newToy] : before.toys,
+    // a cleared bomb round on the "쉽게" ladder opens the next step (picking a lower step never lowers it)
+    bombEasyStep:
+      result.stage === 'bomb' && result.cleared && result.easyStep
+        ? Math.max(before.bombEasyStep, Math.min(BALANCE.bombEasySteps, result.easyStep + 1))
+        : before.bombEasyStep,
     ...(result.adaptiveAfter ? { adaptive: result.adaptiveAfter } : {}),
   };
   const rankAfter = rankFor(profile.trophies.total);

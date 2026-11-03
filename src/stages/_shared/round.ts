@@ -34,6 +34,8 @@ export interface RoundOptions {
   adaptive?: AdaptiveState;
   /** School-term setting (grade 1 by default): stages never serve content above it. */
   term?: TermSetting;
+  /** Hub "쉽게" step (1–5) for stages that stage a fixed easy ladder (bomb); 0/undefined = adaptive. */
+  easyStep?: number;
 }
 
 export interface RoundCore {
@@ -43,6 +45,7 @@ export interface RoundCore {
   session: SessionState;
   shift: -1 | 0 | 1;
   term: TermSetting;
+  easyStep: number;
   day: number;
   puzzles: number;
   index: number;
@@ -77,6 +80,7 @@ export function initRound(
     session: createSession({ ...adaptive, level: adaptive.level ?? start }),
     shift: opts.shift ?? 0,
     term: opts.term ?? DEFAULT_SETTINGS.term,
+    easyStep: opts.shift === -1 ? (opts.easyStep ?? 0) : 0,
     day: opts.day ?? 0,
     puzzles: opts.puzzles ?? BALANCE.round.puzzles,
     index: 0,
@@ -154,11 +158,25 @@ export function nextStageQuestion(
   core: RoundCore,
   usable: readonly SkillId[],
   prefer?: (q: Question) => boolean,
+  /** A stage's own question source (e.g. the bomb's easy ladder); null falls back to the adaptive pick. */
+  custom?: (rng: Rng, avoid: readonly string[]) => Question | null,
 ): RoundCore {
   return withRng(core, (rng) => {
     const r = nextQuestion(core.session, rng, core.day);
     let { question } = r.asked;
     const pick = r.asked.pick;
+    const own = custom?.(rng, r.session.recentKeys);
+    if (own) {
+      return {
+        ...core,
+        session: r.session,
+        asked: { question: own, pick: { ...pick, skill: own.skill } },
+        puzzleHints: 0,
+        hintCarry: 0,
+        puzzleWrong: 0,
+        puzzleStart: core.tick,
+      };
+    }
     const level = stageLevel(question.level, usable, core.shift, core.term);
     const skills = levelSpec(level).skills.filter((s) => usable.includes(s));
     const fits = (x: Question) => usable.includes(x.skill) && (!prefer || prefer(x));
@@ -302,6 +320,7 @@ export function roundSummary(core: RoundCore): RoundResult {
     answers: core.answers,
     highlights: core.highlights,
     adaptiveAfter: core.session.adaptive,
+    ...(core.easyStep > 0 ? { easyStep: core.easyStep } : {}),
   };
 }
 
@@ -317,13 +336,18 @@ export type { CarryPolicy };
  * After hint step 4 (worked demo) the child retries a *new* problem of the same kind with different
  * numbers (SPEC §9.5) — the answer is never filled in. Hints already used still count for the medal.
  */
-export function sameKindQuestion(core: RoundCore, prefer?: (q: Question) => boolean): RoundCore {
+export function sameKindQuestion(
+  core: RoundCore,
+  prefer?: (q: Question) => boolean,
+  /** Pair-finding puzzles whose kind fixes the answer (e.g. "make 10"): new parts are enough. */
+  sameAnswerOk = false,
+): RoundCore {
   const asked = core.asked;
   if (!asked) return core;
   const old = asked.question;
   return withRng(core, (rng) => {
     let q = old;
-    for (let i = 0; i < 60; i++) {
+    for (let i = 0; i < 200; i++) {
       const cand = generateQuestion({
         level: old.level,
         skill: old.skill,
@@ -335,7 +359,12 @@ export function sameKindQuestion(core: RoundCore, prefer?: (q: Question) => bool
         cand.missingIndex === old.missingIndex &&
         cand.ops.length === old.ops.length;
       // new numbers *and* a different answer, so the demo/old puzzle cannot be copied
-      if (cand.key !== old.key && cand.answer !== old.answer && sameShape && (!prefer || prefer(cand))) {
+      if (
+        cand.key !== old.key &&
+        (sameAnswerOk || cand.answer !== old.answer) &&
+        sameShape &&
+        (!prefer || prefer(cand))
+      ) {
         q = cand;
         break;
       }

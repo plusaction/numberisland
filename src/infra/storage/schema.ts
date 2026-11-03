@@ -82,6 +82,7 @@ export const ProfileSchema = v.object({
   dailyPlayMs: v.object({ date: v.string(), ms: nonNeg }),
   firsts: v.array(skillId),
   toys: v.array(v.pipe(v.string(), v.maxLength(24))),
+  bombEasyStep: v.pipe(v.number(), v.integer(), v.minValue(1), v.maxValue(5)),
   version: v.literal(PROFILE_VERSION),
 });
 
@@ -91,6 +92,7 @@ type Raw = Record<string, unknown>;
 const MIGRATIONS: ((p: Raw) => Raw)[] = [
   (p) => ({ ...p, firsts: Array.isArray(p.firsts) ? p.firsts : [], version: 1 }),
   (p) => ({ ...p, toys: Array.isArray(p.toys) ? p.toys : [], version: 2 }),
+  (p) => ({ ...p, bombEasyStep: 1, version: 3 }),
 ];
 
 export interface LoadResult {

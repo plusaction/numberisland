@@ -113,6 +113,8 @@ export const ko = {
     easier: '쉽게',
     auto: '자동',
     harder: '어렵게',
+    easyStep: '단계',
+    easySteps: ['한 자리 더하기', '10 만들기', '받아올림', '두 자리 + 한 자리', '세 수 더하기'],
     prev: '이전 지역',
     next: '다음 지역',
     rewardHint: '★3이면 트로피 +{n}',

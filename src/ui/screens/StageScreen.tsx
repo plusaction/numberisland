@@ -51,6 +51,7 @@ export function StageScreen({ store, reducedMotion }: { store: GameStore; reduce
     const seed = `${profile.id}-${runId}-${Date.now()}`;
     const init = mod.rules.init(seed, profile.adaptive.level, {
       shift: st.shift,
+      ...(st.shift === -1 && selected === 'bomb' ? { easyStep: st.easyStep ?? profile.bombEasyStep } : {}),
       term: profile.settings.term,
       day: today(),
       adaptive: profile.adaptive,

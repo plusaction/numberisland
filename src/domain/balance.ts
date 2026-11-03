@@ -12,8 +12,8 @@ export const BALANCE = {
     goldenFish: 2,
   },
   snacks: { perCorrect: 3 },
-  /** Winds of the reel after a right catch (taps, never timed). */
-  fishing: { reelWinds: 3 },
+  /** Winds of the reel after a right catch (taps, never timed); two fish on the line are heavier. */
+  fishing: { reelWinds: 3, reelWindsPair: 5 },
   evolution: { stage2: 5, stage3: 12 },
   eggs: { playsToHatch: 3 },
   trophies: { byStars: [1, 2, 3, 5] as const },
@@ -21,6 +21,8 @@ export const BALANCE = {
   orbs: { festivalAt: 8 },
   medals: { twoStarMaxHints: 2, threeStarMaxWrong: 1 },
   round: { puzzles: 8 },
+  /** Steps of the bomb squad's "쉽게" ladder (one-digit + one-digit … three one-digit numbers). */
+  bombEasySteps: 5,
   rest: { defaultMinutes: 15, durationSec: 20 },
   dailyLimit: { defaultMinutes: 40 },
   praise: { noRepeatWindow: 8 },

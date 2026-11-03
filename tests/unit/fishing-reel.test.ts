@@ -11,8 +11,13 @@ import {
 const step = (s: FishingState, tick: number, actions: FishingAction[] = []) =>
   fishingRules.step(s, { tick, actions });
 
-function hookOne(seed: string) {
+function hookOne(seed: string, want?: 'pair' | 'single') {
   let s = fishingRules.init(seed, 'A3');
+  for (let i = 0; want && i < 50; i++) {
+    const single = s.puzzle?.mode === 'missing';
+    if ((want === 'single') === single) break;
+    s = fishingRules.init(`${seed}-${i}`, 'A3');
+  }
   const pick = solveFishing(s.puzzle as NonNullable<FishingState['puzzle']>)[0] as number[];
   let tick = 0;
   s = step(
@@ -27,18 +32,32 @@ describe('[G7] 낚싯줄 감기: 정답 뒤 감아야 올라옴, 시간 제한 �
   it('a right pair hooks the fish; it waits however long it takes, then N winds reel it in', () => {
     let { s, tick } = hookOne('reel-1');
     expect(s.phase).toBe('hook');
-    expect(s.reelLeft).toBe(BALANCE.fishing.reelWinds);
+    expect(s.reelLeft).toBe(s.reelTotal);
     for (let i = 0; i < 3000; i++) s = step(s, ++tick); // 50 s idle: nothing lost, still hooked
     expect(s.phase).toBe('hook');
-    for (let w = 0; w < BALANCE.fishing.reelWinds; w++) s = step(s, ++tick, [{ t: 'reel' }]);
+    for (let w = 0; w < s.reelTotal; w++) s = step(s, ++tick, [{ t: 'reel' }]);
     expect(s.phase).toBe('reel');
+  });
+
+  it('two fish on the line take more winds than one', () => {
+    let { s, tick } = hookOne('reel-pair', 'pair');
+    expect(s.reeled).toHaveLength(2);
+    expect(s.reelTotal).toBe(BALANCE.fishing.reelWindsPair);
+    for (let w = 0; w < BALANCE.fishing.reelWindsPair - 1; w++) s = step(s, ++tick, [{ t: 'reel' }]);
+    expect(s.phase).toBe('hook'); // one fish's worth of winds is not enough
+    s = step(s, ++tick, [{ t: 'reel' }]);
+    expect(s.phase).toBe('reel');
+    const one = hookOne('reel-single', 'single').s;
+    expect(one.reeled).toHaveLength(1);
+    expect(one.reelTotal).toBe(BALANCE.fishing.reelWinds);
+    expect(BALANCE.fishing.reelWindsPair).toBeGreaterThan(BALANCE.fishing.reelWinds);
   });
 
   it('a tap anywhere on the pond also winds (no wrong taps while hooked)', () => {
     let { s, tick } = hookOne('reel-2');
     const wrong0 = s.core.wrong;
     s = step(s, ++tick, [{ t: 'tap', id: 999 }]);
-    expect(s.reelLeft).toBe(BALANCE.fishing.reelWinds - 1);
+    expect(s.reelLeft).toBe(s.reelTotal - 1);
     expect(s.core.wrong).toBe(wrong0);
   });
 });

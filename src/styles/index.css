@@ -302,6 +302,23 @@
     background: color-mix(in oklab, var(--color-ink) 9%, var(--color-milk));
     width: fit-content;
   }
+  /* bomb "쉽게" steps: number keys, a little green dot under the steps already opened */
+  .seg-btn.step-btn {
+    min-width: 3.25rem;
+    position: relative;
+    font-family: var(--font-num);
+    font-size: 1.5rem;
+  }
+  .step-done {
+    position: absolute;
+    left: 50%;
+    bottom: 0.35rem;
+    width: 0.45rem;
+    height: 0.45rem;
+    translate: -50% 0;
+    border-radius: 999px;
+    background: var(--color-ones);
+  }
   .seg-btn {
     min-height: 3.25rem;
     min-width: 4.75rem;

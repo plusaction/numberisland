@@ -21,6 +21,8 @@ export function HubScreen({ store, reducedMotion }: { store: GameStore; reducedM
   const profile = useStore(store, (s) => s.profile);
   const selected = useStore(store, (s) => s.selected);
   const shift = useStore(store, (s) => s.shift);
+  const pickedStep = useStore(store, (s) => s.easyStep);
+  const easyStep = pickedStep ?? profile?.bombEasyStep ?? 1;
   const islandRef = useRef<IslandController | null>(null);
   const fruits = profile ? Object.values(profile.adaptive.mastery).filter((m) => m >= 0.85).length : 0;
 
@@ -144,6 +146,35 @@ export function HubScreen({ store, reducedMotion }: { store: GameStore; reducedM
                 </button>
               ))}
             </fieldset>
+            {selected === 'bomb' && shift === -1 && (
+              <div className="mt-3" data-testid="easy-steps">
+                <fieldset className="seg" aria-label={ko.hub.easyStep}>
+                  {ko.hub.easySteps.map((name, i) => {
+                    const step = i + 1;
+                    return (
+                      <button
+                        key={name}
+                        type="button"
+                        aria-pressed={easyStep === step}
+                        aria-label={`${step}${ko.hub.easyStep} ${name}`}
+                        data-testid={`easy-step-${step}`}
+                        className={`seg-btn step-btn ${easyStep === step ? 'seg-on' : ''}`}
+                        onClick={() => store.getState().setEasyStep(step)}
+                      >
+                        {step}
+                        {profile && step <= profile.bombEasyStep && (
+                          <span className="step-done" aria-hidden="true" />
+                        )}
+                      </button>
+                    );
+                  })}
+                </fieldset>
+                <p className="mt-1 text-lg" data-testid="easy-step-name">
+                  {easyStep}
+                  {ko.hub.easyStep} · {ko.hub.easySteps[easyStep - 1]}
+                </p>
+              </div>
+            )}
             <div className="mt-4 flex gap-3">
               <Button
                 tone="primary"

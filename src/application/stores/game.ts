@@ -16,6 +16,8 @@ export interface GameState {
   profile: Profile | null;
   selected: StageId;
   shift: DifficultyShift;
+  /** Bomb "쉽게" step picked on the hub card (null = the saved step). */
+  easyStep: number | null;
   lastResult: RoundResult | null;
   lastOutcome: ApplyOutcome | null;
   storageWarning: boolean;
@@ -28,6 +30,7 @@ export interface GameActions {
   setProfile(p: Profile): void;
   select(stage: StageId): void;
   setShift(shift: DifficultyShift): void;
+  setEasyStep(step: number | null): void;
   finishRound(result: RoundResult, outcome: ApplyOutcome): void;
   restart(): void;
   setStorageWarning(on: boolean): void;
@@ -42,6 +45,7 @@ export function createGameStore() {
       profile: null,
       selected: 'fishing',
       shift: 0,
+      easyStep: null,
       lastResult: null,
       lastOutcome: null,
       storageWarning: false,
@@ -50,6 +54,7 @@ export function createGameStore() {
       setProfile: (profile) => set({ profile }),
       select: (selected) => set({ selected }),
       setShift: (shift) => set({ shift }),
+      setEasyStep: (easyStep) => set({ easyStep }),
       finishRound: (lastResult, lastOutcome) =>
         set({ lastResult, lastOutcome, profile: lastOutcome.profile, screen: 'result' }),
       restart: () => set((s) => ({ runId: s.runId + 1, screen: 'stage' })),

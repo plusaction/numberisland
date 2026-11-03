@@ -119,7 +119,7 @@ export function fishingBot(seed: string, level: LevelId, policy: BotPolicy) {
           : r.pick(wrong.length ? wrong : correct);
       const acts: FishingAction[] = pick.map((id) => ({ t: 'tap', id }));
       // a right pair hooks the fish: wind the reel (extra winds after a wrong pair are harmless no-ops)
-      for (let w = 0; w < BALANCE.fishing.reelWinds; w++) acts.push({ t: 'reel' });
+      for (let w = 0; w < BALANCE.fishing.reelWindsPair; w++) acts.push({ t: 'reel' });
       if (s.odd && policy.strategy === 'B') acts.unshift({ t: 'odd' }); // B also grabs odd fish (coins)
       return acts;
     },

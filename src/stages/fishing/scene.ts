@@ -282,8 +282,8 @@ export function createFishingScene(
       }
       if (prev?.phase === 'hook' && (state.reelLeft < prev.reelLeft || state.phase !== 'hook')) {
         // one wind of the reel: click-whirr rising in pitch, rod tugs, the fish splashes up a bit more
-        const wound = BALANCE.fishing.reelWinds - state.reelLeft;
-        audio.play('reel.crank', { pitch: 0.9 + wound * 0.12 });
+        const wound = state.reelTotal - state.reelLeft;
+        audio.play('reel.crank', { pitch: 0.9 + (wound / Math.max(1, state.reelTotal)) * 0.4 });
         rodBend.impulse(-9);
         reelSpinVel = 26; // ~2 turns, coasting to a stop (rad/s, decays)
         tension = 1;
@@ -375,7 +375,7 @@ export function createFishingScene(
           // hooked: it fights on the line — darting this way and that in loops that shrink and drift toward
           // the rod as the reel winds, now and then leaping out of the water
           const k = state.reeled.indexOf(id);
-          const winds = BALANCE.fishing.reelWinds;
+          const winds = Math.max(1, state.reelTotal);
           v.pull += ((winds - state.reelLeft) / winds - v.pull) * (1 - Math.exp(-4 * vdt));
           if (ctx.reducedMotion) {
             tgt.copy(v.hook).lerp(SHORE, v.pull * 0.75);
@@ -553,7 +553,7 @@ export function createFishingScene(
       reelSpin += reelSpinVel * vdt;
       reelSpinVel *= Math.exp(-5 * vdt);
       reel.rotation.set(Math.PI / 2, reelSpin, 0);
-      const wound = state.phase === 'hook' ? BALANCE.fishing.reelWinds - state.reelLeft : 0;
+      const wound = state.phase === 'hook' ? state.reelTotal - state.reelLeft : 0;
       spool.scale.set(1 + wound * 0.12, 1, 1 + wound * 0.12);
       // golden fish leap: up out of the middle of the pond, a somersault, sparkles + coins, splash back
       if (goldenT >= 0) {
