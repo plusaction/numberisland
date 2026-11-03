@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test';
+import { expect, type Page, test } from '@playwright/test';
 import { collectErrors, startFresh, throughPlacement, url } from './helpers';
 
 /**
@@ -7,6 +7,25 @@ import { collectErrors, startFresh, throughPlacement, url } from './helpers';
  * tier is checked separately (`pnpm shots`), real-device latency/FPS by `pnpm bench` (HUMAN).
  */
 const STAGE_PATH = '/?tier=low';
+
+/** Median requestAnimationFrame interval over ~1.5 s on this machine. */
+function frameInterval(page: Page): Promise<number> {
+  return page.evaluate(
+    () =>
+      new Promise<number>((done) => {
+        const gaps: number[] = [];
+        let last = performance.now();
+        const t0 = last;
+        const tick = (now: number) => {
+          gaps.push(now - last);
+          last = now;
+          if (now - t0 < 1500) requestAnimationFrame(tick);
+          else done(gaps.sort((x, y) => x - y)[Math.floor(gaps.length / 2)] ?? 0);
+        };
+        requestAnimationFrame(tick);
+      }),
+  );
+}
 
 for (const stage of ['fishing', 'bomb', 'slime', 'escape'] as const) {
   test(`[A1:${stage}] [G2:${stage}] round → result with stars, new thing, next goal`, async ({
@@ -33,6 +52,9 @@ for (const stage of ['fishing', 'bomb', 'slime', 'escape'] as const) {
     await page.getByTestId('hint').click();
     await expect(page.getByTestId('hint-panel')).toHaveAttribute('data-level', '1');
     await page.getByText('알았어!').click();
+    // this stage's own frame interval while it is played (a full-screen room costs more per CPU-rendered frame
+    // than the result screen does)
+    const stageFrame = await frameInterval(page);
     let wound = false;
     for (let k = 0; k < 150; k++) {
       if (await page.getByTestId('result').isVisible()) break;
@@ -88,22 +110,10 @@ for (const stage of ['fishing', 'bomb', 'slime', 'escape'] as const) {
     );
     // the sync that shows an input runs on the next rendered frame: compare with this machine's own frame
     // interval (CPU-rendered frames here take hundreds of ms; real devices are measured by pnpm bench)
-    const frame = await page.evaluate(
-      () =>
-        new Promise<number>((done) => {
-          const gaps: number[] = [];
-          let last = performance.now();
-          const t0 = last;
-          const tick = (now: number) => {
-            gaps.push(now - last);
-            last = now;
-            if (now - t0 < 1500) requestAnimationFrame(tick);
-            else done(gaps.sort((x, y) => x - y)[Math.floor(gaps.length / 2)] ?? 0);
-          };
-          requestAnimationFrame(tick);
-        }),
+    const frame = Math.max(stageFrame, await frameInterval(page));
+    console.info(
+      `[latency:${stage}] frame interval median ${frame.toFixed(0)} ms (in play ${stageFrame.toFixed(0)})`,
     );
-    console.info(`[latency:${stage}] frame interval median ${frame.toFixed(0)} ms`);
     expect(p25).toBeLessThanOrEqual(Math.max(300, frame * 1.5));
     await page.screenshot({ path: `docs/review/m4/e2e-${stage}-result-${info.project.name}.png` });
     // the round was saved: back on the island the stage shows its stars

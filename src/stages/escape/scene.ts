@@ -7,7 +7,7 @@
  * - Room cut: the camera swoops in at the start of each room; when the door opens, light pours out and the
  *   camera glides into the doorway (the HUD closes an iris over it). The treasure room frees the friend.
  */
-import { CylinderGeometry, Group, Mesh, PointLight, Vector3 } from 'three/webgpu';
+import { CylinderGeometry, Group, Mesh, Vector3 } from 'three/webgpu';
 import { HitStop, Shake, Spring } from '../../engine/fx/juice';
 import { roundedBox } from '../../engine/geo/shapes';
 import { NumberLabel } from '../../engine/numbers/number-label';
@@ -88,9 +88,8 @@ export function createEscapeScene(world: RenderWorld, ctx: StageCtx): StageScene
   panel.castShadow = true;
   hinge.add(panel);
   root.add(frame, glow, hinge);
-  const light = new PointLight('#ffd98a', 0, 9, 1.6); // always present (intensity 0): no shader recompiles
-  light.position.set(0, 1.8, WALL_Z + 0.8);
-  root.add(light);
+  // the light "pouring out" is the glowing doorway itself (+ sparkles): no extra scene light, so every
+  // material stays as cheap as in the other stages
 
   // the lock: a chunky body with three big number keys
   const lock = new Group();
@@ -269,7 +268,7 @@ export function createEscapeScene(world: RenderWorld, ctx: StageCtx): StageScene
       const opening = state.phase === 'open' ? 1 - state.phaseLeft / OPEN_TICKS : 0;
       doorT += ((opening > 0.12 ? 1 : 0) - doorT) * (1 - Math.exp(-vdt * 5));
       hinge.rotation.y = -doorT * 1.75;
-      light.intensity = doorT * 30;
+      glow.scale.setScalar(1 + doorT * 0.04);
       if (doorT > 0.3 && !ctx.reducedMotion && Math.floor(t * 12) % 2 === 0)
         world.particles.emit(
           'sparkle',
