@@ -64,7 +64,8 @@ for (const stage of ['fishing', 'bomb', 'slime', 'escape'] as const) {
         .__stage?.runtime;
       return { ticks: rt?.latencyTicks ?? [], ms: rt?.latencyMs ?? [] };
     });
-    expect(lat.ms.length).toBeGreaterThan(5);
+    // escape rounds are 4 rooms (one solve each), the others 8 puzzles
+    expect(lat.ms.length).toBeGreaterThan(stage === 'escape' ? 3 : 5);
     // every input is consumed by the very next simulation step
     expect(Math.max(...lat.ticks)).toBeLessThanOrEqual(2);
     // wall clock from input to the scene sync that plays its sound/animation, measured on this machine.
