@@ -8,7 +8,7 @@ import { collectErrors, startFresh, throughPlacement, url } from './helpers';
  */
 const STAGE_PATH = '/?tier=low';
 
-for (const stage of ['fishing', 'bomb', 'slime'] as const) {
+for (const stage of ['fishing', 'bomb', 'slime', 'escape'] as const) {
   test(`[A1:${stage}] [G2:${stage}] round → result with stars, new thing, next goal`, async ({
     page,
   }, info) => {

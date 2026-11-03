@@ -30,6 +30,12 @@
     "gzip": true
   },
   {
+    "name": "stage escape (gzip)",
+    "path": "dist/assets/escape-*.js",
+    "limit": "10 kB",
+    "gzip": true
+  },
+  {
     "name": "lazy: advanced post (GTAO+SSR+bloom, high/ultra only)",
     "path": "dist/assets/post-advanced-*.js",
     "limit": "14 kB",

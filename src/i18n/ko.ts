@@ -239,6 +239,8 @@ export const ko = {
     oddFish: '이상한 물고기!',
     goldenFish: '황금 물고기!',
     reel: '감아요!',
+    open: '열어요!',
+    rescued: '친구를 구했어!',
     fireworks: '6 + 7 = 13 펑!',
   },
   errors: {

@@ -21,6 +21,8 @@ export const BALANCE = {
   orbs: { festivalAt: 8 },
   medals: { twoStarMaxHints: 2, threeStarMaxWrong: 1 },
   round: { puzzles: 8 },
+  /** Rooms per escape round (the last one is the treasure room with the two-step boss lock). */
+  escape: { rooms: 4 },
   /** Steps of the bomb squad's "쉽게" ladder (one-digit + one-digit … three one-digit numbers). */
   bombEasySteps: 5,
   rest: { defaultMinutes: 15, durationSec: 20 },

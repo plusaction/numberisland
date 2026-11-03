@@ -7,7 +7,7 @@ export const STAGE_SKILLS: Record<StageId, readonly SkillId[]> = {
   zombie: ['SUB_NOBORROW', 'SUB_BORROW', 'ADD_NOCARRY'],
   fishing: ['ADD_CARRY', 'SUB_BORROW', 'MISSING_TERM'],
   slime: ['ADD_NOCARRY', 'ADD_CARRY', 'SUB_NOBORROW', 'COMPOSE_10'],
-  escape: ['MISSING_TERM', 'COMPOSE_10', 'PLACE_VALUE'],
+  escape: ['MISSING_TERM', 'ADD_CARRY', 'THREE_TERM'],
   pizza: ['ADD_CARRY', 'SUB_BORROW', 'RELATION'],
   cardbattle: ['ESTIMATE_CLOSE', 'COMPARE_EXPR', 'SUB_BORROW'],
   race: ['ADD_CARRY', 'SUB_BORROW', 'SKIP_COUNT'],
