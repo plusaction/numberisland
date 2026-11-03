@@ -14,15 +14,16 @@ export function flyToGoal(from: { x: number; y: number }, value: string) {
   const sy = ((1 - from.y) / 2) * window.innerHeight;
   const dx = sx - (r.left + r.width / 2);
   const dy = sy - (r.top + r.height / 2);
-  const chip = target.cloneNode(true) as HTMLElement;
-  chip.classList.remove('gt-new');
-  chip.classList.add('gt-fly');
-  Object.assign(chip.style, {
-    left: `${r.left}px`,
-    top: `${r.top}px`,
-    width: `${r.width}px`,
-    height: `${r.height}px`,
-  });
+  // the copy flies inside its own `.goal-tiles` wrapper so it keeps the tiles' number font and weight
+  // (they are inherited from `.goal-tiles`; a bare copy in <body> showed the body font until it landed)
+  const chip = document.createElement('span');
+  chip.className = 'goal-tiles gt-fly';
+  chip.setAttribute('aria-hidden', 'true');
+  const tile = target.cloneNode(true) as HTMLElement;
+  tile.classList.remove('gt-new');
+  Object.assign(tile.style, { width: `${r.width}px`, height: `${r.height}px`, minWidth: '0', margin: '0' });
+  chip.appendChild(tile);
+  Object.assign(chip.style, { left: `${r.left}px`, top: `${r.top}px` });
   document.body.appendChild(chip);
   target.style.visibility = 'hidden';
   const anim = chip.animate(

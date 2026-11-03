@@ -1,9 +1,17 @@
 /** ④ 슬라임 합체 diorama: jelly tray, drag-to-merge, overshoot squash on merge (signature). */
-import { Group, Mesh, Plane, Vector3 } from 'three/webgpu';
+import { Group, Mesh, Plane, TorusGeometry, Vector3 } from 'three/webgpu';
 import { HitStop, Shake, Spring, squashScale } from '../../engine/fx/juice';
 import { ball, ring, roundedBox } from '../../engine/geo/shapes';
 import { NumberLabel } from '../../engine/numbers/number-label';
 import { PALETTE } from '../../engine/palette';
+import {
+  createSoftBody,
+  FRONT,
+  NODE_DIRS,
+  type SoftBody,
+  softBallGeometry,
+  softDisplacement,
+} from '../../engine/physics/softbody';
 import { type JellyMaterial, jellyMaterial, toyMaterial } from '../../engine/tsl/materials';
 import type { RenderWorld } from '../../engine/world';
 import { audio } from '../../infra/audio/audio';
@@ -30,10 +38,28 @@ const SLOT_POS = (slot: number) => {
 };
 const radiusFor = (v: number) => 0.5 + Math.min(0.55, Math.log10(v + 1) * 0.22);
 
+type Face = 'idle' | 'happy' | 'wow' | 'wink' | 'sleepy';
+const MOODS: readonly Face[] = ['happy', 'wow', 'wink', 'sleepy', 'happy'];
+const UP = new Vector3(0, 1, 0);
+const SMILE = new TorusGeometry(0.13, 0.032, 8, 20, Math.PI);
+SMILE.userData.shared = true;
+
 interface SlimeView {
   group: Group;
   body: Mesh;
   jelly: JellyMaterial;
+  /** Soft-body shell (mass–spring) that bends the jelly; the face rides its front node. */
+  soft: SoftBody;
+  face: Group;
+  eyes: Mesh[];
+  shines: Mesh[];
+  smile: Mesh;
+  oMouth: Mesh;
+  mood: { kind: Face; until: number; nextAt: number; blinkAt: number; blinkUntil: number; joyUntil: number };
+  pokeAt: number;
+  lastPos: Vector3;
+  lastVel: Vector3;
+  accel: Vector3;
   label: NumberLabel;
   proxy: Mesh;
   spring: Spring;
@@ -73,11 +99,17 @@ export function createSlimeScene(world: RenderWorld, ctx: StageCtx): StageScene<
 
   const makeView = (id: number, value: number, minus: boolean, slot: number, colorIdx: number): SlimeView => {
     const g = new Group();
-    const jelly = jellyMaterial(minus ? '#ff6b7f' : (COLORS[colorIdx % COLORS.length] as string));
-    const body = new Mesh(ball(1, 40), jelly.material);
+    const soft = createSoftBody();
+    const jelly = jellyMaterial(
+      minus ? '#ff6b7f' : (COLORS[colorIdx % COLORS.length] as string),
+      softDisplacement(soft),
+    );
+    const body = new Mesh(softBallGeometry(), jelly.material);
     body.castShadow = true;
-    // friendly face: big eyes with highlights, small smile, blush
+    // friendly face: big eyes with highlights, a smile (or a little "o"), blush — expressions swap now and then
     const face = new Group();
+    const eyes: Mesh[] = [];
+    const shines: Mesh[] = [];
     for (const x of [-0.28, 0.28]) {
       const eye = new Mesh(ball(0.17, 16), toyMaterial(PALETTE.ink));
       eye.position.set(x, 0.22, 0.86);
@@ -87,11 +119,16 @@ export function createSlimeScene(world: RenderWorld, ctx: StageCtx): StageScene<
       blush.position.set(x * 1.55, 0.0, 0.84);
       blush.scale.set(1, 0.6, 0.4);
       face.add(eye, shine, blush);
+      eyes.push(eye);
+      shines.push(shine);
     }
-    const mouth = new Mesh(ring(0.12, 0.03), toyMaterial(PALETTE.ink));
-    mouth.position.set(0, -0.05, 0.95);
-    mouth.scale.set(1, 0.7, 1);
-    face.add(mouth);
+    const smile = new Mesh(SMILE, toyMaterial(PALETTE.ink));
+    smile.position.set(0, -0.02, 0.95);
+    smile.rotation.z = Math.PI; // the arc opens upward: a smile
+    const oMouth = new Mesh(ring(0.12, 0.03), toyMaterial(PALETTE.ink));
+    oMouth.position.set(0, -0.08, 0.95);
+    oMouth.visible = false;
+    face.add(smile, oMouth);
     body.add(face);
     const label = new NumberLabel(minus ? `-${value}` : value, {
       size: 0.68,
@@ -106,7 +143,86 @@ export function createSlimeScene(world: RenderWorld, ctx: StageCtx): StageScene<
     g.position.copy(home);
     root.add(g);
     proxies.push(proxy);
-    return { group: g, body, jelly, label, proxy, spring: new Spring(0, 120, 4.2), home, value }; // soft + low damping = chewy jiggle
+    const now = t + Math.random() * 3;
+    return {
+      group: g,
+      body,
+      jelly,
+      soft,
+      face,
+      eyes,
+      shines,
+      smile,
+      oMouth,
+      mood: { kind: 'idle', until: 0, nextAt: now + 2, blinkAt: now, blinkUntil: 0, joyUntil: 0 },
+      pokeAt: now,
+      lastPos: home.clone(),
+      lastVel: new Vector3(),
+      accel: new Vector3(),
+      label,
+      proxy,
+      spring: new Spring(0, 120, 4.2), // soft + low damping = chewy jiggle
+      home,
+      value,
+    };
+  };
+
+  // soft-body jelly: carried inertia (drags slosh), breathing swell, and an idle wobble now and then
+  const pokeDir = new Vector3();
+  const updateSoft = (v: SlimeView, id: number, r: number, dt: number) => {
+    if (dt <= 0) return;
+    const vel = pokeDir
+      .copy(v.group.position)
+      .sub(v.lastPos)
+      .multiplyScalar(1 / dt);
+    v.accel
+      .copy(vel)
+      .sub(v.lastVel)
+      .multiplyScalar(1 / (dt * r));
+    if (v.accel.length() > 60) v.accel.setLength(60);
+    v.lastVel.copy(vel);
+    v.lastPos.copy(v.group.position);
+    if (ctx.reducedMotion) v.accel.set(0, 0, 0);
+    else if (t > v.pokeAt) {
+      // a little self-wobble: as if it shifted its weight
+      v.pokeAt = t + 1.6 + Math.random() * 3;
+      const k = Math.floor(Math.random() * NODE_DIRS.length);
+      v.soft.poke(NODE_DIRS[k] as Vector3, 1.6 + Math.random() * 1.4);
+    }
+    const breath = ctx.reducedMotion ? 0 : 0.055 * Math.sin(t * 2.2 + id);
+    v.soft.step(dt, v.accel, breath);
+    // the face rides the front of the jelly
+    v.face.position.copy(v.soft.disp[FRONT] as Vector3);
+  };
+
+  // faces: blink, and now and then a new mood (happy ^^, wow "o", wink, sleepy); events override
+  const updateFace = (v: SlimeView, id: number, state: SlimeState) => {
+    const m = v.mood;
+    if (t > m.blinkAt) {
+      m.blinkUntil = t + 0.13;
+      m.blinkAt = t + 2.2 + Math.random() * 2.8;
+    }
+    if (t > m.nextAt) {
+      m.kind = MOODS[Math.floor(Math.random() * MOODS.length)] as Face;
+      m.until = t + 1.3 + Math.random() * 0.8;
+      m.nextAt = t + 3.5 + Math.random() * 4;
+    }
+    let kind: Face = t < m.until ? m.kind : 'idle';
+    if (dragging === id) kind = 'wow';
+    if (t < m.joyUntil || (state.phase === 'win' && state.winner === id)) kind = 'happy';
+    const blink = t < m.blinkUntil && kind !== 'happy';
+    const [eyeL, eyeR] = v.eyes as [Mesh, Mesh];
+    const open = kind === 'happy' ? 0.3 : kind === 'sleepy' ? 0.45 : 1;
+    const big = kind === 'wow' ? 1.22 : 1;
+    eyeL.scale.set(big, (blink ? 0.1 : open) * big, big);
+    eyeR.scale.set(big, (blink || kind === 'wink' ? 0.1 : open) * big, big);
+    v.shines.forEach((sh, i) => {
+      sh.visible = !blink && open > 0.5 && !(i === 1 && kind === 'wink');
+    });
+    v.smile.visible = kind !== 'wow' && kind !== 'sleepy';
+    v.smile.scale.setScalar(kind === 'happy' ? 1.45 : kind === 'wink' ? 1.2 : 1);
+    v.oMouth.visible = !v.smile.visible;
+    v.oMouth.scale.setScalar(kind === 'wow' ? 1.1 : 0.6);
   };
 
   const rebuild = (s: SlimeState) => {
@@ -181,6 +297,8 @@ export function createSlimeScene(world: RenderWorld, ctx: StageCtx): StageScene<
           audio.play('slime.squish', { pitch: 1.15 - Math.min(0.35, v.value / 150) });
           audio.play('merge', { pitch: 0.9 + Math.min(0.5, v.value / 200), delay: 0.08 });
           v.spring.impulse(-11); // deep squash → chewy overshoot → long wobbly settle (signature)
+          v.soft.poke(UP, 4);
+          v.mood.joyUntil = t + 1.6;
           v.jelly.wobble.value = 1;
           hitStop.trigger(40);
           world.particles.emit('sparkle', v.group.position, 25);
@@ -201,7 +319,11 @@ export function createSlimeScene(world: RenderWorld, ctx: StageCtx): StageScene<
       if (state.phase === 'win' && state.phaseLeft === 74) {
         audio.play('correct.big');
         const w = state.winner !== null ? views.get(state.winner) : undefined;
-        if (w) w.spring.impulse(-9);
+        if (w) {
+          w.spring.impulse(-9);
+          w.soft.poke(UP, 3);
+          w.mood.joyUntil = t + 3;
+        }
         celebrate(
           world,
           w ? w.group.position : { x: 0, y: 2, z: 0 },
@@ -213,7 +335,7 @@ export function createSlimeScene(world: RenderWorld, ctx: StageCtx): StageScene<
       for (const [id, v] of views) {
         const r = radiusFor(v.value);
         const sq = squashScale(v.spring.update(vdt) * 0.16);
-        const breathe = ctx.reducedMotion ? 0 : Math.sin(t * 2.2 + id) * 0.02;
+        const breathe = 0; // breathing now lives in the soft-body shell
         // held up by the finger: hangs a little longer and thinner, like soft mochi
         const hang = dragging === id ? 1.14 + Math.sin(t * 9) * 0.03 : 1;
         const thin = 1 / Math.sqrt(hang);
@@ -234,6 +356,8 @@ export function createSlimeScene(world: RenderWorld, ctx: StageCtx): StageScene<
           v.group.position.y += 0.2 + Math.abs(Math.sin(t * 4)) * 0.2;
           if (Math.floor(t * 6) % 4 === 0) world.particles.emit('sparkle', v.group.position, 2);
         }
+        updateSoft(v, id, r, vdt);
+        updateFace(v, id, state);
       }
       const sh = shake.update(dt);
       world.camera.position.x = sh.x;
@@ -249,6 +373,7 @@ export function createSlimeScene(world: RenderWorld, ctx: StageCtx): StageScene<
           const v = views.get(id);
           if (v) {
             v.spring.impulse(4); // stretches up as it is pulled off the tray
+            v.soft.kick(UP, 1.2);
             v.jelly.wobble.value = 0.7;
           }
         }

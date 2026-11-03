@@ -417,11 +417,14 @@
     font-size: 1.7rem;
     padding: 0.3rem 1.1rem;
   }
-  .gt-fly {
+  .goal-tiles.gt-fly {
+    display: block;
     position: fixed;
     z-index: 60;
     margin: 0;
     pointer-events: none;
+  }
+  .gt-fly > .gt-num {
     box-shadow: 0 10px 24px rgb(30 58 86 / 0.3);
   }
   /* one big "do this now" key (e.g. wind the reel): bottom centre, glowing so the eye finds it (it never

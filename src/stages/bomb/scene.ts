@@ -114,6 +114,8 @@ export function createBombScene(world: RenderWorld, ctx: StageCtx): StageScene<B
   bomb.castShadow = true;
   const cap = new Mesh(new CylinderGeometry(0.35, 0.4, 0.4, 16), toyMaterial('#8a8fb8'));
   cap.position.y = 1.25;
+  const FUSE_HALF = 0.3 + 0.06; // capsule half length + radius: the tip in the fuse's own space
+  const fuseTip = new Vector3();
   const fuse = new Mesh(capsule(0.06, 0.6), toyMaterial(PALETTE.cocoa));
   fuse.position.set(0.25, 1.65, 0);
   fuse.rotation.z = -0.5;
@@ -438,8 +440,16 @@ export function createBombScene(world: RenderWorld, ctx: StageCtx): StageScene<B
         gift.scale.setScalar(0.001);
         label.visible = !gone;
       }
-      if (!ctx.reducedMotion && Math.floor(t * 8) % 3 === 0)
-        world.particles.emit('sparkle', { x: 0.55, y: 3.95, z: -1.6 }, 1);
+      // fuse sparks come from the very tip of the fuse (follows the bomb as it breathes and wobbles)
+      if (
+        !ctx.reducedMotion &&
+        Math.floor(t * 8) % 3 === 0 &&
+        bombG.scale.y > 0.5 &&
+        state.phase !== 'defuse'
+      ) {
+        bombG.updateMatrixWorld();
+        world.particles.emit('sparkle', fuseTip.set(0, FUSE_HALF, 0).applyMatrix4(fuse.matrixWorld), 1);
+      }
       // the shelf's "?" spot breathes; the prize toy pops out of the gift, spins, then hops to its spot
       spot.scale.set(1, 0.18, 1).multiplyScalar(ctx.reducedMotion ? 1 : 1 + Math.sin(t * 3) * 0.12);
       if (prizeT >= 0 && prizeModel) {

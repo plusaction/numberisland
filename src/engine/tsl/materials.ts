@@ -233,8 +233,11 @@ export interface JellyMaterial {
   wobble: { value: number };
 }
 
-/** Wet, glossy jelly: clear coat + sheen + thin-film shimmer + faked subsurface glow (per slime: own wobble). */
-export function jellyMaterial(hex: ColorRepresentation): JellyMaterial {
+/**
+ * Wet, glossy jelly: clear coat + sheen + thin-film shimmer + faked subsurface glow (per slime: own wobble).
+ * `displace`: an optional per-vertex offset node (e.g. a soft-body shell, `physics/softbody.ts`).
+ */
+export function jellyMaterial(hex: ColorRepresentation, displace?: Node<'vec3'>): JellyMaterial {
   const m = new MeshPhysicalNodeMaterial({
     roughness: 0.14,
     metalness: 0,
@@ -251,7 +254,9 @@ export function jellyMaterial(hex: ColorRepresentation): JellyMaterial {
   const w = sin(time.mul(7).add(positionLocal.y.mul(4.5)))
     .mul(wobble)
     .mul(0.1);
-  m.positionNode = positionLocal.add(normalLocal.mul(w));
+  m.positionNode = displace
+    ? positionLocal.add(displace).add(normalLocal.mul(w))
+    : positionLocal.add(normalLocal.mul(w));
   return { material: m, wobble };
 }
 
