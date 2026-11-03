@@ -62,8 +62,31 @@ function onSkin(
 const EYE_X = 0.355;
 const EYE_Y = 0.07;
 
+// one finished model per colour; every fish is a cheap clone sharing its merged geometry and materials, so a
+// new puzzle no longer merges and uploads fresh geometry for each fish (that stalled the frame on a new puzzle)
+const templates = new Map<string, Group>();
+
 /** `gold`: polished metal instead of glossy plastic (the golden fish). */
 export function fishModel(hex: string, gold = false): FishModel {
+  const key = `${hex}|${gold}`;
+  let tpl = templates.get(key);
+  if (!tpl) {
+    tpl = buildFish(hex, gold);
+    tpl.traverse((o) => {
+      const g = (o as { geometry?: { userData: Record<string, unknown> } }).geometry;
+      if (g) g.userData.shared = true; // owned by the template: scene teardown never disposes it
+    });
+    templates.set(key, tpl);
+  }
+  const group = tpl.clone();
+  return {
+    group,
+    tail: group.getObjectByName('tail') as Group,
+    eyes: group.getObjectByName('eyes') as Group,
+  };
+}
+
+function buildFish(hex: string, gold: boolean): Group {
   const base = new Color(hex);
   const tone = (c: Color, finish: 'plastic' | 'satin') =>
     gold ? metalMaterial(c, 0.22) : toyMaterial(`#${c.getHexString()}`, { finish });
@@ -95,6 +118,7 @@ export function fishModel(hex: string, gold = false): FishModel {
 
   // eyes: white rim, big dark iris, one catch-light (upper front) — all flush with the skin
   const eyes = new Group();
+  eyes.name = 'eyes';
   eyes.position.set(EYE_X, EYE_Y, 0);
   for (const z of [-1, 1]) {
     for (const m of [
@@ -111,6 +135,7 @@ export function fishModel(hex: string, gold = false): FishModel {
 
   // forked tail, hinged at the back of the body
   const tail = new Group();
+  tail.name = 'tail';
   tail.position.x = -0.52;
   tail.add(
     part(0.12, fin, [-0.05, 0, 0], [1, 0.8, 0.35]),
@@ -119,5 +144,5 @@ export function fishModel(hex: string, gold = false): FishModel {
   );
   mergeStatic(tail);
   group.add(tail);
-  return { group, tail, eyes };
+  return group;
 }

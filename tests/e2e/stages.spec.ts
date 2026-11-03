@@ -36,6 +36,22 @@ for (const stage of ['fishing', 'bomb', 'slime'] as const) {
     let wound = false;
     for (let k = 0; k < 150; k++) {
       if (await page.getByTestId('result').isVisible()) break;
+      // act like a child: tap once the scene has settled into a state that takes input (not mid-animation),
+      // so the latency sample measures input → reaction, not a CPU-rendered transition frame
+      await page
+        .waitForFunction(
+          () => {
+            const ph = (globalThis as { __stage?: { runtime: { state: { phase: string } } } }).__stage
+              ?.runtime.state.phase;
+            return ph === 'play' || ph === 'hook' || ph === 'done';
+          },
+          undefined,
+          { timeout: 20_000 },
+        )
+        .catch(() => {});
+      await page.evaluate(
+        () => new Promise<void>((done) => requestAnimationFrame(() => requestAnimationFrame(() => done()))),
+      );
       await page.evaluate(() => (globalThis as { __stage?: { solveOne(): void } }).__stage?.solveOne());
       await page.waitForTimeout(900);
       // fishing: wind one hooked fish with the real "감아요!" key, like a child (the solver winds the rest;

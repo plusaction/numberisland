@@ -57,6 +57,9 @@ interface FishView {
   fight: Vector3;
   fightVel: Vector3;
   pull: number;
+  /** Offset of the fight loop at the bite, so the loop starts exactly at the bite spot. */
+  orbit: Vector3;
+  orbitSet: boolean;
 }
 
 /** Hooked fish are pulled toward this spot in the pond (in front of the rod) as the reel winds. */
@@ -150,6 +153,7 @@ export function createFishingScene(
 
   const fishViews = new Map<number, FishView>();
   let puzzleRef: FishingState['puzzle'] = null;
+  let puzzleKey = '';
   const proxies: Mesh[] = [];
   let cursorId: number | null = null;
   let glowId: number | null = null;
@@ -216,6 +220,8 @@ export function createFishingScene(
         fight: new Vector3(),
         fightVel: new Vector3(),
         pull: 0,
+        orbit: new Vector3(),
+        orbitSet: false,
       });
     });
   };
@@ -243,10 +249,16 @@ export function createFishingScene(
       wake.update(vdt);
       slowmo = Math.max(0, slowmo - dt);
       t += vdt;
-      if (state.puzzle !== puzzleRef) {
-        puzzleRef = state.puzzle;
+      // rebuild only for a NEW puzzle — a right pick just marks fish as caught (a new object, same fish), and
+      // rebuilding then would reset every fish to the pond centre (the hooked one would start from there)
+      const key = state.puzzle
+        ? `${state.puzzle.mode}|${state.puzzle.target}|${state.puzzle.fish.map((f) => `${f.id}:${f.value}`).join(',')}`
+        : '';
+      if (key !== puzzleKey) {
+        puzzleKey = key;
         buildFish(state);
       }
+      puzzleRef = state.puzzle;
       // one-shot effects on transitions
       if (prev && prev.phase === 'play' && state.phase === 'hook') {
         // a bite! the right fish is hooked; the child now winds the reel (no timer)
@@ -257,10 +269,12 @@ export function createFishingScene(
         for (const id of state.reeled) {
           const v = fishViews.get(id);
           if (!v) continue;
-          v.hook.copy(v.pos);
-          v.fight.copy(v.pos);
+          // start fighting right where it bit (x/z of what is on screen; a picked fish floats a little)
+          v.hook.set(v.group.position.x, 0, v.group.position.z);
+          v.fight.copy(v.hook);
           v.fightVel.set(0, 0, 0);
           v.pull = 0;
+          v.orbitSet = false;
           v.spring.impulse(6);
           world.particles.emit('droplet', v.group.position, 30);
           for (let r = 0; r < 2; r++) wake.spawn(v.pos.x, pond.position.y + 0.02, v.pos.z, r * 1.6, 1);
@@ -368,10 +382,17 @@ export function createFishingScene(
           } else {
             const r = 1.5 * (1 - v.pull * 0.65);
             const ang = t * 1.9 * (k ? -1 : 1) + Math.sin(t * 0.8 + f.phase * 7) * 1.3 + k * Math.PI;
+            pD.set(Math.cos(ang) * r, 0, Math.sin(ang) * r * 0.8);
+            // the loop is placed so that it passes through the bite spot: the fish starts running from there
+            if (!v.orbitSet) {
+              v.orbit.copy(pD);
+              v.orbitSet = true;
+            }
             tgt
               .copy(v.hook)
               .lerp(SHORE, v.pull * 0.75)
-              .add(pD.set(Math.cos(ang) * r, 0, Math.sin(ang) * r * 0.8));
+              .add(pD)
+              .addScaledVector(v.orbit, -(1 - v.pull));
           }
           const lim = Math.hypot(tgt.x, tgt.z / 0.78);
           if (lim > 4.0) tgt.multiplyScalar(4.0 / lim);
