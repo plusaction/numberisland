@@ -137,7 +137,8 @@ test('[G7] keyboard H opens the hint panel; Escape closes it, then leaves the st
   await page.getByTestId('go').click();
   await page.getByTestId('skip-tutorial').click();
   await page.locator('body').press('KeyH');
-  await expect(page.getByTestId('hint-panel')).toBeVisible();
+  // the first frames of a stage are slow in this CPU-only browser; the key is handled on the next frame
+  await expect(page.getByTestId('hint-panel')).toBeVisible({ timeout: 15_000 });
   await page.locator('body').press('Escape');
   await expect(page.getByTestId('hint-panel')).toHaveCount(0);
   await page.locator('body').press('Escape');
