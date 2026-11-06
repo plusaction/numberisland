@@ -413,6 +413,24 @@
     font-size: 2.6rem;
     line-height: 1;
   }
+  /* big + / − toggle keys (bottom left, above nothing else) */
+  .stage-hud > .hud-toggles {
+    position: absolute;
+    left: 1rem;
+    bottom: 1.25rem;
+    display: flex;
+    gap: 0.6rem;
+  }
+  .toggle-key {
+    min-width: 5rem;
+    min-height: 5rem;
+    font-family: var(--font-num);
+    font-size: 2.6rem;
+    line-height: 1;
+  }
+  .toggle-key:not(.toggle-on) {
+    opacity: 0.75;
+  }
   /* step guide under the goal: find → think → pick (current lit, done ✓) */
   .step-guide {
     display: flex;

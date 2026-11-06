@@ -224,6 +224,22 @@ export function StageScreen({ store, reducedMotion }: { store: GameStore; reduce
         {hud.steps && <StepGuide steps={hud.steps} />}
       </section>
       {hud.say && !tutorial && <SayBubble say={hud.say} voice={voice} />}
+      {hud.toggles && mod.toggleAction && (
+        <div className="hud-toggles" data-testid="toggles">
+          {hud.toggles.map((tg) => (
+            <button
+              key={tg.id}
+              type="button"
+              aria-pressed={tg.on}
+              data-testid={`toggle-${tg.id}`}
+              className={`toy-btn toggle-key ${tg.on ? 'key-sea toggle-on' : 'key-ghost'}`}
+              onClick={() => mod.toggleAction && rtRef.current?.dispatch(mod.toggleAction(tg.id))}
+            >
+              {tg.label}
+            </button>
+          ))}
+        </div>
+      )}
       {hud.cut && <RoomCut cut={hud.cut} />}
 
       <div className="hud-bottom">

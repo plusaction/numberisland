@@ -7,7 +7,7 @@
  */
 import { color, cos, float, mix, normalView, sin, smoothstep, texture, time, uv, vec3 } from 'three/tsl';
 import { ConeGeometry, Group, Mesh, MeshStandardNodeMaterial, OctahedronGeometry } from 'three/webgpu';
-import { ball, capsule, disc, roundedBox } from '../../engine/geo/shapes';
+import { ball, capsule, roundedBox } from '../../engine/geo/shapes';
 import { NumberLabel } from '../../engine/numbers/number-label';
 import { PALETTE } from '../../engine/palette';
 import { jellyMaterial, metalMaterial, toyMaterial } from '../../engine/tsl/materials';
@@ -54,7 +54,9 @@ export function card(tint: string, value: number): Card {
   star.position.z = -0.08;
   star.scale.z = 0.3;
   const label = new NumberLabel(value, { size: 0.82, placeColors: true });
-  label.position.set(0, 0, 0.12);
+  // well in front of the face: the label always faces the camera, the card is tilted back — closer to the
+  // face its top would sink behind the card
+  label.position.set(0, -0.05, 0.42);
   group.add(rim, face, back, star, label);
   return {
     group,
@@ -63,17 +65,6 @@ export function card(tint: string, value: number): Card {
       label.set(v);
     },
   };
-}
-
-/** A round toy chip carrying "+" or "−". */
-export function opChip(sign: '+' | '-'): { group: Group; base: Mesh } {
-  const group = new Group();
-  const base = new Mesh(disc(0.55, 0.22, 32), toyMaterial(sign === '+' ? PALETTE.sea : PALETTE.berry));
-  base.castShadow = true;
-  const label = new NumberLabel(sign, { size: 0.8, tint: '#ffffff' });
-  label.position.y = 0.5;
-  group.add(base, label);
-  return { group, base };
 }
 
 /** A score gem slot (empty = dim glass, won = bright). */

@@ -8,8 +8,6 @@ import {
   distance,
   HAND,
   initCards,
-  OP_MINUS,
-  OP_PLUS,
   solveCards,
 } from './rules';
 import { createCardScene } from './scene';
@@ -65,11 +63,8 @@ export const cardModule: StageModule<CardState, CardAction> = {
   bgm: 'cards',
   createScene: createCardScene,
   keyboard: {
-    targets: () => [...Array.from({ length: HAND }, (_, i) => i), OP_PLUS, OP_MINUS],
-    confirm: (_s, id) => ({
-      action:
-        id === OP_PLUS ? { t: 'op', op: '+' } : id === OP_MINUS ? { t: 'op', op: '-' } : { t: 'card', id },
-    }),
+    targets: () => Array.from({ length: HAND }, (_, i) => i),
+    confirm: (_s, id) => ({ action: { t: 'card', id } }),
   },
   hud: (s) => {
     const sayNow = say(s);
@@ -85,6 +80,14 @@ export const cardModule: StageModule<CardState, CardAction> = {
         ? { cut: { key: 'versus', title: fill(ko.cards.versus, { bot: ko.cards.bots[s.bot] }) } }
         : {}),
       ...(s.phase === 'play' && s.picked.length === 2 ? { primary: { label: ko.cards.play, left: 0 } } : {}),
+      ...(s.phase === 'play' || s.phase === 'deal'
+        ? {
+            toggles: [
+              { id: '+', label: '+', on: s.op === '+' },
+              { id: '-', label: '−', on: s.op === '-' },
+            ],
+          }
+        : {}),
     };
   },
   // hint step 3+: a card of the exact pair glows (then the right sign)
@@ -93,11 +96,11 @@ export const cardModule: StageModule<CardState, CardAction> = {
     if (!d) return null;
     const best = bestPlay(d.hand, d.target);
     const next = best.cards.find((id) => !s.picked.includes(id));
-    if (next !== undefined) return next;
-    return s.op === best.op ? null : best.op === '+' ? OP_PLUS : OP_MINUS;
+    return next ?? null;
   },
   solution: (s) => (s.phase === 'play' || s.phase === 'deal' ? solveCards(s) : []),
   hintAction: { t: 'hint' },
   retryAction: { t: 'retry' },
   primaryAction: { t: 'play' },
+  toggleAction: (id) => ({ t: 'op', op: id === '-' ? '-' : '+' }),
 };

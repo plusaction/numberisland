@@ -60,6 +60,8 @@ export interface HudView {
   say?: { key: string; text: string };
   /** Scene-change card (iris wipe + big title) while `key` is the same. */
   cut?: { key: string; title: string };
+  /** Big on-screen toggle keys (e.g. + / −); the stage maps an id to an action with `toggleAction`. */
+  toggles?: { id: string; label: string; on: boolean }[];
   /** Step guide: 0 find, 1 think, 2 pick; `found`/`need` for the find step. */
   steps?: { at: 0 | 1 | 2; found: number; need: number };
 }
@@ -82,6 +84,8 @@ export interface StageModule<S extends { phase: string; core: RoundCore }, A> {
   /** Ids picked so far, in order (their numbers fly into the goal's ? boxes). */
   picks?(state: S): readonly number[];
   pickValue?(state: S, id: number): number | undefined;
+  /** The action for a HUD toggle key. */
+  toggleAction?(id: string): A;
   /** Dispatched by the HUD's big `primary` key. */
   primaryAction?: A;
 }

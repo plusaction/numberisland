@@ -1,6 +1,6 @@
 /**
  * ⑦ 숫자 카드 배틀 diorama: a glowing toy arena. The child's three holo cards stand at the front, the
- * monster's face down at the back, the target floats on a holo plate above the monster.
+ * monster's face down at the back; the target stays in the HUD goal line (🎯).
  * - Deal: cards fly in spinning from the deck and fan out.
  * - Pick: chosen cards float up and sway; the + / − chips light up.
  * - Reveal: both pairs fly to the middle, the monster's flip over, each pair's result pops above it, then a
@@ -16,23 +16,16 @@ import { toyMaterial } from '../../engine/tsl/materials';
 import type { RenderWorld } from '../../engine/world';
 import { audio } from '../../infra/audio/audio';
 import type { PointerInfo } from '../../scenes/common/controller';
-import { baseDiorama, disposeTree, hitCylinder, hitId, hitSphere, stageCamera } from '../_shared/diorama';
+import { baseDiorama, disposeTree, hitId, hitSphere, stageCamera } from '../_shared/diorama';
 import { celebrate } from '../_shared/fx';
 import type { StageCtx, StageScene } from '../_shared/module';
-import { type Bot, botModel, type Card, card, gem, holoMaterial, opChip } from './cards3d';
-import {
-  type CardAction,
-  type CardState,
-  DEAL_TICKS,
-  HAND,
-  OP_MINUS,
-  OP_PLUS,
-  REVEAL_TICKS,
-  WINS_NEEDED,
-} from './rules';
+import { type Bot, botModel, type Card, card, gem, holoMaterial } from './cards3d';
+import { type CardAction, type CardState, DEAL_TICKS, HAND, REVEAL_TICKS, WINS_NEEDED } from './rules';
 
 const HAND_X = [-1.65, 0, 1.65];
-const BOT_X = [-1.25, 0, 1.25];
+const BOT_X = [-1.05, 0, 1.05];
+/** The monster's cards sit small at the back (face down) so they never overlap it or each other. */
+const BOT_SCALE = 0.6;
 const TINTS = ['#bfe6ff', '#ffd6e8', '#fff1b8'];
 const ease = (x: number) => {
   const k = Math.min(1, Math.max(0, x));
@@ -67,27 +60,6 @@ export function createCardScene(world: RenderWorld, ctx: StageCtx): StageScene<C
   neonB.rotation.x = Math.PI / 2;
   neonB.position.set(0, 0.26, 0.6);
   root.add(table, neonA, neonB);
-
-  // target plate floating over the monster
-  const plate = new Mesh(roundedBox(2.2, 1.3, 0.1, 0.25), holoMaterial('#ffffff', 0.6));
-  plate.position.set(-2.7, 2.5, -3.1);
-  const targetLabel = new NumberLabel(0, { size: 1.0, placeColors: true });
-  targetLabel.position.set(-2.7, 2.5, -2.95);
-  const flagTop = new NumberLabel('★', { size: 0.45, tint: '#f2b632' });
-  flagTop.position.set(-2.7, 3.3, -3.0);
-  root.add(plate, targetLabel, flagTop);
-
-  // op chips (right side, in reach)
-  const plus = opChip('+');
-  plus.group.position.set(3.55, 0.3, 2.55);
-  const minus = opChip('-');
-  minus.group.position.set(3.55, 0.3, 1.3);
-  const plusProxy = hitCylinder(0.7, 1.4, OP_PLUS);
-  plusProxy.position.set(3.55, 0.7, 2.55);
-  const minusProxy = hitCylinder(0.7, 1.4, OP_MINUS);
-  minusProxy.position.set(3.55, 0.7, 1.3);
-  root.add(plus.group, minus.group, plusProxy, minusProxy);
-  const chipSpring = { '+': new Spring(0, 220, 12), '-': new Spring(0, 220, 12) };
 
   // score gems: the child's (left, front), the monster's (right, back)
   const gems: Mesh[] = [];
@@ -160,7 +132,6 @@ export function createCardScene(world: RenderWorld, ctx: StageCtx): StageScene<C
       bot.group.position.set(0, 0.25, -3.9);
       root.add(bot.group);
     }
-    targetLabel.set(d.target);
     d.hand.forEach((v, i) => {
       const c = card(TINTS[i % TINTS.length] as string, v);
       root.add(c.group);
@@ -199,10 +170,7 @@ export function createCardScene(world: RenderWorld, ctx: StageCtx): StageScene<C
         audio.play(state.picked.length > prev.picked.length ? 'ui.tap' : 'ui.back', { pitch: 1.1 });
         for (const id of state.picked) if (!prev.picked.includes(id)) mine[id]?.spring.impulse(6);
       }
-      if (prev && state.op !== prev.op) {
-        audio.play('pop', { pitch: state.op === '+' ? 1.2 : 0.9 });
-        chipSpring[state.op].impulse(8);
-      }
+      if (prev && state.op !== prev.op) audio.play('pop', { pitch: state.op === '+' ? 1.2 : 0.9 });
       const reveal = state.phase === 'reveal' ? 1 - state.phaseLeft / REVEAL_TICKS : -1;
       if (prev && prev.phase !== 'reveal' && state.phase === 'reveal') {
         audio.play('whoosh');
@@ -267,18 +235,21 @@ export function createCardScene(world: RenderWorld, ctx: StageCtx): StageScene<C
         const delay = 0.3 + i * 0.12;
         const k = ease((dealK - delay) / 0.5);
         const idx = d.bot.cards.indexOf(i);
-        tmp.set(BOT_X[i] as number, 1.2, -1.5);
+        tmp.set(BOT_X[i] as number, 0.85, -1.9);
         let flip = 0;
+        let grow = 0;
         if (reveal >= 0) {
           const m = ease(reveal / 0.25);
           if (idx >= 0) {
             tmp.lerp(tmp2.set(1.45 + idx * 1.45, 1.55, 0.55), m);
             flip = ease((reveal - 0.12) / 0.2);
+            grow = m;
           } else tmp.y -= m * 1.6;
         }
         tmp2.set(-4.5, 0.6, -3.6);
         g.position.lerpVectors(tmp2, tmp, k);
         g.rotation.set(-0.28, Math.PI * (1 - flip) + (1 - k) * Math.PI * 2, 0);
+        g.scale.setScalar(BOT_SCALE + (1 - BOT_SCALE) * grow);
       });
       // results pop over each pair
       const showResults = reveal >= 0.3;
@@ -315,21 +286,6 @@ export function createCardScene(world: RenderWorld, ctx: StageCtx): StageScene<C
         gapBot.scale.x = Math.max(0.001, gb);
         gapBot.position.x = (xb + X(d.target)) / 2;
       }
-      // the op chips
-      for (const sign of ['+', '-'] as const) {
-        const chip = sign === '+' ? plus : minus;
-        const on = state.op === sign;
-        const s =
-          (1 + chipSpring[sign].update(vdt) * 0.05) *
-          (on ? 1.15 : 0.9) *
-          (cursorId === (sign === '+' ? OP_PLUS : OP_MINUS) ? 1.1 : 1);
-        chip.group.scale.setScalar(s);
-        chip.group.position.y = 0.3 + (on ? 0.18 + (ctx.reducedMotion ? 0 : Math.sin(t * 3) * 0.04) : 0);
-        chip.base.material = toyMaterial(
-          on ? (sign === '+' ? PALETTE.sea : PALETTE.berry) : '#9c97b3',
-          on ? { rimStrength: 0.7 } : {},
-        );
-      }
       // the monster: thinks while you choose, dances or flops after
       if (bot) {
         const b = botSpring.update(vdt);
@@ -346,8 +302,6 @@ export function createCardScene(world: RenderWorld, ctx: StageCtx): StageScene<C
       // neon breathing + perfect ring
       const breathe = ctx.reducedMotion ? 1 : 1 + Math.sin(t * 1.6) * 0.04;
       neonA.scale.set(breathe, breathe, 1);
-      plate.rotation.y = ctx.reducedMotion ? 0 : Math.sin(t * 0.7) * 0.12;
-      targetLabel.scale.setScalar(state.phase === 'deal' ? pop(dealK / 0.4) : 1);
       if (ringT >= 0) {
         ringT += dt;
         const k = Math.min(1, ringT / 1.2);
@@ -362,14 +316,11 @@ export function createCardScene(world: RenderWorld, ctx: StageCtx): StageScene<C
     },
     pointer(p: PointerInfo, state, emit) {
       if (p.type !== 'down' || state.phase !== 'play') return;
-      const id = hitId([...proxies, plusProxy, minusProxy], p.raycaster);
-      if (id === null) return;
-      if (id === OP_PLUS) emit({ t: 'op', op: '+' });
-      else if (id === OP_MINUS) emit({ t: 'op', op: '-' });
-      else if (id < HAND) emit({ t: 'card', id });
+      const id = hitId(proxies, p.raycaster);
+      if (id !== null && id < HAND) emit({ t: 'card', id });
     },
     screenPos(_s, id) {
-      const obj = id === OP_PLUS ? plusProxy : id === OP_MINUS ? minusProxy : proxies[id];
+      const obj = proxies[id];
       if (!obj) return null;
       const v = obj.getWorldPosition(tmp).project(world.camera);
       return { x: v.x, y: v.y };
