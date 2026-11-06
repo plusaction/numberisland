@@ -242,6 +242,17 @@ export const ko = {
     rescued: '친구를 구했어!',
     fireworks: '6 + 7 = 13 펑!',
   },
+  cards: {
+    bots: { chick: '🐣 말랑 병아리', octopus: '🐙 젤리 문어', robot: '🤖 반짝 로봇' },
+    versus: '나 VS {bot}',
+    intro: '{bot}랑 카드 배틀! {t}에 가깝게 만들어 봐!',
+    next: '이번엔 {t}! 두 장을 골라 봐.',
+    play: '내기!',
+    perfect: '딱 {t}! 퍼펙트!',
+    win: '{r}은 {dr} 차이, {b}는 {db} 차이. 내가 더 가까워!',
+    lose: '{r}은 {dr} 차이, {b}는 {db} 차이. 다음엔 딱 {t}를 찾아 봐!',
+    tie: '둘 다 {dr} 차이! 비겼어.',
+  },
   escape: {
     rooms: {
       kitchen: '🍳 주방',

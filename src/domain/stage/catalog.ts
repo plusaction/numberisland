@@ -9,6 +9,6 @@ export const STAGE_SKILLS: Record<StageId, readonly SkillId[]> = {
   slime: ['ADD_NOCARRY', 'ADD_CARRY', 'SUB_NOBORROW', 'COMPOSE_10'],
   escape: ['MISSING_TERM', 'ADD_CARRY', 'THREE_TERM'],
   pizza: ['ADD_CARRY', 'SUB_BORROW', 'RELATION'],
-  cardbattle: ['ESTIMATE_CLOSE', 'COMPARE_EXPR', 'SUB_BORROW'],
+  cardbattle: ['ADD_CARRY', 'SUB_NOBORROW', 'COMPARE_EXPR'],
   race: ['ADD_CARRY', 'SUB_BORROW', 'SKIP_COUNT'],
 };

@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { CURRICULUM } from '../../src/domain/curriculum/curriculum';
 import { bombModule } from '../../src/stages/bomb/index';
+import { cardModule } from '../../src/stages/cardbattle/index';
 import { escapeModule } from '../../src/stages/escape/index';
 import { fishingModule } from '../../src/stages/fishing/index';
 import { slimeModule } from '../../src/stages/slime/index';
@@ -11,6 +12,7 @@ const MODULES = [
   ['bomb', bombModule],
   ['slime', slimeModule],
   ['escape', escapeModule],
+  ['cardbattle', cardModule],
 ] as const;
 
 for (const [name, mod] of MODULES) {

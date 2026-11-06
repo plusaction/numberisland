@@ -23,6 +23,8 @@ export const BALANCE = {
   round: { puzzles: 8 },
   /** Rooms per escape round (the last one is the treasure room with the two-step boss lock). */
   escape: { rooms: 4 },
+  /** Card battle: at most 5 duels (first to 3 wins), +1 coin for an exact PERFECT. */
+  cards: { rounds: 5, perfectBonus: 1 },
   /** Steps of the bomb squad's "쉽게" ladder (one-digit + one-digit … three one-digit numbers). */
   bombEasySteps: 5,
   rest: { defaultMinutes: 15, durationSec: 20 },

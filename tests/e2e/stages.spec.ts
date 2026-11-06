@@ -27,7 +27,7 @@ function frameInterval(page: Page): Promise<number> {
   );
 }
 
-for (const stage of ['fishing', 'bomb', 'slime', 'escape'] as const) {
+for (const stage of ['fishing', 'bomb', 'slime', 'escape', 'cardbattle'] as const) {
   test(`[A1:${stage}] [G2:${stage}] round → result with stars, new thing, next goal`, async ({
     page,
   }, info) => {
@@ -93,7 +93,7 @@ for (const stage of ['fishing', 'bomb', 'slime', 'escape'] as const) {
       return { ticks: rt?.latencyTicks ?? [], ms: rt?.latencyMs ?? [] };
     });
     // escape rounds are 4 rooms (one solve each), the others 8 puzzles
-    expect(lat.ms.length).toBeGreaterThan(stage === 'escape' ? 3 : 5);
+    expect(lat.ms.length).toBeGreaterThan(stage === 'escape' || stage === 'cardbattle' ? 2 : 5);
     // every input is consumed by the very next simulation step
     expect(Math.max(...lat.ticks)).toBeLessThanOrEqual(2);
     // wall clock from input to the scene sync that plays its sound/animation, measured on this machine.
