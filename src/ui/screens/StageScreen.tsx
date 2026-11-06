@@ -36,6 +36,28 @@ export function StageScreen({ store, reducedMotion }: { store: GameStore; reduce
   const [tutorial, setTutorial] = useState(false);
   const rtRef = useRef<StageRuntime<unknown, unknown> | null>(null);
   const praiseHistory = useRef<string[]>([]);
+  const togglesRef = useRef<HTMLDivElement | null>(null);
+  const anchor = mod?.toggleAnchor;
+
+  // toggle keys that belong to a 3D spot (card battle: under the hand) follow it on screen
+  useEffect(() => {
+    if (anchor === undefined) return;
+    const place = () => {
+      const el = togglesRef.current;
+      const p = rtRef.current?.screenPos(anchor);
+      const box = el?.offsetParent?.getBoundingClientRect();
+      if (!el || !p || !box) return;
+      el.style.setProperty('--ax', `${((p.x + 1) / 2) * window.innerWidth - box.left}px`);
+      el.style.setProperty('--ay', `${((1 - p.y) / 2) * window.innerHeight - box.top}px`);
+    };
+    place();
+    const timer = window.setInterval(place, 250);
+    window.addEventListener('resize', place);
+    return () => {
+      window.clearInterval(timer);
+      window.removeEventListener('resize', place);
+    };
+  }, [anchor]);
 
   useEffect(() => {
     let alive = true;
@@ -188,6 +210,24 @@ export function StageScreen({ store, reducedMotion }: { store: GameStore; reduce
     if (!hintOpen || core.puzzleHints === 0) rtRef.current?.dispatch(mod.hintAction);
     setHintOpen(true);
   };
+  const anchored = anchor !== undefined;
+  const primaryKey = hud.primary && mod.primaryAction && (
+    <Button
+      tone="sea"
+      className={`hud-primary${hud.primary.off ? ' primary-off' : ''}`}
+      onClick={() => rtRef.current?.dispatch(mod.primaryAction)}
+      disabled={hud.primary.off === true}
+      data-testid="primary"
+      aria-keyshortcuts="Space"
+    >
+      {hud.primary.label}
+      <span className="primary-dots" aria-hidden="true">
+        {['a', 'b', 'c', 'd', 'e'].slice(0, hud.primary.left).map((k) => (
+          <span key={k} />
+        ))}
+      </span>
+    </Button>
+  );
   return (
     <div
       className="stage-hud"
@@ -225,7 +265,7 @@ export function StageScreen({ store, reducedMotion }: { store: GameStore; reduce
       </section>
       {hud.say && !tutorial && <SayBubble say={hud.say} voice={voice} />}
       {hud.toggles && mod.toggleAction && (
-        <div className="hud-toggles" data-testid="toggles">
+        <div ref={togglesRef} className={`hud-toggles${anchored ? ' anchored' : ''}`} data-testid="toggles">
           {hud.toggles.map((tg) => (
             <button
               key={tg.id}
@@ -238,6 +278,7 @@ export function StageScreen({ store, reducedMotion }: { store: GameStore; reduce
               {tg.label}
             </button>
           ))}
+          {anchored && primaryKey}
         </div>
       )}
       {hud.cut && <RoomCut cut={hud.cut} />}
@@ -257,22 +298,7 @@ export function StageScreen({ store, reducedMotion }: { store: GameStore; reduce
         )}
       </div>
 
-      {hud.primary && mod.primaryAction && (
-        <Button
-          tone="sea"
-          className="hud-primary"
-          onClick={() => rtRef.current?.dispatch(mod.primaryAction)}
-          data-testid="primary"
-          aria-keyshortcuts="Space"
-        >
-          {hud.primary.label}
-          <span className="primary-dots" aria-hidden="true">
-            {['a', 'b', 'c', 'd', 'e'].slice(0, hud.primary.left).map((k) => (
-              <span key={k} />
-            ))}
-          </span>
-        </Button>
-      )}
+      {!(anchored && hud.toggles) && primaryKey}
       {hud.stuck && (
         <p className="toast" data-testid="stuck">
           {ko.stageHud.stuck}

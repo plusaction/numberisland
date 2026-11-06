@@ -23,6 +23,8 @@ import { type Bot, botModel, type Card, card, gem, holoMaterial } from './cards3
 import { type CardAction, type CardState, DEAL_TICKS, HAND, REVEAL_TICKS, WINS_NEEDED } from './rules';
 
 const HAND_X = [-1.65, 0, 1.65];
+/** `screenPos` id of the point under the hand (the HUD's + / − row). */
+export const TOGGLE_ANCHOR = 20;
 const BOT_X = [-1.05, 0, 1.05];
 /** The monster's cards sit small at the back (face down) so they never overlap it or each other. */
 const BOT_SCALE = 0.6;
@@ -320,6 +322,11 @@ export function createCardScene(world: RenderWorld, ctx: StageCtx): StageScene<C
       if (id !== null && id < HAND) emit({ t: 'card', id });
     },
     screenPos(_s, id) {
+      // just below the middle card of the hand: where the + / − keys sit
+      if (id === TOGGLE_ANCHOR) {
+        const v = tmp.set(0, 0.05, 2.65).project(world.camera);
+        return { x: v.x, y: v.y };
+      }
       const obj = proxies[id];
       if (!obj) return null;
       const v = obj.getWorldPosition(tmp).project(world.camera);

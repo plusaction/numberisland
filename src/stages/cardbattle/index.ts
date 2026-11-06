@@ -10,7 +10,7 @@ import {
   initCards,
   solveCards,
 } from './rules';
-import { createCardScene } from './scene';
+import { createCardScene, TOGGLE_ANCHOR } from './scene';
 
 const fill = (t: string, v: Record<string, string | number>) =>
   t.replace(/\{(\w+)\}/g, (_, k: string) => String(v[k] ?? ''));
@@ -79,7 +79,10 @@ export const cardModule: StageModule<CardState, CardAction> = {
       ...(s.phase === 'deal' && s.core.index === 0
         ? { cut: { key: 'versus', title: fill(ko.cards.versus, { bot: ko.cards.bots[s.bot] }) } }
         : {}),
-      ...(s.phase === 'play' && s.picked.length === 2 ? { primary: { label: ko.cards.play, left: 0 } } : {}),
+      // "내기!" sits in the row under the cards; dim until two cards are picked
+      ...(s.phase === 'play' || s.phase === 'deal'
+        ? { primary: { label: ko.cards.play, left: 0, off: s.phase !== 'play' || s.picked.length < 2 } }
+        : {}),
       ...(s.phase === 'play' || s.phase === 'deal'
         ? {
             toggles: [
@@ -102,5 +105,6 @@ export const cardModule: StageModule<CardState, CardAction> = {
   hintAction: { t: 'hint' },
   retryAction: { t: 'retry' },
   primaryAction: { t: 'play' },
+  toggleAnchor: TOGGLE_ANCHOR,
   toggleAction: (id) => ({ t: 'op', op: id === '-' ? '-' : '+' }),
 };

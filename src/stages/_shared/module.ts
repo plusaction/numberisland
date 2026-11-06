@@ -55,7 +55,7 @@ export interface HudView {
   target?: number;
   pairOp?: '+' | '-';
   /** A big one-tap key the child should press now (e.g. "감아요!"), with dots for the presses left. */
-  primary?: { label: string; left: number };
+  primary?: { label: string; left: number; off?: boolean };
   /** The friend says this (speech bubble + read-aloud); spoken again only when `key` changes. */
   say?: { key: string; text: string };
   /** Scene-change card (iris wipe + big title) while `key` is the same. */
@@ -88,4 +88,9 @@ export interface StageModule<S extends { phase: string; core: RoundCore }, A> {
   toggleAction?(id: string): A;
   /** Dispatched by the HUD's big `primary` key. */
   primaryAction?: A;
+  /**
+   * A scene point (a `screenPos` id) the toggle keys sit under — e.g. just below the child's cards. The
+   * primary key then joins the same row; without it the toggles stay in the bottom-left corner.
+   */
+  toggleAnchor?: number;
 }
