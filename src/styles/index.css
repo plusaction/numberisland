@@ -447,8 +447,76 @@
     font-size: 2.6rem;
     line-height: 1;
   }
-  .toggle-key:not(.toggle-on) {
-    opacity: 0.75;
+  /* both keys stay blue; a press flashes sunny yellow and pops a star burst */
+  .toggle-key {
+    position: relative;
+    overflow: visible;
+  }
+  .toggle-pop {
+    z-index: 2;
+    animation: toggle-flash 0.45s ease-out;
+  }
+  @keyframes toggle-flash {
+    0% {
+      background: var(--color-sun, #ffc93c);
+      scale: 0.88;
+    }
+    45% {
+      background: var(--color-sun, #ffc93c);
+      scale: 1.12;
+    }
+    100% {
+      scale: 1;
+    }
+  }
+  .toggle-burst {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    width: 0.7rem;
+    height: 0.7rem;
+    margin: -0.35rem 0 0 -0.35rem;
+    border-radius: 50%;
+    pointer-events: none;
+    color: #fff;
+    box-shadow:
+      0 -2.6rem 0 currentColor,
+      1.85rem -1.85rem 0 #ff6f91,
+      2.6rem 0 0 currentColor,
+      1.85rem 1.85rem 0 #2fb4cc,
+      0 2.6rem 0 currentColor,
+      -1.85rem 1.85rem 0 #ff6f91,
+      -2.6rem 0 0 currentColor,
+      -1.85rem -1.85rem 0 #2fb4cc;
+    animation: toggle-burst 0.45s ease-out forwards;
+  }
+  .toggle-burst::after {
+    content: "";
+    position: absolute;
+    inset: -2.2rem;
+    border: 0.3rem solid #fff;
+    border-radius: 50%;
+    animation: toggle-ring 0.45s ease-out forwards;
+  }
+  @keyframes toggle-burst {
+    0% {
+      scale: 0.8;
+      opacity: 1;
+    }
+    100% {
+      scale: 1.7;
+      opacity: 0;
+    }
+  }
+  @keyframes toggle-ring {
+    0% {
+      scale: 0.7;
+      opacity: 1;
+    }
+    100% {
+      scale: 1.6;
+      opacity: 0;
+    }
   }
   /* step guide under the goal: find → think → pick (current lit, done ✓) */
   .step-guide {

@@ -37,6 +37,13 @@ export function StageScreen({ store, reducedMotion }: { store: GameStore; reduce
   const rtRef = useRef<StageRuntime<unknown, unknown> | null>(null);
   const praiseHistory = useRef<string[]>([]);
   const togglesRef = useRef<HTMLDivElement | null>(null);
+  /** The toggle key just pressed (flash + burst); `n` restarts the burst on every press. */
+  const [pop, setPop] = useState<{ id: string; n: number } | null>(null);
+  useEffect(() => {
+    if (!pop) return;
+    const t = window.setTimeout(() => setPop(null), 450);
+    return () => window.clearTimeout(t);
+  }, [pop]);
   const anchor = mod?.toggleAnchor;
 
   // toggle keys that belong to a 3D spot (card battle: under the hand) follow it on screen
@@ -272,10 +279,14 @@ export function StageScreen({ store, reducedMotion }: { store: GameStore; reduce
               type="button"
               aria-pressed={tg.on}
               data-testid={`toggle-${tg.id}`}
-              className={`toy-btn toggle-key ${tg.on ? 'key-sea toggle-on' : 'key-ghost'}`}
-              onClick={() => mod.toggleAction && rtRef.current?.dispatch(mod.toggleAction(tg.id))}
+              className={`toy-btn toggle-key key-sea${pop?.id === tg.id ? ' toggle-pop' : ''}`}
+              onClick={() => {
+                if (mod.toggleAction) rtRef.current?.dispatch(mod.toggleAction(tg.id));
+                setPop((p) => ({ id: tg.id, n: (p?.n ?? 0) + 1 }));
+              }}
             >
               {tg.label}
+              {pop?.id === tg.id && <span key={pop.n} className="toggle-burst" aria-hidden="true" />}
             </button>
           ))}
           {anchored && primaryKey}
