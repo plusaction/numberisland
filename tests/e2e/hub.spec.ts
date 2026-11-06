@@ -19,7 +19,7 @@ test('[G7] hub: 8 portals selectable by keyboard, info card + medals, intro and 
   await expect(page.getByTestId('next-reward')).toBeVisible();
   // a not-yet-built stage says so instead of trapping the child
   await page
-    .getByRole('button', { name: '숫자 카드 배틀' })
+    .getByRole('button', { name: '좀비 숫자 막기' })
     .evaluate((el) => (el as HTMLButtonElement).click());
   await expect(page.getByTestId('soon')).toBeVisible();
   // fishing → intro → back to the island (P10)
