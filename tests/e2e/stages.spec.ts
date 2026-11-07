@@ -27,7 +27,7 @@ function frameInterval(page: Page): Promise<number> {
   );
 }
 
-for (const stage of ['fishing', 'bomb', 'slime', 'escape', 'cardbattle'] as const) {
+for (const stage of ['fishing', 'bomb', 'slime', 'escape', 'cardbattle', 'pizza'] as const) {
   test(`[A1:${stage}] [G2:${stage}] round → result with stars, new thing, next goal`, async ({
     page,
   }, info) => {
@@ -62,15 +62,18 @@ for (const stage of ['fishing', 'bomb', 'slime', 'escape', 'cardbattle'] as cons
       // by the rules and would only time a CPU-rendered transition frame in the latency sample
       // escape: also wait one more look after a room-entry cut (its last frames are heavy CPU-rendered
       // frames here; a child would not tap in that instant either)
-      await page.evaluate((settle) => {
-        const g = globalThis as {
-          __stage?: { solveOne(): void; runtime: { state: { phase: string } } };
-          __wasReady?: boolean;
-        };
-        const ready = !!g.__stage && ['play', 'hook'].includes(g.__stage.runtime.state.phase);
-        if (ready && (!settle || g.__wasReady)) g.__stage?.solveOne();
-        g.__wasReady = ready;
-      }, stage === 'escape');
+      await page.evaluate(
+        (settle) => {
+          const g = globalThis as {
+            __stage?: { solveOne(): void; runtime: { state: { phase: string } } };
+            __wasReady?: boolean;
+          };
+          const ready = !!g.__stage && ['play', 'hook'].includes(g.__stage.runtime.state.phase);
+          if (ready && (!settle || g.__wasReady)) g.__stage?.solveOne();
+          g.__wasReady = ready;
+        },
+        stage === 'escape' || stage === 'pizza',
+      );
       await page.waitForTimeout(900);
       // fishing: wind one hooked fish with the real "감아요!" key, like a child (the solver winds the rest;
       // checking every loop would skew the latency sample below, which times the solver's dispatches)
@@ -93,7 +96,9 @@ for (const stage of ['fishing', 'bomb', 'slime', 'escape', 'cardbattle'] as cons
       return { ticks: rt?.latencyTicks ?? [], ms: rt?.latencyMs ?? [] };
     });
     // escape rounds are 4 rooms (one solve each), the others 8 puzzles
-    expect(lat.ms.length).toBeGreaterThan(stage === 'escape' || stage === 'cardbattle' ? 2 : 5);
+    expect(lat.ms.length).toBeGreaterThan(
+      stage === 'escape' || stage === 'cardbattle' || stage === 'pizza' ? 2 : 5,
+    );
     // every input is consumed by the very next simulation step
     expect(Math.max(...lat.ticks)).toBeLessThanOrEqual(2);
     // wall clock from input to the scene sync that plays its sound/animation, measured on this machine.

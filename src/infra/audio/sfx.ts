@@ -38,7 +38,12 @@ export type SfxId =
   | 'levelup'
   | 'whoosh'
   | 'fuse'
-  | 'boom';
+  | 'boom'
+  | 'pizza.toss'
+  | 'pizza.ding'
+  | 'pizza.box'
+  | 'pizza.five'
+  | 'pizza.puff';
 
 const C5 = 523.25;
 const E5 = 659.25;
@@ -138,6 +143,31 @@ export const SFX: Record<SfxId, Note[]> = {
   ],
   whoosh: [{ at: 0, freq: 1500, dur: 0.3, wave: 'sine', gain: 0.12, noise: true }],
   fuse: [{ at: 0, freq: 4000, dur: 0.4, wave: 'sine', gain: 0.04, noise: true }],
+  // dough flung up: an airy rising swish
+  'pizza.toss': [
+    { at: 0, freq: 900, dur: 0.22, wave: 'sine', gain: 0.1, noise: true },
+    { at: 0, freq: 260, to: 620, dur: 0.22, wave: 'triangle', gain: 0.14 },
+  ],
+  // oven timer bell: two bright bell partials
+  'pizza.ding': [
+    { at: 0, freq: 1568, dur: 0.6, wave: 'sine', gain: 0.22 },
+    { at: 0, freq: 3136, dur: 0.35, wave: 'sine', gain: 0.07 },
+  ],
+  // the box lid shuts: a soft cardboard thump
+  'pizza.box': [
+    { at: 0, freq: 160, to: 70, dur: 0.14, wave: 'sine', gain: 0.35 },
+    { at: 0, freq: 600, dur: 0.06, wave: 'sine', gain: 0.1, noise: true },
+  ],
+  // high-five: a crisp clap + a happy up-chirp
+  'pizza.five': [
+    { at: 0, freq: 2000, dur: 0.08, wave: 'sine', gain: 0.3, noise: true },
+    { at: 0.06, freq: E5, to: C6, dur: 0.18, wave: 'triangle', gain: 0.18 },
+  ],
+  // the oven coughs a puff of smoke: a low wobbly pfff
+  'pizza.puff': [
+    { at: 0, freq: 220, dur: 0.4, wave: 'sine', gain: 0.18, noise: true },
+    { at: 0.05, freq: 140, to: 90, dur: 0.35, wave: 'square', gain: 0.06 },
+  ],
 };
 
 /** Peak estimate (sum of simultaneous note gains) — used by tests to guarantee no clipping. */

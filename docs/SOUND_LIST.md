@@ -26,6 +26,11 @@
 | wrong.duck / wrong.boing / wrong.pfft | 웃긴 실패음(고무오리·뿅·뿡) | ✅ |
 | slime.squish / slime.grab | 슬라임 합체 철퍽·뽀글, 집을 때 쫀득한 소리 | ✅ |
 | boom | 폭탄 만화 폭발(부드러운 쿵 + 펑 + 미끄러지는 웃음소리) | ✅ |
+| pizza.toss | ⑥ 반죽 휙 던지기(바람 + 오르는 소리) | ✅ |
+| pizza.ding | ⑥ 오븐 종 띵 | ✅ |
+| pizza.box | ⑥ 피자 상자 닫힘 퉁 | ✅ |
+| pizza.five | ⑥ 하이파이브 짝 + 신나는 소리 | ✅ |
+| pizza.puff | ⑥ 오답: 오븐이 연기를 뿡 | ✅ |
 | coin / star | 보상 | ✅ |
 | splash / reel | ③ 시그니처: 물방울·줄 감기 | ✅ |
 | reel.crank | ③ 릴 손잡이 한 바퀴: 점점 느려지는 래칫 딸깍 + 낮은 윙 소리 | ✅ |

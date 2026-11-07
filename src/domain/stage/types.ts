@@ -37,7 +37,7 @@ export const STAGE_PLAYERS: Record<StageId, 1 | 2 | 'both'> = {
   race: 'both',
 };
 /** Implemented stages (others show "준비 중" in the hub). */
-export const PLAYABLE: readonly StageId[] = ['fishing', 'bomb', 'slime', 'escape', 'cardbattle'];
+export const PLAYABLE: readonly StageId[] = ['fishing', 'bomb', 'slime', 'escape', 'cardbattle', 'pizza'];
 
 /** One simulation tick of semantic input (already resolved from pointer/keys/pad by the scene). */
 export interface InputFrame<A> {

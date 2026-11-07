@@ -25,6 +25,8 @@ export const BALANCE = {
   escape: { rooms: 4 },
   /** Card battle: at most 5 duels (first to 3 wins), +1 coin for an exact PERFECT. */
   cards: { rounds: 5, perfectBonus: 1 },
+  /** Pizza shop: orders per round (roles swap each order), +1 tip coin from the VIP (always order 3). */
+  pizza: { orders: 5, vipBonus: 1 },
   /** Steps of the bomb squad's "쉽게" ladder (one-digit + one-digit … three one-digit numbers). */
   bombEasySteps: 5,
   rest: { defaultMinutes: 15, durationSec: 20 },

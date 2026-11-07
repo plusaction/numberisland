@@ -11,5 +11,6 @@ export const STAGE_LOADERS: Partial<Record<StageId, () => Promise<AnyStageModule
   bomb: () => import('./bomb/index').then((m) => m.bombModule as AnyStageModule),
   slime: () => import('./slime/index').then((m) => m.slimeModule as AnyStageModule),
   escape: () => import('./escape/index').then((m) => m.escapeModule as AnyStageModule),
+  pizza: () => import('./pizza/index').then((m) => m.pizzaModule as AnyStageModule),
   cardbattle: () => import('./cardbattle/index').then((m) => m.cardModule as AnyStageModule),
 };

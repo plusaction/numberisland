@@ -36,6 +36,12 @@
     "gzip": true
   },
   {
+    "name": "stage pizza (gzip)",
+    "path": "dist/assets/pizza-*.js",
+    "limit": "14 kB",
+    "gzip": true
+  },
+  {
     "name": "stage cardbattle (gzip)",
     "path": "dist/assets/cardbattle-*.js",
     "limit": "14 kB",
