@@ -79,6 +79,8 @@ export const pizzaModule: StageModule<PizzaState, PizzaAction> = {
   glowTarget: (s) => (s.order ? KEY(s.order.options.indexOf(s.order.answer)) : null),
   // also during the walk-in, so the first-order tutorial hand can show the way (input still waits)
   solution: (s) => (s.phase === 'play' || s.phase === 'enter' ? solvePizza(s) : []),
+  // the counter in the middle shows the numbers: praise pops up under the goal instead
+  praiseSpot: 'top',
   hintAction: { t: 'hint' },
   retryAction: { t: 'retry' },
 };

@@ -797,8 +797,13 @@
   .toast {
     position: absolute;
     top: 40%;
-    left: 50%;
-    transform: translateX(-50%);
+    /* centred without transform: the pop-in animation owns transform (scale) */
+    left: 0;
+    right: 0;
+    margin-inline: auto;
+    width: fit-content;
+    max-width: calc(100vw - 2rem);
+    white-space: nowrap;
     background: var(--color-milk);
     border-radius: var(--radius-panel);
     padding: 0.5rem 1.6rem;
@@ -808,6 +813,9 @@
     box-shadow:
       0 6px 0 color-mix(in oklab, var(--color-ink) 16%, var(--color-milk)),
       0 16px 24px -10px color-mix(in oklab, var(--color-ink) 50%, transparent);
+  }
+  .toast.toast-top {
+    top: 12rem;
   }
   .toast-good {
     background: var(--color-sun);
@@ -939,6 +947,10 @@
     }
     .gt-op {
       font-size: 2rem;
+    }
+    .toast.toast-top {
+      top: 10.6rem;
+      font-size: 1.8rem;
     }
     .hud-toggles .toggle-key {
       min-width: 4rem;

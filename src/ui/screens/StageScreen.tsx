@@ -319,7 +319,7 @@ export function StageScreen({ store, reducedMotion }: { store: GameStore; reduce
         {praise && (
           <motion.p
             key={praise}
-            className="toast toast-good"
+            className={`toast toast-good${mod.praiseSpot === 'top' ? ' toast-top' : ''}`}
             data-testid="praise"
             initial={{ scale: 0.6, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
