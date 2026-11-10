@@ -49,7 +49,7 @@ import {
 const SEG = 9;
 const STEP = 1.2;
 const PLANKS = 64;
-const LANE = 2.3;
+const LANE = 2.9;
 const BASE_Y = 0.5;
 const FOV = 50;
 const CAM = new Vector3(0, 4.6, 8.4);

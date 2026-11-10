@@ -93,6 +93,7 @@ export const raceModule: StageModule<RaceState, RaceAction> = {
   hintAction: { t: 'hint' },
   retryAction: { t: 'retry' },
   crossAction: (value) => ({ t: 'pick', value }),
+  realtime: true,
   // the track fills the middle: praise pops up under the goal
   praiseSpot: 'top',
 };

@@ -21,7 +21,16 @@ let restSince = performance.now();
 
 const ORDER: StageId[] = ['bomb', 'zombie', 'fishing', 'slime', 'escape', 'pizza', 'cardbattle', 'race'];
 
-export function HubScreen({ store, reducedMotion }: { store: GameStore; reducedMotion: boolean }) {
+export function HubScreen({
+  store,
+  reducedMotion,
+  quiet = false,
+}: {
+  store: GameStore;
+  reducedMotion: boolean;
+  /** Keep the 3D island alive but hide the hub's own UI and ignore input (the intro card is on top). */
+  quiet?: boolean;
+}) {
   const api = useWorld();
   const profile = useStore(store, (s) => s.profile);
   const selected = useStore(store, (s) => s.selected);
@@ -39,7 +48,7 @@ export function HubScreen({ store, reducedMotion }: { store: GameStore; reducedM
     restDue(performance.now(), restSince, store.getState().profile?.settings.restMinutes ?? 0),
   );
   const sheetRef = useRef(false);
-  sheetRef.current = settingsOpen;
+  sheetRef.current = settingsOpen || quiet;
   useEffect(() => {
     if (!api) return;
     const island = createIsland(api.world, {
@@ -81,6 +90,7 @@ export function HubScreen({ store, reducedMotion }: { store: GameStore; reducedM
   useEffect(() => islandRef.current?.select(selected), [selected]);
 
   if (!profile) return null;
+  if (quiet) return null;
   // e2e hook: prove the error boundary catches a screen crash
   if ((globalThis as { __crashUi?: boolean }).__crashUi) throw new Error('test crash');
   const stat = profile.stageStats[selected];

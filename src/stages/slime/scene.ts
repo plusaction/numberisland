@@ -80,7 +80,8 @@ export function createSlimeScene(world: RenderWorld, ctx: StageCtx): StageScene<
   const root = new Group();
   root.name = 'stage-slime';
   world.scene.add(root);
-  stageCamera(world, 11, 10, 40);
+  // look a little above the tray: the board sits lower on screen, clear of the goal box
+  stageCamera(world, 11, 10, 40, 1.4);
   root.add(baseDiorama(PALETTE.mint, 7.2));
   const tray = new Mesh(roundedBox(11, 0.5, 6.4, 0.4), toyMaterial(PALETTE.lavender));
   tray.position.y = 0.25;

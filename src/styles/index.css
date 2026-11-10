@@ -679,6 +679,14 @@
   .race-fuel-low .race-fuel-fill {
     background: var(--color-berry, #ff6f91);
   }
+  /* the hint panel owns the bottom of the screen while it is open */
+  .hint-open > .hud-bottom,
+  .hint-open > .hud-cross,
+  .hint-open > .say-bubble,
+  .hint-open > .hud-toggles,
+  .hint-open > .hud-primary {
+    visibility: hidden;
+  }
   /* step guide under the goal: find → think → pick (current lit, done ✓) */
   .step-guide {
     display: flex;
@@ -802,7 +810,7 @@
       --iris: 0%;
     }
     100% {
-      --iris: 80%;
+      --iris: 150%; /* past the corners: nothing dark lingers if the cut stays mounted a little longer */
     }
   }
   @keyframes cut-title {

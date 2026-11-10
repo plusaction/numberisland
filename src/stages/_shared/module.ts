@@ -106,6 +106,11 @@ export interface StageModule<S extends { phase: string; core: RoundCore }, A> {
    * (or the shared round core: phase, question, coins, hints …) changes — not on every tick.
    */
   hudKey(state: S): string;
+  /**
+   * The stage runs in real time (race): the simulation waits while the hint panel is open, so reading a
+   * hint never costs the child a place.
+   */
+  realtime?: boolean;
   /** The action for a HUD toggle key. */
   toggleAction?(id: string): A;
   /** The action for an answer of the HUD's `cross`. */

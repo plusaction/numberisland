@@ -210,6 +210,11 @@ export function StageScreen({ store, reducedMotion }: { store: GameStore; reduce
     if (rtRef.current) rtRef.current.locked = false;
   }, [store, selected]);
 
+  // real-time stages hold still while the hint panel is open
+  useEffect(() => {
+    if (rtRef.current) rtRef.current.paused = !!mod?.realtime && hintOpen;
+  }, [mod, hintOpen]);
+
   if (!mod || !hud) return null;
   const q = hud.question;
   const core = hud.core;
@@ -238,7 +243,7 @@ export function StageScreen({ store, reducedMotion }: { store: GameStore; reduce
   );
   return (
     <div
-      className={`stage-hud${hud.cross ? ' has-cross' : ''}`}
+      className={`stage-hud${hud.cross ? ' has-cross' : ''}${hintOpen && core.puzzleHints > 0 ? ' hint-open' : ''}`}
       data-testid="stage"
       data-stage={selected}
       data-puzzle={core.index}

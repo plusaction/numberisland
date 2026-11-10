@@ -68,9 +68,14 @@ function Screens({ app }: { app: AppHandle }) {
         />
       ) : null;
     case 'hub':
-      return <HubScreen store={store} reducedMotion={reduced} />;
     case 'intro':
-      return <IntroScreen store={store} />;
+      // the intro card floats over the living island (same HubScreen instance: the 3D scene stays up)
+      return (
+        <>
+          <HubScreen store={store} reducedMotion={reduced} quiet={screen === 'intro'} />
+          {screen === 'intro' && <IntroScreen store={store} />}
+        </>
+      );
     case 'stage':
       return <StageScreen store={store} reducedMotion={reduced} />;
     case 'result':

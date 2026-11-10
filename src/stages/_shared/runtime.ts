@@ -17,6 +17,8 @@ export interface StageRuntime<S, A> extends SceneController {
   readonly frames: InputFrame<A>[];
   /** Freeze input (tutorial demo). */
   locked: boolean;
+  /** Hold the simulation (real-time stages while a hint is being read); queued actions still go through. */
+  paused: boolean;
   screenPos(targetId: number): { x: number; y: number } | null;
   /** Ticks between an input and the simulation step that consumed it. */
   readonly latencyTicks: number[];
@@ -61,6 +63,7 @@ export function createStageRuntime<S extends { phase: string; core: RoundCore },
     latencyTicks: latency,
     latencyMs,
     locked: false,
+    paused: false,
     dispatch(a) {
       if (rt.locked || finished) return;
       queue.push(a);
@@ -107,6 +110,8 @@ export function createStageRuntime<S extends { phase: string; core: RoundCore },
         if (input.pressed.has('hint')) rt.dispatch(mod.hintAction);
         if (input.pressed.has('undo') && mod.undoAction) rt.dispatch(mod.undoAction);
       }
+      // paused: nothing moves until the child does something (e.g. asks for the next hint step)
+      if (rt.paused && queue.length === 0) return;
       const actions = queue.splice(0, queue.length);
       if (actions.length && pendingAt !== null) {
         consumedAt = pendingAt;

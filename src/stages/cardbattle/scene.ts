@@ -212,7 +212,11 @@ export function createCardScene(world: RenderWorld, ctx: StageCtx): StageScene<C
         const picked = state.picked.includes(i);
         const idx = state.mine?.cards.indexOf(i) ?? -1;
         tmp.set(HAND_X[i] as number, 1.25, 2.4);
-        if (picked) tmp.y += 0.5 + (ctx.reducedMotion ? 0 : Math.sin(t * 2.5 + i) * 0.06);
+        if (picked) {
+          // a picked card lifts a little and comes forward (never up into the monster's cards)
+          tmp.y += 0.3 + (ctx.reducedMotion ? 0 : Math.sin(t * 2.5 + i) * 0.05);
+          tmp.z += 0.35;
+        }
         if (cursorId === i && !picked) tmp.y += 0.2;
         if (reveal >= 0) {
           const m = ease(reveal / 0.25);
