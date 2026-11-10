@@ -5,7 +5,7 @@
  * - StepGuide: three icon chips — find → think → pick — with the current one lit.
  */
 import { useEffect, useState } from 'react';
-import { ko } from '../../i18n/ko';
+import { fmt, ko } from '../../i18n/ko';
 import { speak } from '../../infra/tts/tts';
 import type { HudView } from '../../stages/_shared/module';
 
@@ -65,5 +65,41 @@ export function StepGuide({ steps }: { steps: NonNullable<HudView['steps']> }) {
         );
       })}
     </ol>
+  );
+}
+
+/** Mini race track under the goal: my kart, the rivals, the star coins and the flag. */
+export function RaceBar({ race }: { race: NonNullable<HudView['race']> }) {
+  const at = (pos: number) => `${Math.min(100, (pos / race.length) * 100)}%`;
+  return (
+    <div
+      className="race-bar"
+      data-testid="race-bar"
+      role="img"
+      aria-label={fmt(ko.race.place, { n: race.place })}
+    >
+      <span className="race-place">{fmt(ko.race.place, { n: race.place })}</span>
+      <span className="race-track">
+        {race.stars.map((sq) => (
+          <span key={sq} className="race-star" style={{ left: at(sq) }}>
+            ⭐
+          </span>
+        ))}
+        {race.rivals.map((pos, i) => (
+          <span
+            // biome-ignore lint/suspicious/noArrayIndexKey: the two rivals keep their order
+            key={i}
+            className="race-dot race-rival"
+            style={{ left: at(pos) }}
+          >
+            {i === 0 ? '🚀' : '☁️'}
+          </span>
+        ))}
+        <span className="race-dot race-me" style={{ left: at(race.me) }}>
+          🏎️
+        </span>
+        <span className="race-flag">🏁</span>
+      </span>
+    </div>
   );
 }

@@ -27,6 +27,8 @@ export const BALANCE = {
   cards: { rounds: 5, perfectBonus: 1 },
   /** Pizza shop: orders per round (roles swap each order), +1 tip coin from the VIP (always order 3). */
   pizza: { orders: 5, vipBonus: 1 },
+  /** Race: track squares; every `turboEvery`-th right answer in a row is a turbo (+1 square); coin per star. */
+  race: { length: 12, turboEvery: 3, starCoin: 1 },
   /** Steps of the bomb squad's "쉽게" ladder (one-digit + one-digit … three one-digit numbers). */
   bombEasySteps: 5,
   rest: { defaultMinutes: 15, durationSec: 20 },

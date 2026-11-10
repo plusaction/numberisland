@@ -16,7 +16,8 @@ import { type AnyStageModule, STAGE_LOADERS } from '../../stages/registry';
 import { Button } from '../components/Button';
 import { FeedbackOverlay } from '../hints/FeedbackOverlay';
 import { HintPanel } from '../hints/HintPanel';
-import { RoomCut, SayBubble, StepGuide } from '../hud/StageGuide';
+import { RaceBar, RoomCut, SayBubble, StepGuide } from '../hud/StageGuide';
+import { ChoiceCross } from '../question/ChoiceCross';
 import { flyToGoal } from '../question/flyToGoal';
 import { GoalTiles } from '../question/GoalTiles';
 import { Tutorial } from './Tutorial';
@@ -125,7 +126,7 @@ export function StageScreen({ store, reducedMotion }: { store: GameStore; reduce
     const update = (s: typeof init) => {
       // re-render the HUD only when something it shows changed (state changes every tick)
       const c = s.core;
-      const sig = `${s.phase}|${c.asked?.question.key ?? ''}|${c.index}|${c.coins}|${c.correct}|${c.wrong}|${c.puzzleHints}|${(s as { puzzle?: unknown }).puzzle ? 1 : 0}|${(s as { undo?: unknown[] }).undo?.length ?? 0}|${(s as { slimes?: unknown[] }).slimes?.length ?? 0}|${(s as { cut?: unknown[] }).cut?.length ?? 0}|${(s as { picked?: unknown[] }).picked?.join(',') ?? ''}|${(s as { reelLeft?: number }).reelLeft ?? 0}|${(s as { found?: unknown[] }).found?.length ?? 0}|${(s as { tried?: unknown[] }).tried?.length ?? 0}|${(s as { op?: string }).op ?? ''}`;
+      const sig = `${s.phase}|${c.asked?.question.key ?? ''}|${c.index}|${c.coins}|${c.correct}|${c.wrong}|${c.puzzleHints}|${(s as { puzzle?: unknown }).puzzle ? 1 : 0}|${(s as { undo?: unknown[] }).undo?.length ?? 0}|${(s as { slimes?: unknown[] }).slimes?.length ?? 0}|${(s as { cut?: unknown[] }).cut?.length ?? 0}|${(s as { picked?: unknown[] }).picked?.join(',') ?? ''}|${(s as { reelLeft?: number }).reelLeft ?? 0}|${(s as { found?: unknown[] }).found?.length ?? 0}|${(s as { tried?: unknown[] }).tried?.length ?? 0}|${(s as { op?: string }).op ?? ''}|${(s as { me?: number }).me ?? 0}|${(s as { rivals?: number[] }).rivals?.join(',') ?? ''}`;
       if (sig !== lastSig) {
         lastSig = sig;
         setHud(mod.hud(s));
@@ -237,7 +238,7 @@ export function StageScreen({ store, reducedMotion }: { store: GameStore; reduce
   );
   return (
     <div
-      className="stage-hud"
+      className={`stage-hud${hud.cross ? ' has-cross' : ''}`}
       data-testid="stage"
       data-stage={selected}
       data-puzzle={core.index}
@@ -269,6 +270,7 @@ export function StageScreen({ store, reducedMotion }: { store: GameStore; reduce
       <section className="hud-goal card" data-testid="goal" aria-live="polite">
         <GoalTiles goal={hud.goal} />
         {hud.steps && <StepGuide steps={hud.steps} />}
+        {hud.race && <RaceBar race={hud.race} />}
       </section>
       {hud.say && !tutorial && <SayBubble say={hud.say} voice={voice} />}
       {hud.toggles && mod.toggleAction && (
@@ -290,6 +292,18 @@ export function StageScreen({ store, reducedMotion }: { store: GameStore; reduce
             </button>
           ))}
           {anchored && primaryKey}
+        </div>
+      )}
+      {hud.cross && mod.crossAction && (
+        <div className="hud-cross">
+          <ChoiceCross
+            choices={hud.cross.choices}
+            dim={hud.cross.tried}
+            disabled={hud.cross.off}
+            keys={false}
+            shake={hud.cross.tried.at(-1) ?? null}
+            onPick={(v) => mod.crossAction && rtRef.current?.dispatch(mod.crossAction(v))}
+          />
         </div>
       )}
       {hud.cut && <RoomCut cut={hud.cut} />}

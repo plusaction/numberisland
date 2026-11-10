@@ -29,14 +29,21 @@ export function ChoiceCross({
   onPick,
   disabled = false,
   shake,
+  keys = true,
+  dim,
 }: {
   choices: readonly Choice[];
   onPick(value: number): void;
   disabled?: boolean;
   shake?: number | null;
+  /** false: the host handles arrow keys itself (stage runtime: keyboard + gamepad in the fixed step). */
+  keys?: boolean;
+  /** Answers already tried: dimmed and not pressable. */
+  dim?: readonly number[];
 }) {
   const two = choices.length === 2;
   useEffect(() => {
+    if (!keys) return;
     const onKey = (e: KeyboardEvent) => {
       if (disabled) return;
       let slot = SLOT_KEYS[e.code];
@@ -50,7 +57,7 @@ export function ChoiceCross({
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [choices, onPick, disabled, two]);
+  }, [choices, onPick, disabled, two, keys]);
 
   return (
     <div
@@ -61,10 +68,10 @@ export function ChoiceCross({
         <button
           key={`${c.value}-${c.display ?? ''}`}
           type="button"
-          disabled={disabled}
+          disabled={disabled || dim?.includes(c.value) === true}
           data-value={c.value}
           onClick={() => onPick(c.value)}
-          className={`toy-btn choice-btn ${two ? '' : POS[i]} ${shake === c.value ? 'animate-wiggle' : ''}`}
+          className={`toy-btn choice-btn ${two ? '' : POS[i]} ${shake === c.value ? 'animate-wiggle' : ''} ${dim?.includes(c.value) ? 'choice-dim' : ''}`}
         >
           <span aria-hidden="true" className="choice-shape">
             {ARROWS[two ? (i === 0 ? 1 : 2) : i]}

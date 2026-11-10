@@ -85,8 +85,18 @@ export function createStageRuntime<S extends { phase: string; core: RoundCore },
           cursor = (cursor + d + targets.length) % targets.length;
           scene.setCursor(targets[cursor] ?? null, held);
         };
-        if (input.pressed.has('left') || input.pressed.has('up')) move(-1);
-        if (input.pressed.has('right') || input.pressed.has('down')) move(1);
+        const direct = mod.keyboard.direct;
+        if (direct) {
+          // each direction is an answer: picked in this very step (no cursor to move first)
+          for (const dir of ['up', 'left', 'right', 'down'] as const) {
+            if (!input.pressed.has(dir)) continue;
+            const a = direct(state, dir);
+            if (a !== undefined) rt.dispatch(a);
+          }
+        } else {
+          if (input.pressed.has('left') || input.pressed.has('up')) move(-1);
+          if (input.pressed.has('right') || input.pressed.has('down')) move(1);
+        }
         if (input.pressed.has('confirm') && targets.length) {
           const id = targets[Math.min(cursor, targets.length - 1)] as number;
           const r = mod.keyboard.confirm(state, id, held);

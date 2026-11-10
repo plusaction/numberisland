@@ -1,5 +1,5 @@
 /** Stage plugin contract for the presentation layer (SPEC §6.4): pure rules + 3D scene + HUD hooks. */
-import type { LevelId, Question } from '../../domain/edu/types';
+import type { Choice, LevelId, Question } from '../../domain/edu/types';
 import type { StageId, StageRules } from '../../domain/stage/types';
 import type { RenderWorld } from '../../engine/world';
 import type { BgmId } from '../../infra/audio/bgm';
@@ -32,6 +32,11 @@ export interface KeyboardSpec<S, A> {
   targets(state: S): number[];
   /** Confirm on a target; `held` is a first-step selection (e.g. slime to drag). */
   confirm(state: S, target: number, held: number | null): { action?: A; hold?: number | null };
+  /**
+   * Direct picks (race): ↑ ← → ↓ (arrows, WASD, pad) each choose an answer at once instead of moving a
+   * cursor. Return undefined when that direction has nothing to pick.
+   */
+  direct?(state: S, dir: 'up' | 'left' | 'right' | 'down'): A | undefined;
 }
 
 /** What the HUD needs from any stage state. */
@@ -56,6 +61,10 @@ export interface HudView {
   pairOp?: '+' | '-';
   /** A big one-tap key the child should press now (e.g. "감아요!"), with dots for the presses left. */
   primary?: { label: string; left: number; off?: boolean };
+  /** Four answers in a cross (↑ ← → ↓) at the bottom; the stage maps a value to an action (`crossAction`). */
+  cross?: { choices: readonly Choice[]; tried: readonly number[]; off: boolean };
+  /** A mini track under the goal: positions in squares, the child's place (1 = first). */
+  race?: { me: number; rivals: readonly number[]; length: number; place: number; stars: readonly number[] };
   /** The friend says this (speech bubble + read-aloud); spoken again only when `key` changes. */
   say?: { key: string; text: string };
   /** Scene-change card (iris wipe + big title) while `key` is the same. */
@@ -86,6 +95,8 @@ export interface StageModule<S extends { phase: string; core: RoundCore }, A> {
   pickValue?(state: S, id: number): number | undefined;
   /** The action for a HUD toggle key. */
   toggleAction?(id: string): A;
+  /** The action for an answer of the HUD's `cross`. */
+  crossAction?(value: number): A;
   /** Dispatched by the HUD's big `primary` key. */
   primaryAction?: A;
   /**

@@ -31,13 +31,13 @@ Vite 8.3 + TS 6.0 strict + React 19.3(Compiler) + Tailwind 4.3, Biome, Vitest 5,
 - 테스트: `tests/unit/fishing-reel.test.ts`, `tests/unit/toys.test.ts`, 마이그레이션 v2.
 
 ### 스테이지 추가 (D29·D30·D32·D33)
-- ⑤ 방탈출, ⑦ 카드 배틀(1인 vs 봇), ⑥ 피자 가게(1인 + 파트너 봇, 역할 교대·VIP·하이파이브) 완성. 테스트: `tests/unit/{escape,cardbattle,pizza}.test.ts`, finishable·e2e A1 루프 포함.
+- ⑤ 방탈출, ⑦ 카드 배틀(1인 vs 봇), ⑥ 피자 가게(1인 + 파트너 봇, 역할 교대·VIP·하이파이브), ⑧ 레이스(1인 vs 라이벌 2대, 십자 4지선다 직접 선택·터보·바나나, D34) 완성. 테스트: `tests/unit/{escape,cardbattle,pizza,race}.test.ts`, finishable·e2e A1 루프 포함. 남은 스테이지: ② 좀비.
 
 ## 다음 할 일
 1. 남은 약점: G3 의미 있는 선택, F3 증거, 결과 화면 아이콘, 허브 태그 용어, 터치·패드 e2e, domain 커버리지 ≥90%
 1. **사람 플레이테스트 1회** (docs/PLAYTEST.md) 후 M5 진행
 2. M5: ② 좀비, ⑤ 방탈출 (같은 템플릿: rules.ts + solver + bot + scene + module)
-3. M6: ⑧ 레이스 + ⑥ 피자·⑦ 카드 배틀의 2인 같은 화면(키맵 A/B, 게임패드, 터치 분할)
+3. M6: ⑥ 피자·⑦ 카드 배틀·⑧ 레이스의 2인 같은 화면(키맵 A/B, 게임패드, 터치 분할)
 4. M7 메타, M8 부모 영역(E8 리포트), M9 폴리시·접근성(axe), M10 PWA·감사·README·start.bat
 5. E8(부모 리포트)은 M8 — 현재 0점
 

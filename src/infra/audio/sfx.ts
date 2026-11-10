@@ -43,7 +43,11 @@ export type SfxId =
   | 'pizza.ding'
   | 'pizza.box'
   | 'pizza.five'
-  | 'pizza.puff';
+  | 'pizza.puff'
+  | 'race.go'
+  | 'race.boost'
+  | 'race.turbo'
+  | 'race.slip';
 
 const C5 = 523.25;
 const E5 = 659.25;
@@ -167,6 +171,29 @@ export const SFX: Record<SfxId, Note[]> = {
   'pizza.puff': [
     { at: 0, freq: 220, dur: 0.4, wave: 'sine', gain: 0.18, noise: true },
     { at: 0.05, freq: 140, to: 90, dur: 0.35, wave: 'square', gain: 0.06 },
+  ],
+  // start lights: beep, beep, beep … GO (higher, longer)
+  'race.go': [
+    { at: 0, freq: 440, dur: 0.14, wave: 'square', gain: 0.1 },
+    { at: 0.4, freq: 440, dur: 0.14, wave: 'square', gain: 0.1 },
+    { at: 0.8, freq: 440, dur: 0.14, wave: 'square', gain: 0.1 },
+    { at: 1.2, freq: 880, dur: 0.45, wave: 'square', gain: 0.14 },
+  ],
+  // booster: engine rev sliding up + a rush of air
+  'race.boost': [
+    { at: 0, freq: 150, to: 620, dur: 0.5, wave: 'sawtooth', gain: 0.1 },
+    { at: 0, freq: 1200, dur: 0.5, wave: 'sine', gain: 0.1, noise: true },
+  ],
+  // turbo: a longer, higher rev with a sparkle on top
+  'race.turbo': [
+    { at: 0, freq: 180, to: 980, dur: 0.75, wave: 'sawtooth', gain: 0.1 },
+    { at: 0, freq: 1600, dur: 0.75, wave: 'sine', gain: 0.1, noise: true },
+    { at: 0.3, freq: C6, to: 2093, dur: 0.35, wave: 'triangle', gain: 0.14 },
+  ],
+  // banana slip: a wobbling slide down, then a little bonk
+  'race.slip': [
+    { at: 0, freq: 900, to: 260, dur: 0.45, wave: 'triangle', gain: 0.2 },
+    { at: 0.5, freq: 190, to: 140, dur: 0.14, wave: 'sine', gain: 0.25 },
   ],
 };
 

@@ -267,6 +267,19 @@ export const ko = {
     packed: '딱 {n}조각 더! 상자 닫아!',
     shop: '대박 가게! 손님들이 다 웃어!',
   },
+  race: {
+    rivals: ['🚀 로켓 문어', '☁️ 구름차'],
+    ready: '🚦 준비… 출발!',
+    intro: '결승선까지 달리자! 맞는 답을 골라!',
+    boost: '부스터! 슝~',
+    turbo: '세 번 연속! 터보!',
+    slip: '앗, 바나나! 다시 해 보자!',
+    near: '결승선이 보여! 조금만 더!',
+    star: '별 동전 얻었다!',
+    win: '1등으로 들어왔어!',
+    finish: '{n}등! 끝까지 달렸어!',
+    place: '{n}등',
+  },
   escape: {
     rooms: {
       kitchen: '🍳 주방',
