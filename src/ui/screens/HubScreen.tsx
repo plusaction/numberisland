@@ -29,6 +29,7 @@ export function HubScreen({ store, reducedMotion }: { store: GameStore; reducedM
 
   const [settingsOpen, setSettingsOpen] = useState(false);
   // while the settings sheet is open the island ignores keys and taps
+  const gearRef = useRef<HTMLButtonElement | null>(null);
   const sheetRef = useRef(false);
   sheetRef.current = settingsOpen;
   useEffect(() => {
@@ -72,6 +73,8 @@ export function HubScreen({ store, reducedMotion }: { store: GameStore; reducedM
   useEffect(() => islandRef.current?.select(selected), [selected]);
 
   if (!profile) return null;
+  // e2e hook: prove the error boundary catches a screen crash
+  if ((globalThis as { __crashUi?: boolean }).__crashUi) throw new Error('test crash');
   const stat = profile.stageStats[selected];
   const playable = PLAYABLE.includes(selected);
   const rec = recommendedStage(profile, STAGE_SKILLS, PLAYABLE);
@@ -113,13 +116,23 @@ export function HubScreen({ store, reducedMotion }: { store: GameStore; reducedM
           type="button"
           className="pill hub-gear"
           aria-label={ko.settings.open}
+          ref={gearRef}
           data-testid="open-settings"
           onClick={() => setSettingsOpen(true)}
         >
           <span aria-hidden="true">⚙️</span>
         </button>
       </header>
-      {settingsOpen && <SettingsSheet store={store} onClose={() => setSettingsOpen(false)} />}
+      {settingsOpen && (
+        <SettingsSheet
+          store={store}
+          onClose={() => {
+            setSettingsOpen(false);
+            // focus goes back to the key that opened the sheet
+            gearRef.current?.focus();
+          }}
+        />
+      )}
 
       <section className="hub-card card" aria-live="polite" data-testid="info-card" data-stage={selected}>
         <div className="flex items-start justify-between gap-3">

@@ -54,9 +54,24 @@ export function SettingsSheet({ store, onClose }: { store: GameStore; onClose():
   const settings = useStore(store, (s) => s.profile?.settings);
   const closeRef = useRef(onClose);
   closeRef.current = onClose;
+  const sheet = useRef<HTMLElement | null>(null);
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.code === 'Escape') closeRef.current();
+      if (e.code !== 'Tab' || !sheet.current) return;
+      // Tab stays inside the sheet (wraps at both ends)
+      const keys = [...sheet.current.querySelectorAll<HTMLElement>('button:not(:disabled)')];
+      const first = keys[0];
+      const last = keys.at(-1);
+      if (!first || !last) return;
+      const at = document.activeElement;
+      if (e.shiftKey && (at === first || !sheet.current.contains(at))) {
+        e.preventDefault();
+        last.focus();
+      } else if (!e.shiftKey && (at === last || !sheet.current.contains(at))) {
+        e.preventDefault();
+        first.focus();
+      }
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
@@ -90,6 +105,7 @@ export function SettingsSheet({ store, onClose }: { store: GameStore; onClose():
       onPointerDown={(e) => e.target === e.currentTarget && onClose()}
     >
       <section
+        ref={sheet}
         className="sheet card"
         role="dialog"
         aria-modal="true"

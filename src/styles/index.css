@@ -161,7 +161,8 @@
   .key-sea {
     --key: var(--color-sea);
     --key-deep: var(--color-sea-deep);
-    color: #fff;
+    /* ink, not white: white on this teal is only 2.5:1 (axe) */
+    color: var(--color-ink);
   }
   .key-berry {
     --key: var(--color-berry);
@@ -275,7 +276,7 @@
   .stage-group {
     font-size: 1.05rem;
     font-weight: 600;
-    color: color-mix(in oklab, var(--color-ink) 65%, transparent);
+    color: color-mix(in oklab, var(--color-ink) 85%, transparent);
   }
   .tag {
     border-radius: 999px;
@@ -333,7 +334,7 @@
     background: transparent;
     font-family: var(--font-display);
     font-size: 1.25rem;
-    color: color-mix(in oklab, var(--color-ink) 70%, transparent);
+    color: color-mix(in oklab, var(--color-ink) 90%, transparent);
     cursor: pointer;
   }
   .seg-on {

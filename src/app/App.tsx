@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useStore } from 'zustand';
 import { createAdaptiveState, DEFAULT_SETTINGS } from '../domain/edu/adaptive';
 import { ko } from '../i18n/ko';
+import { ErrorBoundary } from '../ui/components/ErrorBoundary';
 import { HubScreen } from '../ui/screens/HubScreen';
 import { IntroScreen } from '../ui/screens/IntroScreen';
 import { PlacementScreen } from '../ui/screens/PlacementScreen';
@@ -86,7 +87,9 @@ export function App() {
   return (
     <WorldHost>
       <main className="ui-layer" aria-label={ko.app.title}>
-        {app ? <Screens app={app} /> : <p className="screen-center text-3xl font-bold">{ko.app.loading}</p>}
+        <ErrorBoundary>
+          {app ? <Screens app={app} /> : <p className="screen-center text-3xl font-bold">{ko.app.loading}</p>}
+        </ErrorBoundary>
       </main>
     </WorldHost>
   );
