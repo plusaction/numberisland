@@ -602,6 +602,29 @@
     left: calc(100% + 0.9rem);
     font-size: 1.3rem;
   }
+  .race-fuel {
+    display: flex;
+    align-items: center;
+    gap: 0.2rem;
+    font-size: 1.1rem;
+  }
+  .race-fuel-bar {
+    width: 3.2rem;
+    height: 0.7rem;
+    border-radius: 999px;
+    overflow: hidden;
+    background: color-mix(in oklab, var(--color-ink) 18%, var(--color-milk));
+  }
+  .race-fuel-bar > span {
+    display: block;
+    height: 100%;
+    border-radius: 999px;
+    background: var(--color-sun);
+    transition: width 0.25s linear;
+  }
+  .race-fuel-low .race-fuel-bar > span {
+    background: var(--color-berry, #ff6f91);
+  }
   /* step guide under the goal: find → think → pick (current lit, done ✓) */
   .step-guide {
     display: flex;

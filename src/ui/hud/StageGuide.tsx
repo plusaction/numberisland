@@ -100,6 +100,14 @@ export function RaceBar({ race }: { race: NonNullable<HudView['race']> }) {
         </span>
         <span className="race-flag">🏁</span>
       </span>
+      {race.fuel !== undefined && (
+        <span className={`race-fuel${race.fuel < 0.25 ? ' race-fuel-low' : ''}`} aria-hidden="true">
+          ⚡
+          <span className="race-fuel-bar">
+            <span style={{ width: `${Math.round(race.fuel * 100)}%` }} />
+          </span>
+        </span>
+      )}
     </div>
   );
 }

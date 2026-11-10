@@ -64,7 +64,15 @@ export interface HudView {
   /** Four answers in a cross (↑ ← → ↓) at the bottom; the stage maps a value to an action (`crossAction`). */
   cross?: { choices: readonly Choice[]; tried: readonly number[]; off: boolean };
   /** A mini track under the goal: positions in squares, the child's place (1 = first). */
-  race?: { me: number; rivals: readonly number[]; length: number; place: number; stars: readonly number[] };
+  race?: {
+    me: number;
+    rivals: readonly number[];
+    length: number;
+    place: number;
+    stars: readonly number[];
+    /** Booster fuel 0..1 (a little gauge). */
+    fuel?: number;
+  };
   /** The friend says this (speech bubble + read-aloud); spoken again only when `key` changes. */
   say?: { key: string; text: string };
   /** Scene-change card (iris wipe + big title) while `key` is the same. */

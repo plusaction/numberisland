@@ -37,9 +37,11 @@ function say(s: RaceState): HudView['say'] {
     return s.gain > 1
       ? { key: `turbo-${at}`, text: ko.race.turbo }
       : { key: `boost-${at}`, text: ko.race.boost };
-  if (s.phase === 'start' || at === 0) return { key: 'intro', text: ko.race.intro };
+  if (s.phase === 'start' || (at === 0 && s.me < 0.5)) return { key: 'intro', text: ko.race.intro };
   if (s.core.puzzles - s.me <= 2) return { key: 'near', text: ko.race.near };
-  return undefined;
+  if (s.fuel < 0.2) return { key: `fuel-${at}`, text: ko.race.lowFuel };
+  // a rival is in front: cheer the child on (no line while leading — the boosts speak for themselves)
+  return placeOf(s.me, s.rivals) > 1 ? { key: 'behind', text: ko.race.behind } : undefined;
 }
 
 const DIRS = ['up', 'left', 'right', 'down'] as const;
@@ -80,6 +82,7 @@ export const raceModule: StageModule<RaceState, RaceAction> = {
         length: s.core.puzzles,
         place: s.place ?? placeOf(s.me, s.rivals),
         stars: STAR_SQUARES.filter((sq) => !s.stars.includes(sq)),
+        fuel: s.phase === 'finish' ? 1 : s.fuel,
       },
     };
   },

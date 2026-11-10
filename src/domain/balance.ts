@@ -27,8 +27,19 @@ export const BALANCE = {
   cards: { rounds: 5, perfectBonus: 1 },
   /** Pizza shop: orders per round (roles swap each order), +1 tip coin from the VIP (always order 3). */
   pizza: { orders: 5, vipBonus: 1 },
-  /** Race: track squares; every `turboEvery`-th right answer in a row is a turbo (+1 square); coin per star. */
-  race: { length: 12, turboEvery: 3, starCoin: 1 },
+  /** Race (real time, D35): track squares; every `turboEvery`-th right answer in a row is a turbo; coin per star. */
+  race: {
+    length: 12,
+    turboEvery: 3,
+    starCoin: 1,
+    /** Cruising speed on a full tank (squares / s); the tank lasts `fuelSeconds` after a right answer. */
+    cruise: 0.3,
+    fuelSeconds: 6,
+    /** Ticks a boost takes to cover its square(s). */
+    boostTicks: 45,
+    /** Rivals' cruising speed (squares / s) by hub difficulty. */
+    rival: { easy: 0.14, normal: 0.19, hard: 0.25 },
+  },
   /** Steps of the bomb squad's "쉽게" ladder (one-digit + one-digit … three one-digit numbers). */
   bombEasySteps: 5,
   rest: { defaultMinutes: 15, durationSec: 20 },

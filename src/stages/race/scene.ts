@@ -36,6 +36,7 @@ import {
   BOOST_TICKS,
   CROSS_ID,
   FINISH_TICKS,
+  placeOf,
   type RaceAction,
   type RaceState,
   RIVALS,
@@ -45,7 +46,7 @@ import {
 } from './rules';
 
 /** World units per track square. */
-const SEG = 7;
+const SEG = 9;
 const STEP = 1.2;
 const PLANKS = 64;
 const LANE = 2.3;
@@ -329,14 +330,31 @@ export function createRaceScene(world: RenderWorld, ctx: StageCtx): StageScene<R
         friend.cheer(false);
         world.particles.emit('dust', tmp.set(0, 0.8, 0.5), 20);
       }
-      if (prev && (prev.phase === 'play') !== (state.phase === 'play') && state.phase !== 'play') {
-        // the rivals took their turn with this answer
-        state.rivalMoves.forEach((m, i) => {
-          const r = rivals[i];
-          if (!r) return;
-          if (m === 0) rivalSlip[i] = 0;
-          else if (m === 1) r.bounce.impulse(5);
-        });
+      // rivals drive by themselves: a seeded boost (exhaust sparks) or a banana spin now and then
+      state.rivalFx.forEach((fx, i) => {
+        const r = rivals[i];
+        if (!r || !prev || prev.rivalFx[i]?.kind === fx.kind) return;
+        if (fx.kind === 'slip') rivalSlip[i] = 0;
+        else if (fx.kind === 'boost') {
+          r.bounce.impulse(6);
+          world.particles.emit(
+            'sparkle',
+            tmp
+              .copy(r.group.position)
+              .setY(1)
+              .setZ(r.group.position.z + 1.5),
+            14,
+          );
+        }
+      });
+      // overtaking (either way) whooshes
+      if (prev && state.phase !== 'finish' && prev.phase !== 'start') {
+        const was = placeOf(prev.me, prev.rivals);
+        const now = placeOf(state.me, state.rivals);
+        if (now !== was) {
+          audio.play('whoosh', { pitch: now < was ? 1.3 : 0.8 });
+          if (now < was) audio.play('star', { delay: 0.05 });
+        }
       }
       if (prev && state.stars.length > prev.stars.length) {
         audio.play('coin');
@@ -356,13 +374,13 @@ export function createRaceScene(world: RenderWorld, ctx: StageCtx): StageScene<R
       const past = state.phase === 'finish' ? (1 - state.phaseLeft / FINISH_TICKS) * 9 : 0;
       const target = state.me * SEG + past;
       const before = me.vis;
-      const rate = state.phase === 'boost' ? (state.gain > 1 ? 4.2 : 3.6) : 3;
-      me.vis += (target - me.vis) * (1 - Math.exp(-vdt * rate));
+      // the rules already move every kart smoothly each tick: only a light smoothing here
+      me.vis += (target - me.vis) * (1 - Math.exp(-vdt * 10));
       const v = vdt > 0 ? (me.vis - before) / vdt : 0;
       speed += (v - speed) * (1 - Math.exp(-vdt * 8));
       const fast = Math.min(1, Math.max(0, speed / 16));
       rivals.forEach((r, i) => {
-        r.vis += ((state.rivals[i] ?? 0) * SEG - r.vis) * (1 - Math.exp(-vdt * 3));
+        r.vis += ((state.rivals[i] ?? 0) * SEG - r.vis) * (1 - Math.exp(-vdt * 10));
       });
 
       // ── road pieces stream past
@@ -439,9 +457,10 @@ export function createRaceScene(world: RenderWorld, ctx: StageCtx): StageScene<R
       }
       onRoad(gate, length * SEG, 0);
       gate.rotation.x = 0;
-      onRoad(gantry, 3, 0);
+      onRoad(gantry, 7, 0);
       gantry.rotation.x = 0;
-      gantry.visible = me.vis < 12;
+      // the start lights sit ahead of the line and are gone as soon as the karts roll under them
+      gantry.visible = state.phase === 'start' || me.vis < 3.5;
       const lit = state.phase === 'start' ? Math.floor((1 - state.phaseLeft / START_TICKS) * 3.6) : 4;
       bulbs.forEach((b, i) => {
         b.material = lit >= 3 ? green : i <= lit ? red : dark;
@@ -476,6 +495,9 @@ export function createRaceScene(world: RenderWorld, ctx: StageCtx): StageScene<R
       friend.update(vdt, t, reduced);
       if (fast > 0.25 && !reduced)
         world.particles.emit('sparkle', tmp.set((Math.random() - 0.5) * 0.9, 0.9, 1.6), 3);
+      // nearly out of booster fuel: the exhaust coughs little smoke puffs
+      if (state.phase === 'play' && state.fuel < 0.25 && !reduced && Math.floor(t * 5) % 2 === 0)
+        world.particles.emit('dust', tmp.set(0.45, 0.9, 1.7), 1);
 
       // ── rivals at their real distance
       rivals.forEach((r, i) => {
@@ -493,7 +515,9 @@ export function createRaceScene(world: RenderWorld, ctx: StageCtx): StageScene<R
           if (st === 0) world.particles.emit('dust', tmp.copy(r.group.position).setY(1), 10);
         }
         r.group.rotation.y = spin;
-        for (const w of r.wheels) w.rotation.x += vdt * 6;
+        const home = (state.rivals[i] ?? 0) >= length;
+        for (const w of r.wheels)
+          w.rotation.x += vdt * (home ? 0 : state.rivalFx[i]?.kind === 'boost' ? 14 : 6);
         r.group.visible = r.group.position.z < 9 && r.group.position.z > -75;
       });
 
