@@ -90,6 +90,7 @@ export const escapeModule: StageModule<EscapeState, EscapeAction> = {
   },
   // also during the entry cut, so the first-room tutorial hand can show the way (input still waits)
   solution: (s) => (s.phase === 'play' || s.phase === 'enter' ? solveEscape(s) : []),
+  hudKey: (s) => `${s.found.length}|${s.tried.length}`,
   hintAction: { t: 'hint' },
   retryAction: { t: 'retry' },
   // each found number flies from the thing into its "?" in the sentence

@@ -48,6 +48,7 @@ export const fishingModule: StageModule<FishingState, FishingAction> = {
       : s.puzzle
         ? (solveFishing(s.puzzle)[0] ?? []).map((id) => ({ t: 'tap' as const, id }))
         : [],
+  hudKey: (s) => `${s.puzzle ? 1 : 0}|${s.picked.join(',')}|${s.reelLeft}`,
   hintAction: { t: 'hint' },
   undoAction: { t: 'undo' },
   primaryAction: { t: 'reel' },

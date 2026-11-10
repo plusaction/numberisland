@@ -78,6 +78,7 @@ export const pizzaModule: StageModule<PizzaState, PizzaAction> = {
   solution: (s) => (s.phase === 'play' || s.phase === 'enter' ? solvePizza(s) : []),
   // the counter in the middle shows the numbers: praise pops up under the goal instead
   praiseSpot: 'top',
+  hudKey: (s) => `${s.tried.length}`,
   hintAction: { t: 'hint' },
   retryAction: { t: 'retry' },
 };

@@ -98,7 +98,7 @@ export function SettingsSheet({ store, onClose }: { store: GameStore; onClose():
     { v: 0.5, name: s.mid },
   ] as const;
   return (
-    // biome-ignore lint/a11y/noStaticElementInteractions: the dim backdrop closes the sheet (Esc and the button do too)
+    // the dim backdrop closes the sheet (Esc and the close key do too)
     <div
       className="sheet-back"
       role="presentation"
@@ -153,6 +153,17 @@ export function SettingsSheet({ store, onClose }: { store: GameStore; onClose():
             { v: true, name: s.on },
           ]}
           onPick={(reducedMotion) => set({ reducedMotion })}
+        />
+        <Seg<Settings['restMinutes']>
+          label={s.rest}
+          testid="set-rest"
+          value={settings.restMinutes === 0 ? 0 : settings.restMinutes >= 30 ? 30 : 15}
+          options={[
+            { v: 0, name: s.off },
+            { v: 15, name: s.min15 },
+            { v: 30, name: s.min30 },
+          ]}
+          onPick={(restMinutes) => set({ restMinutes })}
         />
         <div className="mt-5 flex justify-end">
           <Button tone="primary" autoFocus onClick={onClose} data-testid="settings-close">

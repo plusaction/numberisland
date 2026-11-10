@@ -57,6 +57,7 @@ export const slimeModule: StageModule<SlimeState, SlimeAction> = {
     const m = nextGoodMove(s);
     return m ? [m] : [];
   },
+  hudKey: (s) => `${s.puzzle ? 1 : 0}|${s.slimes.length}|${s.undo.length}`,
   hintAction: { t: 'hint' },
   retryAction: { t: 'retry' },
   undoAction: { t: 'undo' },

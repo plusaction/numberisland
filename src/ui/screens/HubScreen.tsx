@@ -5,6 +5,7 @@ import { useWorld } from '../../app/WorldHost';
 import type { GameStore } from '../../application/stores/game';
 import { BALANCE } from '../../domain/balance';
 import { rankFor, recommendedStage } from '../../domain/progression/progression';
+import { restDue } from '../../domain/rest';
 import { STAGE_SKILLS } from '../../domain/stage/catalog';
 import { PLAYABLE, STAGE_GROUP, STAGE_IDS, STAGE_PLAYERS, type StageId } from '../../domain/stage/types';
 import { fmt, ko } from '../../i18n/ko';
@@ -14,6 +15,9 @@ import { ProgressBar } from '../components/ProgressBar';
 import { SettingsSheet } from '../components/SettingsSheet';
 import { SpeakButton } from '../components/SpeakButton';
 import { Stars } from '../components/Stars';
+
+/** When play (or the last rest reminder) started in this visit — the reminder is per sitting, not saved. */
+let restSince = performance.now();
 
 const ORDER: StageId[] = ['bomb', 'zombie', 'fishing', 'slime', 'escape', 'pizza', 'cardbattle', 'race'];
 
@@ -30,6 +34,10 @@ export function HubScreen({ store, reducedMotion }: { store: GameStore; reducedM
   const [settingsOpen, setSettingsOpen] = useState(false);
   // while the settings sheet is open the island ignores keys and taps
   const gearRef = useRef<HTMLButtonElement | null>(null);
+  // back on the island after a while of play: suggest resting the eyes (never blocks, nothing counts down)
+  const [rest, setRest] = useState(() =>
+    restDue(performance.now(), restSince, store.getState().profile?.settings.restMinutes ?? 0),
+  );
   const sheetRef = useRef(false);
   sheetRef.current = settingsOpen;
   useEffect(() => {
@@ -123,6 +131,23 @@ export function HubScreen({ store, reducedMotion }: { store: GameStore; reducedM
           <span aria-hidden="true">⚙️</span>
         </button>
       </header>
+      {rest && (
+        <div className="rest-card card" role="status" data-testid="rest">
+          <p className="stage-name">{ko.rest.title}</p>
+          <p className="mt-1 text-xl">{ko.rest.body}</p>
+          <Button
+            tone="primary"
+            className="mt-3"
+            data-testid="rest-ok"
+            onClick={() => {
+              restSince = performance.now();
+              setRest(false);
+            }}
+          >
+            {ko.rest.ok}
+          </Button>
+        </div>
+      )}
       {settingsOpen && (
         <SettingsSheet
           store={store}

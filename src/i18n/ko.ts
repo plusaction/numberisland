@@ -175,6 +175,14 @@ export const ko = {
     on: '켬',
     weak: '약하게',
     auto: '자동',
+    rest: '👀 쉬는 시간 알림',
+    min15: '15분',
+    min30: '30분',
+  },
+  rest: {
+    title: '눈 쉬는 시간!',
+    body: '창밖 먼 곳을 스무 번 세며 봐요.',
+    ok: '쉬었어요',
   },
   toys: {
     top: '팽이',

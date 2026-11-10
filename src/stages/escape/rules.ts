@@ -15,6 +15,7 @@ import { generateQuestion } from '../../domain/edu/generate';
 import type { Op, Question, SkillId } from '../../domain/edu/types';
 import type { Rng } from '../../domain/rng/rng';
 import type { InputFrame, RoundResult, StageRules } from '../../domain/stage/types';
+import { answerOptions } from '../_shared/options';
 import {
   advancePuzzle,
   initRound,
@@ -130,12 +131,7 @@ export function roomFromQuestion(q: Question, theme: RoomTheme, boss: boolean, r
     }
   });
   // three keys: the code and two near misses (the question's misconception choices first)
-  const opts = new Set<number>([s.code]);
-  for (const c of rng.shuffle(q.choices.map((x) => x.value)))
-    if (opts.size < KEYS && c !== s.code && c >= 0 && c <= 99) opts.add(c);
-  for (const d of rng.shuffle([1, -1, 10, -10, 2, -2]))
-    if (opts.size < KEYS && s.code + d >= 0 && s.code + d <= 99) opts.add(s.code + d);
-  const options = [...opts].sort((a, b) => a - b);
+  const options = answerOptions(q, s.code, rng, KEYS);
   return { theme, boss, ...s, things, options };
 }
 

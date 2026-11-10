@@ -99,6 +99,7 @@ export const cardModule: StageModule<CardState, CardAction> = {
     return next ?? null;
   },
   solution: (s) => (s.phase === 'play' || s.phase === 'deal' ? solveCards(s) : []),
+  hudKey: (s) => `${s.picked.join(',')}|${s.op}`,
   hintAction: { t: 'hint' },
   retryAction: { t: 'retry' },
   primaryAction: { t: 'play' },

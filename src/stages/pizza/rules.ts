@@ -12,6 +12,7 @@ import { BALANCE } from '../../domain/balance';
 import type { Question, SkillId } from '../../domain/edu/types';
 import type { Rng } from '../../domain/rng/rng';
 import type { InputFrame, RoundResult, StageRules } from '../../domain/stage/types';
+import { answerOptions } from '../_shared/options';
 import {
   advancePuzzle,
   initRound,
@@ -89,12 +90,7 @@ export function orderFromQuestion(
 ): Order {
   const [a = 1, b = 1] = q.operands;
   const answer = q.answer;
-  const opts = new Set<number>([answer]);
-  for (const c of rng.shuffle(q.choices.map((x) => x.value)))
-    if (opts.size < KEYS && c !== answer && c >= 1 && c <= 99) opts.add(c);
-  for (const d of rng.shuffle([1, -1, 10, -10, 2, -2]))
-    if (opts.size < KEYS && answer + d >= 1 && answer + d <= 99) opts.add(answer + d);
-  return { role, customer, vip, a, b, answer, options: [...opts].sort((x, y) => x - y) };
+  return { role, customer, vip, a, b, answer, options: answerOptions(q, answer, rng, KEYS, 1) };
 }
 
 function newOrder(s: PizzaState): PizzaState {

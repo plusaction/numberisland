@@ -101,6 +101,11 @@ export interface StageModule<S extends { phase: string; core: RoundCore }, A> {
   /** Ids picked so far, in order (their numbers fly into the goal's ? boxes). */
   picks?(state: S): readonly number[];
   pickValue?(state: S, id: number): number | undefined;
+  /**
+   * Everything of the stage's own state that its HUD shows, as a short string: the HUD re-renders when this
+   * (or the shared round core: phase, question, coins, hints …) changes — not on every tick.
+   */
+  hudKey(state: S): string;
   /** The action for a HUD toggle key. */
   toggleAction?(id: string): A;
   /** The action for an answer of the HUD's `cross`. */
