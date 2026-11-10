@@ -29,7 +29,10 @@ function Screens({ app }: { app: AppHandle }) {
   const { store, db } = app;
   const screen = useStore(store, (s) => s.screen);
   const profile = useStore(store, (s) => s.profile);
-  const reduced = usePrefersReducedMotion();
+  const system = usePrefersReducedMotion();
+  // the child's own setting wins over the system preference (설정 → 움직임 줄이기)
+  const pref = profile?.settings.reducedMotion ?? 'system';
+  const reduced = pref === 'system' ? system : pref;
   switch (screen) {
     case 'boot':
       return null;

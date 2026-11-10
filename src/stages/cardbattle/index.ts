@@ -1,4 +1,4 @@
-import { ko } from '../../i18n/ko';
+import { fmt as fill, ko } from '../../i18n/ko';
 import type { HudView, StageModule } from '../_shared/module';
 import {
   bestPlay,
@@ -11,9 +11,6 @@ import {
   solveCards,
 } from './rules';
 import { createCardScene, TOGGLE_ANCHOR } from './scene';
-
-const fill = (t: string, v: Record<string, string | number>) =>
-  t.replace(/\{(\w+)\}/g, (_, k: string) => String(v[k] ?? ''));
 
 /** Goal line: the pair being built ("8 + 5 = ?"), its result once revealed; − puts the bigger first. */
 function goal(s: CardState): string {

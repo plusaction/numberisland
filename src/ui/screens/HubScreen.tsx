@@ -1,5 +1,5 @@
 /** Hub overlay (SPEC §10): info card, stage arrows, next-reward bar, coins/trophies, random adventure. */
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useStore } from 'zustand';
 import { useWorld } from '../../app/WorldHost';
 import type { GameStore } from '../../application/stores/game';
@@ -11,6 +11,7 @@ import { fmt, ko } from '../../i18n/ko';
 import { createIsland, type IslandController } from '../../scenes/island/island';
 import { Button } from '../components/Button';
 import { ProgressBar } from '../components/ProgressBar';
+import { SettingsSheet } from '../components/SettingsSheet';
 import { SpeakButton } from '../components/SpeakButton';
 import { Stars } from '../components/Stars';
 
@@ -26,14 +27,21 @@ export function HubScreen({ store, reducedMotion }: { store: GameStore; reducedM
   const islandRef = useRef<IslandController | null>(null);
   const fruits = profile ? Object.values(profile.adaptive.mastery).filter((m) => m >= 0.85).length : 0;
 
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  // while the settings sheet is open the island ignores keys and taps
+  const sheetRef = useRef(false);
+  sheetRef.current = settingsOpen;
   useEffect(() => {
     if (!api) return;
     const island = createIsland(api.world, {
       selected: store.getState().selected,
       fruits,
       reducedMotion,
-      onSelect: (s) => store.getState().select(s),
+      onSelect: (s) => {
+        if (!sheetRef.current) store.getState().select(s);
+      },
       onEnter: (s) => {
+        if (sheetRef.current) return;
         store.getState().select(s);
         store.getState().go('intro');
       },
@@ -55,7 +63,7 @@ export function HubScreen({ store, reducedMotion }: { store: GameStore; reducedM
     if (!api) return;
     return api.input.onAction((a) => {
       const st = store.getState();
-      if (st.screen !== 'hub') return;
+      if (st.screen !== 'hub' || sheetRef.current) return;
       const i = ORDER.indexOf(st.selected);
       if (a === 'left' || a === 'p2.left') st.select(ORDER[(i - 1 + ORDER.length) % ORDER.length] as StageId);
       if (a === 'right' || a === 'p2.right') st.select(ORDER[(i + 1) % ORDER.length] as StageId);
@@ -101,7 +109,17 @@ export function HubScreen({ store, reducedMotion }: { store: GameStore; reducedM
           </div>
         )}
         {store.getState().storageWarning && <div className="pill text-base">{ko.hub.storageWarning}</div>}
+        <button
+          type="button"
+          className="pill hub-gear"
+          aria-label={ko.settings.open}
+          data-testid="open-settings"
+          onClick={() => setSettingsOpen(true)}
+        >
+          <span aria-hidden="true">⚙️</span>
+        </button>
       </header>
+      {settingsOpen && <SettingsSheet store={store} onClose={() => setSettingsOpen(false)} />}
 
       <section className="hub-card card" aria-live="polite" data-testid="info-card" data-stage={selected}>
         <div className="flex items-start justify-between gap-3">

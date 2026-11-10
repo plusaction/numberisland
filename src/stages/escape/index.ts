@@ -1,4 +1,4 @@
-import { ko } from '../../i18n/ko';
+import { fmt as fill, ko } from '../../i18n/ko';
 import type { HudView, StageModule } from '../_shared/module';
 import {
   allFound,
@@ -13,7 +13,6 @@ import {
 } from './rules';
 import { createEscapeScene } from './scene';
 
-const fill = (t: string, v: Record<string, string>) => t.replace(/\{(\w+)\}/g, (_, k: string) => v[k] ?? '');
 /** Room name without its emoji, for the friend's sentence ("주방이야"). */
 const plainName = (title: string) => title.replace(/^\S+\s/, '');
 

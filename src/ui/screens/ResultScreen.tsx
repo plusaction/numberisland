@@ -53,6 +53,10 @@ export function ResultScreen({ store }: { store: GameStore }) {
   }, [result]);
   if (!result || !outcome) return null;
   const newThing = achievementText(outcome.achievement);
+  const badges = [...new Set(result.highlights)]
+    .map((h) => ko.result.highlights[h])
+    .filter((b): b is string => !!b)
+    .slice(0, 4);
   const goal = goalText(outcome.next);
   const delay = (i: number) => (reduce ? 0 : 0.35 + i * 0.45);
   return (
@@ -100,6 +104,15 @@ export function ResultScreen({ store }: { store: GameStore }) {
             {goal}
           </p>
         </motion.div>
+        {badges.length > 0 && (
+          <ul className="result-badges" data-testid="highlights">
+            {badges.map((b) => (
+              <li key={b} className="tag">
+                {b}
+              </li>
+            ))}
+          </ul>
+        )}
         {outcome.newToy && (
           <motion.p
             className="ribbon toy-prize mx-auto mt-4"

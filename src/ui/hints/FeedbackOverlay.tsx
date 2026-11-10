@@ -6,7 +6,7 @@ import { feedbackFor } from '../../domain/edu/feedback';
 import { coreComputation } from '../../domain/edu/hints';
 import type { MisconceptionTag, Question } from '../../domain/edu/types';
 import { ko } from '../../i18n/ko';
-import { Column, Dots, NumberLine } from './Representations';
+import { Column, NumberLine } from './Representations';
 
 /** Stage miss: "what you made" vs the target on a number line — never the correct parts. */
 function MadeVsTarget({ made, target }: { made: number; target: number }) {

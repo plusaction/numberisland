@@ -1,4 +1,4 @@
-import { ko } from '../../i18n/ko';
+import { fmt as fill, ko } from '../../i18n/ko';
 import type { HudView, StageModule } from '../_shared/module';
 import {
   initPizza,
@@ -11,9 +11,6 @@ import {
   VIP_ORDER,
 } from './rules';
 import { createPizzaScene } from './scene';
-
-const fill = (t: string, v: Record<string, string | number>) =>
-  t.replace(/\{(\w+)\}/g, (_, k: string) => String(v[k] ?? ''));
 
 /** Goal line: bake `🍕 a + b = ?`, pack `📦 a − b = ?` (the answer shows once it is served). */
 function goal(s: PizzaState): string {

@@ -89,7 +89,6 @@ export interface NumberLabelOptions {
 export class NumberLabel extends Group {
   private text = '';
   private opts: Required<Omit<NumberLabelOptions, 'hideIndex'>> & { hideIndex?: number };
-  private badgeSprite: Sprite | null = null;
 
   constructor(value: number | string, opts: NumberLabelOptions = {}) {
     super();
@@ -128,7 +127,6 @@ export class NumberLabel extends Group {
       b.scale.set(total + size * 0.55, size * 1.3, 1);
       b.position.set(0, 0, 0);
       b.renderOrder = 1;
-      this.badgeSprite = b;
       this.add(b);
     }
     chars.forEach((ch, i) => {
