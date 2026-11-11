@@ -552,13 +552,15 @@ export function createRaceScene(world: RenderWorld, ctx: StageCtx): StageScene<R
         world.camera.updateProjectionMatrix();
       }
       const sh = shake.update(dt);
+      // portrait screens: back off so all three lanes stay in view
+      const tall = world.camera.aspect < 1 ? 1.5 : 1;
       const fin = state.phase === 'finish' && !reduced ? ease((1 - state.phaseLeft / FINISH_TICKS) * 1.3) : 0;
       const orbit = fin * 2.5;
       const pull = reduced ? 0 : fast * 0.9;
       world.camera.position.set(
-        Math.sin(orbit) * (CAM.z + pull) + sh.x,
-        CAM.y - fin * 2.2 + sh.y - (reduced ? 0 : Math.atan(slope(me.vis)) * 1.2),
-        Math.cos(orbit) * (CAM.z + pull),
+        Math.sin(orbit) * (CAM.z * tall + pull) + sh.x,
+        (CAM.y - fin * 2.2) * tall + sh.y - (reduced ? 0 : Math.atan(slope(me.vis)) * 1.2),
+        Math.cos(orbit) * (CAM.z * tall + pull),
       );
       world.camera.lookAt(0, -0.6 + fin * 2.2, -5 * Math.cos(orbit));
     },

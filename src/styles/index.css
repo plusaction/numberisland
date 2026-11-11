@@ -593,10 +593,6 @@
     font-size: 2.6rem;
     gap: 0.4rem;
   }
-  /* the goal is taller with the mini track: praise drops below it */
-  .has-cross > .toast.toast-top {
-    top: 14.4rem;
-  }
   .has-cross > .say-bubble {
     max-width: min(16rem, 70vw);
   }
@@ -977,8 +973,15 @@
       0 6px 0 color-mix(in oklab, var(--color-ink) 16%, var(--color-milk)),
       0 16px 24px -10px color-mix(in oklab, var(--color-ink) 50%, transparent);
   }
-  .toast.toast-top {
-    top: 12rem;
+  /* praise: directly under the goal box, whatever its height */
+  .hud-goal > .toast {
+    top: calc(100% + 0.6rem);
+    /* wider than the goal box: centre with `translate` (the pop-in animation owns `transform`) */
+    left: 50%;
+    right: auto;
+    width: max-content;
+    translate: -50% 0;
+    font-size: 2.1rem;
   }
   .toast-good {
     background: var(--color-sun);
@@ -1121,12 +1124,11 @@
     .race-track {
       min-width: 9rem;
     }
-    .toast.toast-top {
-      top: 10.6rem;
-      font-size: 1.8rem;
+    .stage-hud > .hud-primary {
+      bottom: 5.6rem; /* above the hint / undo keys, never on top of them */
     }
-    .has-cross > .toast.toast-top {
-      top: 12.8rem;
+    .hud-goal > .toast {
+      font-size: 1.7rem;
     }
     .hud-toggles .toggle-key {
       min-width: 4rem;

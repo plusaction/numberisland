@@ -276,6 +276,21 @@ export function StageScreen({ store, reducedMotion }: { store: GameStore; reduce
         <GoalTiles goal={hud.goal} />
         {hud.steps && <StepGuide steps={hud.steps} />}
         {hud.race && <RaceBar race={hud.race} />}
+        {/* praise hangs right under the goal box: never over the numbers in the scene */}
+        <AnimatePresence>
+          {praise && (
+            <motion.p
+              key={praise}
+              className="toast toast-good"
+              data-testid="praise"
+              initial={{ scale: 0.6, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ opacity: 0 }}
+            >
+              {praise}
+            </motion.p>
+          )}
+        </AnimatePresence>
       </section>
       {hud.say && !tutorial && <SayBubble say={hud.say} voice={voice} />}
       {hud.toggles && mod.toggleAction && (
@@ -334,20 +349,6 @@ export function StageScreen({ store, reducedMotion }: { store: GameStore; reduce
           {ko.stageHud.stuck}
         </p>
       )}
-      <AnimatePresence>
-        {praise && (
-          <motion.p
-            key={praise}
-            className={`toast toast-good${mod.praiseSpot === 'top' ? ' toast-top' : ''}`}
-            data-testid="praise"
-            initial={{ scale: 0.6, opacity: 0 }}
-            animate={{ scale: 1, opacity: 1 }}
-            exit={{ opacity: 0 }}
-          >
-            {praise}
-          </motion.p>
-        )}
-      </AnimatePresence>
       {hud.wrong && q && !hintOpen && (
         <FeedbackOverlay
           key={`${core.wrong}`}

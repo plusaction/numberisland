@@ -158,13 +158,13 @@ export function createPizzaScene(world: RenderWorld, ctx: StageCtx): StageScene<
   root.add(counter, counterTop);
   const pileA = new NumberPile(1.15);
   const pileB = new NumberPile(1.15);
-  // the numerals hang on the counter's front like price tags, right under their pile (nothing hides them)
-  pileA.label.position.set(0.2, -0.38, 1.2);
-  pileB.label.position.set(0.2, -0.38, 1.2);
+  // the numeral floats just above its pile
+  pileA.label.position.set(0.25, 1.0, 0.1);
+  pileB.label.position.set(0.25, 1.0, 0.1);
   pileA.group.position.copy(PILE_A);
   pileB.group.position.copy(PILE_B);
   const sign2 = new NumberLabel('+', { size: 0.55, tint: PALETTE.ink });
-  sign2.position.set(-0.1, COUNTER.top - 0.38, COUNTER.z + 1.2);
+  sign2.position.set(-0.1, COUNTER.top + 0.45, COUNTER.z + 0.3);
   root.add(pileA.group, pileB.group, sign2);
   // the box being filled (pack) / closed (both): an open tray + a hinged lid
   const tray = new Mesh(roundedBox(1.9, 0.12, 1.5, 0.04), toyMaterial(COLORS.box, { finish: 'matte' }));

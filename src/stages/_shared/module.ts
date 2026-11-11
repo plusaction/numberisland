@@ -122,6 +122,4 @@ export interface StageModule<S extends { phase: string; core: RoundCore }, A> {
    * primary key then joins the same row; without it the toggles stay in the bottom-left corner.
    */
   toggleAnchor?: number;
-  /** 'top': the praise toast shows just under the goal (when the middle of the scene holds numbers). */
-  praiseSpot?: 'top';
 }
