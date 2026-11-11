@@ -31,7 +31,7 @@ Vite 8.3 + TS 6.0 strict + React 19.3(Compiler) + Tailwind 4.3, Biome, Vitest 5,
 - 테스트: `tests/unit/fishing-reel.test.ts`, `tests/unit/toys.test.ts`, 마이그레이션 v2.
 
 ### 스테이지 추가 (D29·D30·D32·D33)
-- ⑤ 방탈출, ⑦ 카드 배틀(1인 vs 봇), ⑥ 피자 가게(1인 + 파트너 봇, 역할 교대·VIP·하이파이브), ⑧ 레이스(1인 vs 라이벌 2대, 십자 4지선다 직접 선택·터보·바나나, D34) 완성. 테스트: `tests/unit/{escape,cardbattle,pizza,race}.test.ts`, finishable·e2e A1 루프 포함. 남은 스테이지: ② 좀비.
+- ⑤ 방탈출, ⑦ 카드 배틀(1인 vs 봇), ⑥ 피자 가게(1인 + 파트너 봇, 역할 교대·VIP·하이파이브), ⑧ 레이스(1인 vs 라이벌 2대, 십자 4지선다 직접 선택·터보·바나나, D34) 완성. 테스트: `tests/unit/{escape,cardbattle,pizza,race}.test.ts`, finishable·e2e A1 루프 포함. ② 좀비 숫자 막기도 완성(D37) — **8개 스테이지 모두 플레이 가능**. 섬은 드래그로도 회전.
 
 ### 전체 진단·고도화 (D36, 2026-11-10)
 - `docs/AUDIT.md` 참고: 설정 창, 음량·움직임 설정 적용, 결과 배지, 오류 경계, axe 접근성 검사, HUD 키 타입화, 쉬는 시간 알림. 레이스는 실시간(D35).

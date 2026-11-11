@@ -47,7 +47,11 @@ export type SfxId =
   | 'race.go'
   | 'race.boost'
   | 'race.turbo'
-  | 'race.slip';
+  | 'race.slip'
+  | 'zombie.pop'
+  | 'zombie.moan'
+  | 'zombie.knock'
+  | 'zombie.nope';
 
 const C5 = 523.25;
 const E5 = 659.25;
@@ -191,6 +195,26 @@ export const SFX: Record<SfxId, Note[]> = {
     { at: 0.3, freq: C6, to: 2093, dur: 0.35, wave: 'triangle', gain: 0.14 },
   ],
   // banana slip: a wobbling slide down, then a little bonk
+  // balloon pop: a sharp snap + a happy blip
+  'zombie.pop': [
+    { at: 0, freq: 3000, dur: 0.06, wave: 'sine', gain: 0.34, noise: true },
+    { at: 0.05, freq: G5, to: C6, dur: 0.16, wave: 'triangle', gain: 0.2 },
+  ],
+  // a sleepy, silly "우어~" (never scary): a slow wobble down
+  'zombie.moan': [
+    { at: 0, freq: 220, to: 160, dur: 0.5, wave: 'triangle', gain: 0.16 },
+    { at: 0.25, freq: 170, to: 200, dur: 0.3, wave: 'sine', gain: 0.1 },
+  ],
+  // the door goes "쿵": a soft wooden thud + a rattle
+  'zombie.knock': [
+    { at: 0, freq: 120, to: 60, dur: 0.22, wave: 'sine', gain: 0.4 },
+    { at: 0.02, freq: 500, dur: 0.1, wave: 'sine', gain: 0.1, noise: true },
+  ],
+  // refused card: two soft low boops
+  'zombie.nope': [
+    { at: 0, freq: 300, to: 250, dur: 0.1, wave: 'square', gain: 0.1 },
+    { at: 0.14, freq: 250, to: 200, dur: 0.14, wave: 'square', gain: 0.1 },
+  ],
   'race.slip': [
     { at: 0, freq: 900, to: 260, dur: 0.45, wave: 'triangle', gain: 0.2 },
     { at: 0.5, freq: 190, to: 140, dur: 0.14, wave: 'sine', gain: 0.25 },

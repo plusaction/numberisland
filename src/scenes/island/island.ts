@@ -232,6 +232,13 @@ export function createIsland(world: RenderWorld, opts: IslandOptions): IslandCon
     root.add(friend.group);
     for (const p of portals.values()) p.ring.visible = false;
   }
+  const UP = new Vector3(0, 1, 0);
+  /** Drag-to-turn: yaw added to the selected portal's view while a pointer drags (radians). */
+  let dragYaw = 0;
+  let drag: { x: number; moved: boolean; id: StageId | undefined } | null = null;
+  const DRAG_START = 0.03; // NDC: less than this is a tap
+  const TURN = 2.2; // radians per full screen width
+
   const target = () => {
     if (opts.showcase) {
       const a = opts.reducedMotion ? 0 : Math.sin(t * 0.12) * 0.18;
@@ -243,7 +250,12 @@ export function createIsland(world: RenderWorld, opts: IslandOptions): IslandCon
     const dir = p.clone().setY(0).normalize();
     wantLook.set(p.x * 0.6, 1.0, p.z * 0.6);
     wantPos.copy(dir.multiplyScalar(13)).setY(8.2);
-    if (!opts.reducedMotion) wantPos.applyAxisAngle(new Vector3(0, 1, 0), Math.sin(t * 0.1) * 0.05);
+    if (!opts.reducedMotion) wantPos.applyAxisAngle(UP, Math.sin(t * 0.1) * 0.05);
+    // dragging turns the whole view round the island (released: it settles on the nearest portal)
+    if (dragYaw !== 0) {
+      wantPos.applyAxisAngle(UP, dragYaw);
+      wantLook.applyAxisAngle(UP, dragYaw);
+    }
   };
   target();
   camPos.copy(wantPos);
@@ -293,9 +305,45 @@ export function createIsland(world: RenderWorld, opts: IslandOptions): IslandCon
       if (ok && friend) world.particles.emit('sparkle', friend.group.position.clone().setY(1.8), 30);
     },
     pointer(p: PointerInfo) {
-      if (p.type !== 'down' || opts.showcase) return;
-      const hit = p.raycaster.intersectObjects(proxies, false)[0];
-      const id = hit?.object.userData.stage as StageId | undefined;
+      if (opts.showcase) return;
+      if (p.type === 'down') {
+        const hit = p.raycaster.intersectObjects(proxies, false)[0];
+        drag = { x: p.x, moved: false, id: hit?.object.userData.stage as StageId | undefined };
+        return;
+      }
+      if (!drag) return;
+      if (p.type === 'move') {
+        const dx = p.x - drag.x;
+        if (!drag.moved && Math.abs(dx) < DRAG_START) return;
+        drag.moved = true;
+        // the island follows the finger: dragging right brings the left side round
+        dragYaw = -dx * TURN;
+        return;
+      }
+      // up
+      const { moved, id } = drag;
+      drag = null;
+      if (moved) {
+        // settle on the portal the camera now faces
+        const cam = Math.atan2(camPos.x, camPos.z);
+        let best: StageId = selected;
+        let bestD = Number.POSITIVE_INFINITY;
+        for (const [sid, portal] of portals) {
+          const a = Math.atan2(portal.pos.x, portal.pos.z);
+          const d = Math.abs(Math.atan2(Math.sin(a - cam), Math.cos(a - cam)));
+          if (d < bestD) {
+            bestD = d;
+            best = sid;
+          }
+        }
+        dragYaw = 0;
+        if (best !== selected) {
+          applySelection(best);
+          opts.onSelect(best);
+        }
+        return;
+      }
+      // a plain tap: pick that portal, or enter the one already picked
       if (!id) return;
       if (id === selected) opts.onEnter(id);
       else {

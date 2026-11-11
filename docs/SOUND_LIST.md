@@ -31,6 +31,10 @@
 | pizza.box | ⑥ 피자 상자 닫힘 퉁 | ✅ |
 | pizza.five | ⑥ 하이파이브 짝 + 신나는 소리 | ✅ |
 | pizza.puff | ⑥ 오답: 오븐이 연기를 뿡 | ✅ |
+| zombie.pop | ② 풍선 펑 + 기쁜 소리 | ✅ |
+| zombie.moan | ② 졸린 "우어~"(무섭지 않게) | ✅ |
+| zombie.knock | ② 문 쿵 | ✅ |
+| zombie.nope | ② 못 쓰는 카드: 낮은 뿅뿅 | ✅ |
 | race.go | ⑧ 출발 신호 삑 삑 삑 삐— | ✅ |
 | race.boost | ⑧ 정답 부스터: 엔진 올라가는 소리 + 바람 | ✅ |
 | race.turbo | ⑧ 3연속 터보: 더 길고 높은 가속 + 반짝 | ✅ |

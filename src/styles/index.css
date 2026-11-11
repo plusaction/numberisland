@@ -1121,6 +1121,11 @@
     .has-cross .say-bubble {
       bottom: 20.5rem;
     }
+    /* phone, zombies: the cards fill the lower half, so the friend speaks from under the goal */
+    .stage-hud[data-stage="zombie"] > .say-bubble {
+      top: 9.6rem;
+      bottom: auto;
+    }
     .race-track {
       min-width: 9rem;
     }

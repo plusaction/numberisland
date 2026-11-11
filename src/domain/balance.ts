@@ -27,6 +27,8 @@ export const BALANCE = {
   cards: { rounds: 5, perfectBonus: 1 },
   /** Pizza shop: orders per round (roles swap each order), +1 tip coin from the VIP (always order 3). */
   pizza: { orders: 5, vipBonus: 1 },
+  /** Zombies: waves × zombies per wave; walking speed (door in ~28 s, slower after refused cards); boss coins. */
+  zombie: { waves: 3, perWave: 3, walkPerSecond: 0.036, bossBonus: 2 },
   /** Race (real time, D35): track squares; every `turboEvery`-th right answer in a row is a turbo; coin per star. */
   race: {
     length: 12,

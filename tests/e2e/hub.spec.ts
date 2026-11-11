@@ -17,11 +17,12 @@ test('[G7] hub: 8 portals selectable by keyboard, info card + medals, intro and 
   expect(seen.size).toBe(8);
   await expect(card.getByRole('img', { name: /별 0개/ })).toBeVisible();
   await expect(page.getByTestId('next-reward')).toBeVisible();
-  // a not-yet-built stage says so instead of trapping the child
+  // every stage is built now: each one offers its start key (no "준비 중" left)
   await page
     .getByRole('button', { name: '좀비 숫자 막기' })
     .evaluate((el) => (el as HTMLButtonElement).click());
-  await expect(page.getByTestId('soon')).toBeVisible();
+  await expect(page.getByTestId('start')).toBeVisible();
+  await expect(page.getByTestId('soon')).toHaveCount(0);
   // fishing → intro → back to the island (P10)
   await page.getByRole('button', { name: '숫자 낚시' }).evaluate((el) => (el as HTMLButtonElement).click());
   await page.getByTestId('start').click();
@@ -113,4 +114,31 @@ test('[P9] settings sheet: switches apply at once, are saved, and the island ign
   await page.reload();
   await expect(page.getByTestId('hub')).toBeVisible({ timeout: 30_000 });
   expect(await settings()).toMatchObject({ tts: false, reducedMotion: true });
+});
+
+test('[G7] dragging the island turns it and settles on the portal now in front; a plain tap does not turn', async ({
+  page,
+}, info) => {
+  await startFresh(page, url(info, '/'));
+  await throughPlacement(page);
+  const card = page.getByTestId('info-card');
+  const before = await card.getAttribute('data-stage');
+  const vp = page.viewportSize() ?? { width: 1280, height: 800 };
+  const y = vp.height * 0.3;
+  // a tap on empty sea keeps the selection
+  await page.mouse.click(vp.width * 0.04, vp.height * 0.5);
+  await expect(card).toHaveAttribute('data-stage', before ?? '');
+  // drag a third of the screen to the right
+  await page.mouse.move(vp.width * 0.3, y);
+  await page.mouse.down();
+  for (let i = 1; i <= 8; i++) await page.mouse.move(vp.width * (0.3 + 0.045 * i), y, { steps: 2 });
+  await page.mouse.up();
+  await expect(card).not.toHaveAttribute('data-stage', before ?? '', { timeout: 10_000 });
+  // and back again the other way
+  const turned = await card.getAttribute('data-stage');
+  await page.mouse.move(vp.width * 0.66, y);
+  await page.mouse.down();
+  for (let i = 1; i <= 8; i++) await page.mouse.move(vp.width * (0.66 - 0.045 * i), y, { steps: 2 });
+  await page.mouse.up();
+  await expect(card).not.toHaveAttribute('data-stage', turned ?? '', { timeout: 10_000 });
 });

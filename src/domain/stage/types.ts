@@ -45,6 +45,7 @@ export const PLAYABLE: readonly StageId[] = [
   'cardbattle',
   'pizza',
   'race',
+  'zombie',
 ];
 
 /** One simulation tick of semantic input (already resolved from pointer/keys/pad by the scene). */

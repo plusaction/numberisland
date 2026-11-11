@@ -27,7 +27,16 @@ function frameInterval(page: Page): Promise<number> {
   );
 }
 
-for (const stage of ['fishing', 'bomb', 'slime', 'escape', 'cardbattle', 'pizza', 'race'] as const) {
+for (const stage of [
+  'fishing',
+  'bomb',
+  'slime',
+  'escape',
+  'cardbattle',
+  'pizza',
+  'race',
+  'zombie',
+] as const) {
   test(`[A1:${stage}] [G2:${stage}] round → result with stars, new thing, next goal`, async ({
     page,
   }, info) => {

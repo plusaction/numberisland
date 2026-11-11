@@ -7,6 +7,7 @@ import { fishingModule } from '../../src/stages/fishing/index';
 import { pizzaModule } from '../../src/stages/pizza/index';
 import { raceModule } from '../../src/stages/race/index';
 import { slimeModule } from '../../src/stages/slime/index';
+import { zombieModule } from '../../src/stages/zombie/index';
 
 /** Every round, started at every curriculum level, can be finished by following the solution (no dead puzzles). */
 const MODULES = [
@@ -17,6 +18,7 @@ const MODULES = [
   ['cardbattle', cardModule],
   ['pizza', pizzaModule],
   ['race', raceModule],
+  ['zombie', zombieModule],
 ] as const;
 
 for (const [name, mod] of MODULES) {
