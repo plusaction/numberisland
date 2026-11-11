@@ -1168,3 +1168,19 @@
     }
   }
 }
+
+/*
+ * Short screens (a phone held sideways, ~390 px tall): every size in this UI is in rem, so shrinking the
+ * root scales panels, keys and gaps together — the layout stays the same, nothing overlaps or runs off.
+ * Keys stay ≥ 40 px tall, which is still a comfortable tap on a phone.
+ */
+@media (max-height: 540px) and (orientation: landscape) {
+  html {
+    font-size: 62.5%;
+  }
+}
+@media (min-height: 541px) and (max-height: 680px) and (orientation: landscape) {
+  html {
+    font-size: 80%;
+  }
+}
