@@ -596,6 +596,12 @@
   .has-cross > .say-bubble {
     max-width: min(16rem, 70vw);
   }
+  /* mid-width screens (tablets): no room beside the answer keys, so the bubble sits above them */
+  @media (max-width: 1100px) {
+    .has-cross > .say-bubble {
+      bottom: 16.5rem;
+    }
+  }
   .choice-dim {
     opacity: 0.4;
     filter: grayscale(0.6);
@@ -1155,7 +1161,7 @@
       top: auto;
       right: auto;
       left: 0.6rem;
-      bottom: 0.9rem;
+      bottom: 5.6rem; /* above the hint / undo row, which can span the whole width */
     }
     /* many progress beads (a 12-square race): smaller beads so the coin pill stays on screen */
     .dots-many {
