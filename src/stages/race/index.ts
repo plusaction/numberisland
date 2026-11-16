@@ -4,6 +4,8 @@ import {
   crossChoices,
   initRace,
   placeOf,
+  RACE_PHASES,
+  RACE_PHASES_INITIAL,
   type RaceAction,
   type RaceState,
   raceRules,
@@ -87,6 +89,8 @@ export const raceModule: StageModule<RaceState, RaceAction> = {
     };
   },
   solution: (s) => (s.phase === 'play' || s.phase === 'start' ? solveRace(s) : []),
+  phases: RACE_PHASES,
+  initialPhase: RACE_PHASES_INITIAL,
   hudKey: (s) =>
     // positions change every tick: quarter squares / tenths of fuel are enough for the mini track
     `${s.tried.length}|${Math.round(s.me * 4)}|${s.rivals.map((r) => Math.round(r * 4)).join(',')}|${Math.round(s.fuel * 10)}`,

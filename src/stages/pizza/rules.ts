@@ -8,8 +8,10 @@
  * spill (funny, nothing is lost — P2). Every order can be solved exactly. The third order is always the VIP
  * (fixed order, not a lucky draw) and tips one more coin.
  */
+
 import { BALANCE } from '../../domain/balance';
 import type { Question, SkillId } from '../../domain/edu/types';
+import type { PhaseTable } from '../../domain/fsm';
 import type { Rng } from '../../domain/rng/rng';
 import type { InputFrame, RoundResult, StageRules } from '../../domain/stage/types';
 import { answerOptions } from '../_shared/options';
@@ -192,4 +194,14 @@ export const pizzaRules: StageRules<PizzaState, PizzaAction> = {
     if (s.vipServed) highlights.push('pizzaVip');
     return { ...r, highlights };
   },
+};
+
+/** The phases as a table (docs + tests hold the step function to it; see `domain/fsm.ts`). */
+export const PIZZA_PHASES_INITIAL: PizzaPhase = 'enter';
+export const PIZZA_PHASES: PhaseTable<PizzaPhase> = {
+  enter: { input: false, timed: true, to: ['play'], note: 'the customer walks in' },
+  play: { input: true, timed: false, to: ['serve', 'jam'], note: 'press the pizza key with the answer' },
+  jam: { input: false, timed: true, to: ['play'], note: 'wrong key: the oven puffs / the box spills' },
+  serve: { input: false, timed: true, to: ['enter', 'done'], note: 'bake or pack, hand over, high-five' },
+  done: { input: false, timed: false, to: [], note: 'round over' },
 };

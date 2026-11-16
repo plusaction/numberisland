@@ -8,11 +8,13 @@
  * — nothing is lost (P2). Finding just the clue things is always enough. Each room starts with a short
  * 'enter' cut (the camera swoops in, the friend says where we are) during which input waits.
  */
+
 import { BALANCE } from '../../domain/balance';
 import { levelSpec } from '../../domain/curriculum/curriculum';
 import { DEFAULT_SETTINGS, isAllowed } from '../../domain/edu/adaptive';
 import { generateQuestion } from '../../domain/edu/generate';
 import type { Op, Question, SkillId } from '../../domain/edu/types';
+import type { PhaseTable } from '../../domain/fsm';
 import type { Rng } from '../../domain/rng/rng';
 import type { InputFrame, RoundResult, StageRules } from '../../domain/stage/types';
 import { answerOptions } from '../_shared/options';
@@ -270,4 +272,24 @@ export const escapeRules: StageRules<EscapeState, EscapeAction> = {
     const r = roundSummary(s.core);
     return { ...r, highlights: s.rescued ? [...r.highlights, 'rescued'] : r.highlights };
   },
+};
+
+/** The phases as a table (docs + tests hold the step function to it; see `domain/fsm.ts`). */
+export const ESCAPE_PHASES_INITIAL: EscapePhase = 'enter';
+export const ESCAPE_PHASES: PhaseTable<EscapePhase> = {
+  enter: {
+    input: false,
+    timed: true,
+    to: ['play'],
+    note: 'room cut: the camera swoops in (hints may already be asked)',
+  },
+  play: {
+    input: true,
+    timed: false,
+    to: ['open', 'jam'],
+    note: 'open the "?" things, then press a lock key',
+  },
+  open: { input: false, timed: true, to: ['enter', 'done'], note: 'right key: the door opens' },
+  jam: { input: false, timed: true, to: ['play'], note: 'wrong key: the lock rattles, that key dims' },
+  done: { input: false, timed: false, to: [], note: 'round over' },
 };

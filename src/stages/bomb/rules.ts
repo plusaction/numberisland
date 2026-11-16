@@ -3,11 +3,13 @@
  * SUM2 two wires sum to N · DIFF2 two wires differ by N · SUM3 three wires sum to N ·
  * PLACE one wire per place-value group (백·십·일 …) builds N. No timer (the fuse is decoration).
  */
+
 import { BALANCE } from '../../domain/balance';
 import { levelSpec } from '../../domain/curriculum/curriculum';
 import { digitAt, digitCount } from '../../domain/edu/arith';
 import { generateQuestion } from '../../domain/edu/generate';
 import type { LevelId, Question, SkillId } from '../../domain/edu/types';
+import type { PhaseTable } from '../../domain/fsm';
 import type { Rng } from '../../domain/rng/rng';
 import type { InputFrame, StageRules } from '../../domain/stage/types';
 import {
@@ -312,4 +314,23 @@ export const bombRules: StageRules<BombState, BombAction> = {
   step: stepBomb,
   isDone: (s) => s.phase === 'done',
   summary: (s) => roundSummary(s.core),
+};
+
+/** The phases as a table (docs + tests hold the step function to it; see `domain/fsm.ts`). */
+export const BOMB_PHASES_INITIAL: BombPhase = 'play';
+export const BOMB_PHASES: PhaseTable<BombPhase> = {
+  play: {
+    input: true,
+    timed: false,
+    to: ['defuse', 'puff'],
+    note: 'cut the wires whose numbers make the target',
+  },
+  defuse: {
+    input: false,
+    timed: true,
+    to: ['play', 'done'],
+    note: 'right wires: the bomb turns into a gift',
+  },
+  puff: { input: false, timed: true, to: ['play'], note: 'wrong wires: a silly puff, the wires come back' },
+  done: { input: false, timed: false, to: [], note: 'round over' },
 };

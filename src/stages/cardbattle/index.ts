@@ -2,6 +2,8 @@ import { fmt as fill, ko } from '../../i18n/ko';
 import type { HudView, StageModule } from '../_shared/module';
 import {
   bestPlay,
+  CARD_PHASES,
+  CARD_PHASES_INITIAL,
   type CardAction,
   type CardState,
   cardRules,
@@ -99,6 +101,8 @@ export const cardModule: StageModule<CardState, CardAction> = {
     return next ?? null;
   },
   solution: (s) => (s.phase === 'play' || s.phase === 'deal' ? solveCards(s) : []),
+  phases: CARD_PHASES,
+  initialPhase: CARD_PHASES_INITIAL,
   hudKey: (s) => `${s.picked.join(',')}|${s.op}`,
   hintAction: { t: 'hint' },
   retryAction: { t: 'retry' },

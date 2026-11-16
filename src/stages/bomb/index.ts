@@ -1,5 +1,13 @@
 import type { StageModule } from '../_shared/module';
-import { type BombAction, type BombState, bombRules, initBomb, solveBomb } from './rules';
+import {
+  BOMB_PHASES,
+  BOMB_PHASES_INITIAL,
+  type BombAction,
+  type BombState,
+  bombRules,
+  initBomb,
+  solveBomb,
+} from './rules';
 import { createBombScene } from './scene';
 
 /** Goal line; every wire the child cuts fills the next "?" with its number (picked order; bigger first for −). */
@@ -45,6 +53,8 @@ export const bombModule: StageModule<BombState, BombAction> = {
   }),
   glowTarget: (s) => (s.puzzle && s.puzzle.mode !== 'PLACE' ? (solveBomb(s.puzzle)[0]?.[0] ?? null) : null),
   solution: (s) => (s.puzzle ? (solveBomb(s.puzzle)[0] ?? []).map((id) => ({ t: 'cut' as const, id })) : []),
+  phases: BOMB_PHASES,
+  initialPhase: BOMB_PHASES_INITIAL,
   hudKey: (s) => `${s.puzzle ? 1 : 0}|${s.cut.join(',')}`,
   hintAction: { t: 'hint' },
   picks: (s) => s.cut,

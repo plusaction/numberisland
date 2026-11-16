@@ -2,6 +2,8 @@ import { fmt as fill, ko } from '../../i18n/ko';
 import type { HudView, StageModule } from '../_shared/module';
 import {
   allFound,
+  ESCAPE_PHASES,
+  ESCAPE_PHASES_INITIAL,
   type EscapeAction,
   type EscapeState,
   escapeRules,
@@ -90,6 +92,8 @@ export const escapeModule: StageModule<EscapeState, EscapeAction> = {
   },
   // also during the entry cut, so the first-room tutorial hand can show the way (input still waits)
   solution: (s) => (s.phase === 'play' || s.phase === 'enter' ? solveEscape(s) : []),
+  phases: ESCAPE_PHASES,
+  initialPhase: ESCAPE_PHASES_INITIAL,
   hudKey: (s) => `${s.found.length}|${s.tried.length}`,
   hintAction: { t: 'hint' },
   retryAction: { t: 'retry' },

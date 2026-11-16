@@ -13,8 +13,10 @@
  * a half squares away, a rival behind speeds up. No countdown is shown and nothing is ever lost (P2); the
  * race goes on until the child crosses the line.
  */
+
 import { BALANCE } from '../../domain/balance';
 import type { Choice, Question, SkillId } from '../../domain/edu/types';
+import type { PhaseTable } from '../../domain/fsm';
 import type { InputFrame, RoundResult, StageRules } from '../../domain/stage/types';
 import {
   advancePuzzle,
@@ -280,4 +282,25 @@ export const raceRules: StageRules<RaceState, RaceAction> = {
     if (s.turbos > 0) highlights.push('raceTurbo');
     return { ...r, highlights };
   },
+};
+
+/** The phases as a table (docs + tests hold the step function to it; see `domain/fsm.ts`). */
+export const RACE_PHASES_INITIAL: RacePhase = 'start';
+export const RACE_PHASES: PhaseTable<RacePhase> = {
+  start: { input: false, timed: true, to: ['play'], note: 'start lights' },
+  play: {
+    input: true,
+    timed: false,
+    to: ['boost', 'slip', 'finish'],
+    note: 'cruising: pick one of the four answers',
+  },
+  boost: {
+    input: false,
+    timed: true,
+    to: ['play', 'finish'],
+    note: 'right answer: a square (or two) forward',
+  },
+  slip: { input: false, timed: true, to: ['play'], note: 'wrong answer: one second on a banana peel' },
+  finish: { input: false, timed: true, to: ['done'], note: 'across the line' },
+  done: { input: false, timed: false, to: [], note: 'race over' },
 };

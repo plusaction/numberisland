@@ -32,7 +32,8 @@ for (const [name, mod] of MODULES) {
             let s = m.rules.init(`fin-${level.id}-${seed}-${shift}`, level.id, { shift });
             let tick = 0;
             while (s.phase !== 'done' && tick < 30_000) {
-              const acts = s.phase === 'play' || s.phase === 'hook' ? m.solution(s) : [];
+              // the stage's own phase table says when the child may act
+              const acts = m.phases[s.phase]?.input ? m.solution(s) : [];
               if (s.phase === 'play')
                 expect(acts.length, `${level.id}/${seed}/${shift} puzzle ${s.core.index}`).toBeGreaterThan(0);
               s = m.rules.step(s, { tick: ++tick, actions: acts });

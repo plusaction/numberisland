@@ -10,8 +10,10 @@
  * its two operands + one more card), so a child who finds it can never lose a round. Picking the exact pair
  * is what counts as "correct" for learning; losing a round costs nothing (P2).
  */
+
 import { BALANCE } from '../../domain/balance';
 import type { Op, Question, SkillId } from '../../domain/edu/types';
+import type { PhaseTable } from '../../domain/fsm';
 import type { Rng } from '../../domain/rng/rng';
 import type { InputFrame, RoundResult, StageRules } from '../../domain/stage/types';
 import {
@@ -263,4 +265,18 @@ export const cardRules: StageRules<CardState, CardAction> = {
     if (s.perfects) highlights.push('cardPerfect');
     return { ...r, highlights };
   },
+};
+
+/** The phases as a table (docs + tests hold the step function to it; see `domain/fsm.ts`). */
+export const CARD_PHASES_INITIAL: CardPhase = 'deal';
+export const CARD_PHASES: PhaseTable<CardPhase> = {
+  deal: { input: false, timed: true, to: ['play'], note: 'cards fly in' },
+  play: { input: true, timed: false, to: ['reveal'], note: 'pick two cards and + / −, then play' },
+  reveal: {
+    input: false,
+    timed: true,
+    to: ['deal', 'done'],
+    note: 'both plays are compared on the number line',
+  },
+  done: { input: false, timed: false, to: [], note: 'match over' },
 };

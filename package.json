@@ -17,6 +17,7 @@
     "check": "pnpm typecheck && pnpm lint && pnpm boundaries && pnpm test && pnpm build && pnpm check:offline && pnpm size",
     "check:score": "tsx tools/score/check-score.ts",
     "curriculum:verify": "tsx tools/gen-curriculum-verify.ts",
+    "machines:doc": "tsx tools/gen-machines-doc.ts",
     "images:requests": "tsx tools/gen-image-requests.ts",
     "bench": "tsx tools/bench.ts",
     "size": "size-limit",

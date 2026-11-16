@@ -4,6 +4,8 @@ import {
   initPizza,
   KEY,
   KEYS,
+  PIZZA_PHASES,
+  PIZZA_PHASES_INITIAL,
   type PizzaAction,
   type PizzaState,
   pizzaRules,
@@ -76,6 +78,8 @@ export const pizzaModule: StageModule<PizzaState, PizzaAction> = {
   glowTarget: (s) => (s.order ? KEY(s.order.options.indexOf(s.order.answer)) : null),
   // also during the walk-in, so the first-order tutorial hand can show the way (input still waits)
   solution: (s) => (s.phase === 'play' || s.phase === 'enter' ? solvePizza(s) : []),
+  phases: PIZZA_PHASES,
+  initialPhase: PIZZA_PHASES_INITIAL,
   hudKey: (s) => `${s.tried.length}`,
   hintAction: { t: 'hint' },
   retryAction: { t: 'retry' },

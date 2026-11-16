@@ -27,6 +27,7 @@
 | `pnpm test:e2e` | Playwright (Chromium `/opt/pw-browsers/chromium`, `playwright install` 금지) |
 | `pnpm bench` | 사용자 기기용 성능 측정 → JSON (`docs/HUMAN_INPUT.md`에 붙여넣기) |
 | `pnpm curriculum:verify` | `docs/CURRICULUM_VERIFY.md` 재생성 |
+| `pnpm machines:doc` | `docs/STATE_MACHINES.md` 재생성(전이표를 고쳤으면 실행) |
 
 ## 폴더
 ```
@@ -44,6 +45,11 @@ tests/{unit,property,replay,e2e}/   tools/   docs/
 ## 레이어 경계 (dependency-cruiser가 강제)
 domain ← application ← infra/engine ← presentation(ui, scenes, stages, app). 역방향 금지.
 domain/application은 three/react/DOM import 금지.
+
+## 상태 머신 (먼저 `docs/STATE_MACHINES.md`)
+- 화면 흐름 `SCREENS`·스테이지 세션 `SESSION`: `src/application/machines.ts`. 화면 이동은 `store.go()`만(표에 없으면 거부).
+- 스테이지 단계: 각 `rules.ts`의 `*_PHASES` 표. 단계를 추가·변경하면 표도 고치고 `pnpm machines:doc`.
+- 브라우저에서 현재 상태: `__game.snapshot()`, `__stage.info()`, `[data-testid=stage]`의 `data-session`.
 
 ## 코딩 규칙
 - TS strict + noUncheckedIndexedAccess + exactOptionalPropertyTypes + verbatimModuleSyntax, `any` 금지.

@@ -4,11 +4,13 @@
  */
 import { subscribeWithSelector } from 'zustand/middleware';
 import { createStore } from 'zustand/vanilla';
+import { allows } from '../../domain/fsm';
 import type { Profile } from '../../domain/profile';
 import type { ApplyOutcome } from '../../domain/progression/progression';
 import type { RoundResult, StageId } from '../../domain/stage/types';
+import { SCREENS, type Screen } from '../machines';
 
-export type Screen = 'boot' | 'welcome' | 'placement' | 'hub' | 'intro' | 'stage' | 'result';
+export type { Screen } from '../machines';
 export type DifficultyShift = -1 | 0 | 1;
 
 export interface GameState {
@@ -50,14 +52,27 @@ export function createGameStore() {
       lastOutcome: null,
       storageWarning: false,
       runId: 0,
-      go: (screen) => set({ screen }),
+      // screens follow the SCREENS machine: a move it does not list is refused (and reported), never applied
+      go: (screen) =>
+        set((s) => {
+          if (s.screen === screen) return s;
+          if (allows(SCREENS, s.screen, screen)) return { screen };
+          console.warn(`[screens] refused ${s.screen} → ${screen}`);
+          return s;
+        }),
       setProfile: (profile) => set({ profile }),
       select: (selected) => set({ selected }),
       setShift: (shift) => set({ shift }),
       setEasyStep: (easyStep) => set({ easyStep }),
       finishRound: (lastResult, lastOutcome) =>
-        set({ lastResult, lastOutcome, profile: lastOutcome.profile, screen: 'result' }),
-      restart: () => set((s) => ({ runId: s.runId + 1, screen: 'stage' })),
+        set((s) =>
+          // only a running stage can hand over a result (a late timer after "나가기" changes nothing)
+          s.screen === 'stage'
+            ? { lastResult, lastOutcome, profile: lastOutcome.profile, screen: 'result' }
+            : s,
+        ),
+      restart: () =>
+        set((s) => (allows(SCREENS, s.screen, 'stage') ? { runId: s.runId + 1, screen: 'stage' } : s)),
       setStorageWarning: (storageWarning) => set({ storageWarning }),
     })),
   );

@@ -1,5 +1,14 @@
 import type { StageModule } from '../_shared/module';
-import { initSlime, isStuck, type SlimeAction, type SlimeState, slimeRules, solveSlime } from './rules';
+import {
+  initSlime,
+  isStuck,
+  SLIME_PHASES,
+  SLIME_PHASES_INITIAL,
+  type SlimeAction,
+  type SlimeState,
+  slimeRules,
+  solveSlime,
+} from './rules';
 import { createSlimeScene } from './scene';
 
 /** One solving merge for the current tray (tutorial ghost hand + keyboard hints). */
@@ -57,6 +66,8 @@ export const slimeModule: StageModule<SlimeState, SlimeAction> = {
     const m = nextGoodMove(s);
     return m ? [m] : [];
   },
+  phases: SLIME_PHASES,
+  initialPhase: SLIME_PHASES_INITIAL,
   hudKey: (s) => `${s.puzzle ? 1 : 0}|${s.slimes.length}|${s.undo.length}`,
   hintAction: { t: 'hint' },
   retryAction: { t: 'retry' },

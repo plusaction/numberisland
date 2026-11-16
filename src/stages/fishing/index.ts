@@ -1,6 +1,14 @@
 import { ko } from '../../i18n/ko';
 import type { StageModule } from '../_shared/module';
-import { type FishingAction, type FishingState, fishingRules, initFishing, solveFishing } from './rules';
+import {
+  FISHING_PHASES,
+  FISHING_PHASES_INITIAL,
+  type FishingAction,
+  type FishingState,
+  fishingRules,
+  initFishing,
+  solveFishing,
+} from './rules';
 import { createFishingScene } from './scene';
 
 function goal(s: FishingState): string {
@@ -48,6 +56,8 @@ export const fishingModule: StageModule<FishingState, FishingAction> = {
       : s.puzzle
         ? (solveFishing(s.puzzle)[0] ?? []).map((id) => ({ t: 'tap' as const, id }))
         : [],
+  phases: FISHING_PHASES,
+  initialPhase: FISHING_PHASES_INITIAL,
   hudKey: (s) => `${s.puzzle ? 1 : 0}|${s.picked.join(',')}|${s.reelLeft}`,
   hintAction: { t: 'hint' },
   undoAction: { t: 'undo' },

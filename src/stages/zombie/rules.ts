@@ -14,8 +14,10 @@
  * It walks slower after refused cards, and never while a hint is open. Three waves; the very last zombie is
  * the big boss 비틀이 (fixed order, +coins).
  */
+
 import { BALANCE } from '../../domain/balance';
 import type { Question, SkillId } from '../../domain/edu/types';
+import type { PhaseTable } from '../../domain/fsm';
 import type { Rng } from '../../domain/rng/rng';
 import type { InputFrame, RoundResult, StageRules } from '../../domain/stage/types';
 import {
@@ -312,4 +314,16 @@ export const zombieRules: StageRules<ZombieState, ZombieAction> = {
     if (s.knocks === 0 && s.popped >= s.core.puzzles) highlights.push('zombieNoKnock');
     return { ...r, highlights };
   },
+};
+
+/** The phases as a table (docs + tests hold the step function to it; see `domain/fsm.ts`). */
+export const ZOMBIE_PHASES_INITIAL: ZombiePhase = 'wave';
+export const ZOMBIE_PHASES: PhaseTable<ZombiePhase> = {
+  wave: { input: false, timed: true, to: ['play'], note: 'a new group arrives at the gate' },
+  play: { input: true, timed: false, to: ['hit', 'nope', 'knock'], note: 'play a card on the balloon' },
+  hit: { input: false, timed: true, to: ['play', 'pop'], note: 'the card lands, the number changes' },
+  nope: { input: false, timed: true, to: ['play'], note: 'refused card (would go below 0)' },
+  pop: { input: false, timed: true, to: ['play', 'wave', 'done'], note: 'exactly 0: the balloon pops' },
+  knock: { input: false, timed: true, to: ['play'], note: 'the zombie bumps the door and hops back' },
+  done: { input: false, timed: false, to: [], note: 'round over' },
 };

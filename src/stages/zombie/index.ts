@@ -1,6 +1,15 @@
 import { fmt, ko } from '../../i18n/ko';
 import type { HudView, StageModule } from '../_shared/module';
-import { HAND, initZombie, solveZombie, type ZombieAction, type ZombieState, zombieRules } from './rules';
+import {
+  HAND,
+  initZombie,
+  solveZombie,
+  ZOMBIE_PHASES,
+  ZOMBIE_PHASES_INITIAL,
+  type ZombieAction,
+  type ZombieState,
+  zombieRules,
+} from './rules';
 import { createZombieScene } from './scene';
 
 const eqText = (e: NonNullable<ZombieState['eq']>) =>
@@ -64,6 +73,8 @@ export const zombieModule: StageModule<ZombieState, ZombieAction> = {
         : {}),
     };
   },
+  phases: ZOMBIE_PHASES,
+  initialPhase: ZOMBIE_PHASES_INITIAL,
   hudKey: (s) => `${s.zombie?.value ?? ''}|${s.zombie?.used ?? 0}|${s.hand.join(',')}|${s.knocks}`,
   // hint step 3+: a card of the shortest finish sparkles
   glowTarget: (s) => solveZombie(s).map((a) => (a.t === 'card' ? a.id : null))[0] ?? null,

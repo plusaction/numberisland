@@ -2,9 +2,11 @@
  * ③ 숫자 낚시 — pure rules (P5/P6). Target panel: sum T / difference T / □ + k = T.
  * Tap two fish (or one for □) → reel in when right, splash back when wrong. Odd fish = free coins.
  */
+
 import { BALANCE } from '../../domain/balance';
 import { levelSpec } from '../../domain/curriculum/curriculum';
 import type { Op, Question, SkillId } from '../../domain/edu/types';
+import type { PhaseTable } from '../../domain/fsm';
 import type { Rng } from '../../domain/rng/rng';
 import type { InputFrame, RoundResult, StageRules } from '../../domain/stage/types';
 import {
@@ -354,4 +356,24 @@ export const fishingRules: StageRules<FishingState, FishingAction> = {
     if (s.goldenCaught) highlights.push('goldenFish');
     return { ...r, highlights };
   },
+};
+
+/** The phases as a table (docs + tests hold the step function to it; see `domain/fsm.ts`). */
+export const FISHING_PHASES_INITIAL: FishingPhase = 'play';
+export const FISHING_PHASES: PhaseTable<FishingPhase> = {
+  play: {
+    input: true,
+    timed: false,
+    to: ['hook', 'bounce'],
+    note: 'pick the fish (two for a sum / difference)',
+  },
+  hook: {
+    input: true,
+    timed: false,
+    to: ['reel'],
+    note: 'right catch on the line: wind the reel (taps, never timed)',
+  },
+  reel: { input: false, timed: true, to: ['play', 'done'], note: 'the catch flies into the bucket' },
+  bounce: { input: false, timed: true, to: ['play'], note: 'wrong pick: the fish puff up and bounce back' },
+  done: { input: false, timed: false, to: [], note: 'round over' },
 };

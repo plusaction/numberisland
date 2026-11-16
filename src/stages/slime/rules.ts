@@ -3,8 +3,10 @@
  * (a result below 0 bounces off). Goal: make one slime equal to the target. Undo is free and unlimited.
  * Puzzles are generated backwards from the target, so a solution always exists (verified by BFS).
  */
+
 import { levelSpec } from '../../domain/curriculum/curriculum';
 import type { Question, SkillId } from '../../domain/edu/types';
+import type { PhaseTable } from '../../domain/fsm';
 import type { Rng } from '../../domain/rng/rng';
 import type { InputFrame, StageRules } from '../../domain/stage/types';
 import {
@@ -324,4 +326,17 @@ export const slimeRules: StageRules<SlimeState, SlimeAction> = {
   step: stepSlime,
   isDone: (s) => s.phase === 'done',
   summary: (s) => roundSummary(s.core),
+};
+
+/** The phases as a table (docs + tests hold the step function to it; see `domain/fsm.ts`). */
+export const SLIME_PHASES_INITIAL: SlimePhase = 'play';
+export const SLIME_PHASES: PhaseTable<SlimePhase> = {
+  play: {
+    input: true,
+    timed: false,
+    to: ['win'],
+    note: 'merge / split slimes to make the target (undo any time)',
+  },
+  win: { input: false, timed: true, to: ['play', 'done'], note: 'target made: the slimes celebrate' },
+  done: { input: false, timed: false, to: [], note: 'round over' },
 };

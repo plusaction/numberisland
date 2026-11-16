@@ -1,4 +1,5 @@
 /** Boot: open storage, load or create the profile, wire debounced saving (SPEC §8.3). */
+import { SCREENS } from '../application/machines';
 import { createGameStore, type GameStore } from '../application/stores/game';
 import { defaultProfile, fitProfileToTerm, type Profile } from '../domain/profile';
 import { audio } from '../infra/audio/audio';
@@ -40,6 +41,19 @@ export async function bootApp(): Promise<App> {
     { fireImmediately: true },
   );
   (globalThis as { __store?: GameStore }).__store = store;
+  // one call tells a coding agent (or a test) where the app is: screen, legal next screens, stage phase
+  (globalThis as { __game?: unknown }).__game = {
+    snapshot: () => {
+      const st = store.getState();
+      const stage = (globalThis as { __stage?: { info?: () => unknown } }).__stage;
+      return {
+        screen: st.screen,
+        nextScreens: [...new Set(Object.values(SCREENS.states[st.screen]))],
+        selected: st.selected,
+        stage: st.screen === 'stage' ? (stage?.info?.() ?? null) : null,
+      };
+    },
+  };
   return { store, db, flush: () => saver.flush() };
 }
 

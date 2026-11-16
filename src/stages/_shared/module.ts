@@ -1,5 +1,6 @@
 /** Stage plugin contract for the presentation layer (SPEC §6.4): pure rules + 3D scene + HUD hooks. */
 import type { Choice, LevelId, Question } from '../../domain/edu/types';
+import type { PhaseSpec } from '../../domain/fsm';
 import type { StageId, StageRules } from '../../domain/stage/types';
 import type { RenderWorld } from '../../engine/world';
 import type { BgmId } from '../../infra/audio/bgm';
@@ -101,6 +102,12 @@ export interface StageModule<S extends { phase: string; core: RoundCore }, A> {
   /** Ids picked so far, in order (their numbers fly into the goal's ? boxes). */
   picks?(state: S): readonly number[];
   pickValue?(state: S, id: number): number | undefined;
+  /**
+   * The stage's phases as an explicit table: where the child may act, which phases are timed shows, and
+   * what may follow what. Tests check every transition seen in play against it; docs are generated from it.
+   */
+  phases: Readonly<Record<string, PhaseSpec<string>>>;
+  initialPhase: string;
   /**
    * Everything of the stage's own state that its HUD shows, as a short string: the HUD re-renders when this
    * (or the shared round core: phase, question, coins, hints …) changes — not on every tick.

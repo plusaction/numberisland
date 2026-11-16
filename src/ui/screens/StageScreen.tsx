@@ -1,9 +1,11 @@
 /** Hosts a stage plugin: runtime + 3D scene + HUD + hints + tutorial + result hand-off. */
 import { AnimatePresence, motion } from 'motion/react';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useReducer, useRef, useState } from 'react';
 import { useStore } from 'zustand';
 import { useWorld } from '../../app/WorldHost';
+import { SESSION, type SessionEvent, type SessionState, sessionFlags } from '../../application/machines';
 import type { GameStore } from '../../application/stores/game';
+import { next } from '../../domain/fsm';
 import { applyPartialRound, applyRoundResult } from '../../domain/progression/progression';
 import { createRng } from '../../domain/rng/rng';
 import { pickPraise, praiseCategory } from '../../domain/scoring/praise';
@@ -32,9 +34,13 @@ export function StageScreen({ store, reducedMotion }: { store: GameStore; reduce
   const voice = useStore(store, (s) => s.profile?.settings.tts ?? false);
   const [mod, setMod] = useState<AnyStageModule | null>(null);
   const [hud, setHud] = useState<HudView | null>(null);
-  const [hintOpen, setHintOpen] = useState(false);
   const [praise, setPraise] = useState<string | null>(null);
-  const [tutorial, setTutorial] = useState(false);
+  const sessionRef = useRef<SessionState>(SESSION.initial);
+  // one explicit state for the sitting (tutorial / playing / hint / finished) instead of loose flags
+  const [session, send] = useReducer(
+    (st: SessionState, ev: SessionEvent) => next(SESSION, st, ev),
+    SESSION.initial,
+  );
   const rtRef = useRef<StageRuntime<unknown, unknown> | null>(null);
   const praiseHistory = useRef<string[]>([]);
   const togglesRef = useRef<HTMLDivElement | null>(null);
@@ -94,6 +100,7 @@ export function StageScreen({ store, reducedMotion }: { store: GameStore; reduce
       init,
       { reducedMotion, shakeIntensity: profile.settings.shakeIntensity, toys: profile.toys },
       (final) => {
+        send('round.done');
         const result = mod.rules.summary(final);
         const outcome = applyRoundResult(
           store.getState().profile ?? profile,
@@ -114,6 +121,14 @@ export function StageScreen({ store, reducedMotion }: { store: GameStore; reduce
       solveOne: () => {
         for (const a of mod.solution(rt.state)) rt.dispatch(a);
       },
+      // for coding agents and tests: where the stage is and whether it takes input right now
+      info: () => ({
+        stage: mod.id,
+        phase: rt.state.phase,
+        acceptsInput: mod.phases[rt.state.phase]?.input === true && !rt.locked,
+        next: mod.phases[rt.state.phase]?.to ?? [],
+        session: sessionRef.current,
+      }),
     };
     api.setController(rt);
     audio.playBgm(mod.bgm, seed);
@@ -141,7 +156,7 @@ export function StageScreen({ store, reducedMotion }: { store: GameStore; reduce
           requestAnimationFrame(() => requestAnimationFrame(() => flyToGoal(from, String(value))));
       }
       lastPicks = picks?.length ?? 0;
-      if (c.puzzleHints > lastHints) setHintOpen(true); // keyboard H / pad X opens the panel too
+      if (c.puzzleHints > lastHints) send('hint.open'); // keyboard H / pad X opens the panel too
       lastHints = c.puzzleHints;
       if (s.core.correct > lastCorrect) {
         lastCorrect = s.core.correct;
@@ -154,13 +169,13 @@ export function StageScreen({ store, reducedMotion }: { store: GameStore; reduce
         const id = pickPraise(cat, PRAISE_POOL_SIZES, praiseHistory.current, rng);
         praiseHistory.current = [...praiseHistory.current, id].slice(-16);
         setPraise(praiseText(id));
-        setHintOpen(false);
+        send('hint.close');
         window.setTimeout(() => setPraise(null), 1400);
       }
     };
     update(init);
     const unsub = rt.subscribe(update);
-    if (!profile.tutorialSeen[selected]) setTutorial(true);
+    send(profile.tutorialSeen[selected] ? 'start' : 'start.tutorial');
     const offKeys = api.input.onAction((a) => {
       if (a !== 'cancel' || store.getState().screen !== 'stage') return;
       if (document.querySelector('[data-testid="hint-panel"]')) closeHintRef.current();
@@ -195,7 +210,7 @@ export function StageScreen({ store, reducedMotion }: { store: GameStore; reduce
   };
   /** Closing the panel after step 4 (button, Esc or pad) always starts the new-numbers retry. */
   const closeHint = () => {
-    setHintOpen(false);
+    send('hint.close');
     const rt = rtRef.current as StageRuntime<{ core: { puzzleHints: number } }, unknown> | null;
     if (mod && rt && rt.state.core.puzzleHints >= 4) rt.dispatch(mod.retryAction);
   };
@@ -204,16 +219,21 @@ export function StageScreen({ store, reducedMotion }: { store: GameStore; reduce
   const exitRef = useRef(exit);
   exitRef.current = exit;
   const finishTutorial = useCallback(() => {
-    setTutorial(false);
+    send('tutorial.done');
     const p = store.getState().profile;
     if (p) store.getState().setProfile({ ...p, tutorialSeen: { ...p.tutorialSeen, [selected]: true } });
-    if (rtRef.current) rtRef.current.locked = false;
   }, [store, selected]);
 
-  // real-time stages hold still while the hint panel is open
+  // what the session state means for the runtime: input lock (tutorial) and pause (hint in real-time stages)
+  sessionRef.current = session;
+  const flags = sessionFlags(session, !!mod?.realtime);
+  const { hintPanel: hintOpen, tutorial } = flags;
   useEffect(() => {
-    if (rtRef.current) rtRef.current.paused = !!mod?.realtime && hintOpen;
-  }, [mod, hintOpen]);
+    const rt = rtRef.current;
+    if (!rt) return;
+    rt.locked = flags.inputLocked;
+    rt.paused = flags.simPaused;
+  }, [flags.inputLocked, flags.simPaused]);
 
   if (!mod || !hud) return null;
   const q = hud.question;
@@ -221,7 +241,7 @@ export function StageScreen({ store, reducedMotion }: { store: GameStore; reduce
   const openHint = () => {
     // a hint step is only spent when the panel is not already showing an unread step
     if (!hintOpen || core.puzzleHints === 0) rtRef.current?.dispatch(mod.hintAction);
-    setHintOpen(true);
+    send('hint.open');
   };
   const anchored = anchor !== undefined;
   const primaryKey = hud.primary && mod.primaryAction && (
@@ -246,6 +266,7 @@ export function StageScreen({ store, reducedMotion }: { store: GameStore; reduce
       className={`stage-hud${hud.cross ? ' has-cross' : ''}${hintOpen && core.puzzleHints > 0 ? ' hint-open' : ''}`}
       data-testid="stage"
       data-stage={selected}
+      data-session={session}
       data-puzzle={core.index}
       data-phase={(rtRef.current?.state as { phase?: string } | undefined)?.phase}
     >
