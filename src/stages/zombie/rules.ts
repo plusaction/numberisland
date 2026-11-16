@@ -16,6 +16,7 @@
  */
 
 import { BALANCE } from '../../domain/balance';
+import { generateQuestion } from '../../domain/edu/generate';
 import type { Question, SkillId } from '../../domain/edu/types';
 import type { PhaseTable } from '../../domain/fsm';
 import type { Rng } from '../../domain/rng/rng';
@@ -116,9 +117,9 @@ function spare(value: number, rng: Rng, avoid: readonly number[]): number {
   for (let i = 0; i < 20; i++) {
     const kind = rng.int(0, 9);
     const c =
-      kind < 3
-        ? rng.int(1, 5)
-        : kind < 6
+      kind < 2
+        ? rng.int(1, 3)
+        : kind < 4
           ? -Math.min(99, value + rng.int(1, 3))
           : -Math.max(1, Math.round(value / 2) + rng.pick([-2, -1, 1, 2, 3]));
     if (!avoid.includes(c) && value + c <= 99) return c;
@@ -138,8 +139,32 @@ export function handFor(q: Question, rng: Rng): number[] {
 const total = (core: RoundCore) => core.puzzles;
 const perWave = () => BALANCE.zombie.perWave;
 
+/**
+ * Friendly numbers (D39): the first wave's balloons are 10 or less, later waves 20 or less — the take-away
+ * facts of grade 1. Only the hub's "어렵게" lets the adaptive engine bring two-digit balloons.
+ */
+export function easyZombieQuestion(wave: number, rng: Rng, avoid: readonly string[]): Question | null {
+  const within10 = wave === 0 || rng.chance(0.35);
+  for (let i = 0; i < 200; i++) {
+    const q = generateQuestion({
+      level: within10 ? 'L0_1' : 'A2',
+      skill: within10 ? 'SUB_NOBORROW' : 'SUB_BORROW',
+      rng,
+      ...(i < 120 ? { avoid } : {}),
+    });
+    if (preferZombie(q) && (q.operands[0] as number) <= BALANCE.zombie.maxNumber) return q;
+  }
+  return null;
+}
+
 function spawn(s: ZombieState): ZombieState {
-  let core = nextStageQuestion(s.core, ZOMBIE_SKILLS, preferZombie);
+  const wave = Math.floor(s.core.index / perWave());
+  let core = nextStageQuestion(
+    s.core,
+    ZOMBIE_SKILLS,
+    preferZombie,
+    s.core.shift > 0 ? undefined : (rng, avoid) => easyZombieQuestion(wave, rng, avoid),
+  );
   const q = core.asked?.question;
   if (!q) return { ...s, core };
   const id = core.index;

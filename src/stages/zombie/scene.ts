@@ -37,8 +37,9 @@ const LANE_Z = [-1.7, 0, 1.7];
 const CAM = { z: 11.4, y: 7.4, lookY: 1.5 };
 const TINTS = ['#a8e0a0', '#b6d6f2', '#f2c6de', '#f6e3a1', '#cdb8f0'];
 const BALLOONS = [PALETTE.berry, '#2fb4cc', PALETTE.sun];
-const MINUS = '#cfe8ff';
-const PLUS = '#ffd9e6';
+// card frames: a strong blue for take-away, a strong pink for add (the sign is on the card too)
+const MINUS = '#4a9fe0';
+const PLUS = '#ff7fa8';
 
 const ease = (x: number) => {
   const c = Math.max(0, Math.min(1, x));
@@ -258,23 +259,30 @@ export function createZombieScene(world: RenderWorld, ctx: StageCtx): StageScene
     nope: Spring;
     shown: number | null;
     proxy: Mesh;
+    sign: NumberLabel;
   }[] = [];
   for (let i = 0; i < HAND; i++) {
     const g = new Group();
     g.position.set(...handAt(i));
     g.rotation.x = -0.3;
-    const rim = new Mesh(roundedBox(1.57, 1.92, 0.08, 0.18), toyMaterial(PALETTE.white));
-    rim.position.z = -0.03;
-    const face = new Mesh(cardGeo, matMinus);
+    // a coloured frame says − or +; the face stays white so the number has the best contrast
+    const face = new Mesh(roundedBox(1.6, 1.95, 0.08, 0.18), matMinus);
+    face.position.z = -0.03;
     face.castShadow = true;
-    const label = new NumberLabel('-1', { size: 0.66, tint: PALETTE.ink });
-    label.position.set(0, -0.04, 0.45);
+    const paper = new Mesh(cardGeo, toyMaterial(PALETTE.white, { finish: 'matte' }));
+    // the sign and the number are separate labels: the number keeps its place-value colours and both
+    // are sized to fit inside the card (no plate spilling over the edge)
+    const sign = new NumberLabel('-', { size: 0.7, tint: PALETTE.ink, badge: false });
+    sign.position.set(-0.47, -0.02, 0.45);
+    const label = new NumberLabel(1, { size: 0.78, placeColors: true, badge: false });
+    label.position.set(0.14, -0.02, 0.45);
     const proxy = hitCylinder(0.95, 2.2, i);
-    g.add(rim, face, label, proxy);
+    g.add(face, paper, sign, label, proxy);
     root.add(g);
     cards.push({
       g,
       face,
+      sign,
       label,
       spring: new Spring(0, 220, 11),
       nope: new Spring(0, 320, 9),
@@ -341,7 +349,13 @@ export function createZombieScene(world: RenderWorld, ctx: StageCtx): StageScene
         const flying = state.phase === 'hit' && state.slot === i;
         if (delta !== undefined && c.shown !== delta && !flying) {
           c.shown = delta;
-          c.label.set(cardText(delta));
+          const mag = Math.abs(delta);
+          c.sign.set(delta < 0 ? '-' : '+');
+          c.label.set(mag);
+          // two digits are a little smaller so they stay inside the card
+          c.label.scale.setScalar(mag >= 10 ? 0.86 : 1);
+          c.label.position.x = mag >= 10 ? 0.2 : 0.16;
+          c.sign.position.x = mag >= 10 ? -0.46 : -0.3;
           c.face.material = delta < 0 ? matMinus : matPlus;
           c.spring.impulse(7);
         }

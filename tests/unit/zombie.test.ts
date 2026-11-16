@@ -67,6 +67,26 @@ describe('[G1:zombie] 좀비 숫자 막기 규칙', () => {
     }
   });
 
+  it('friendly numbers: balloons are 10 or less in the first wave and never above 20 (unless "어렵게")', () => {
+    for (const shift of [-1, 0] as const) {
+      for (const level of ['L0_1', 'A3', 'A4', 'A6']) {
+        for (let seed = 0; seed < 8; seed++) {
+          let s = initZombie(`easy-${level}-${seed}`, level as never, { shift });
+          let tick = 0;
+          const starts: number[] = [];
+          while (s.phase !== 'done' && tick < 100_000) {
+            if (s.zombie && starts.length === s.zombie.id) starts.push(s.zombie.start);
+            s = step(s, ++tick, s.phase === 'play' ? solveZombie(s) : []);
+          }
+          expect(starts).toHaveLength(TOTAL);
+          starts.forEach((n, i) => {
+            expect(n).toBeLessThanOrEqual(i < BALANCE.zombie.perWave ? 10 : BALANCE.zombie.maxNumber);
+          });
+        }
+      }
+    }
+  });
+
   it('a card that would go below 0 is refused: it stays in the hand, the number is unchanged', () => {
     let found = 0;
     for (let seed = 0; seed < 40 && found < 5; seed++) {
