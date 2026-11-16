@@ -24,10 +24,32 @@ export function koreanVoice(
   return voices.find((v) => v.lang.toLowerCase().startsWith('ko') && v.localService);
 }
 
+/**
+ * What is actually said for a line shown on screen: pictures (emoji) are dropped — a voice would read
+ * "🐙 젤리 문어" as "문어 젤리 문어" — and number sentences are spoken as words ("12 − 7 = 5" → "12 빼기 7 은 5").
+ */
+export function speechText(text: string): string {
+  return text
+    .replace(/\p{Extended_Pictographic}|\u{FE0F}|\u{200D}/gu, ' ')
+    .replace(/(\d)\s*[−-]\s*(?=\d|\?|□)/g, '$1 빼기 ')
+    .replace(/(\d)\s*\+\s*(?=\d|\?|□)/g, '$1 더하기 ')
+    .replace(/\s*=\s*/g, ' 은 ')
+    .replace(/[?□]\s*(?=은|빼기|더하기)/g, '어떤 수 ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+/** Stop any line being read (leaving a screen must not leave the voice talking). */
+export function stopSpeaking() {
+  if (ttsSupported()) speechSynthesis.cancel();
+}
+
 export function speak(text: string, opts: { rate?: number; pitch?: number } = {}): boolean {
   if (!enabled || !ttsSupported()) return false;
   speechSynthesis.cancel();
-  const u = new SpeechSynthesisUtterance(text);
+  const said = speechText(text);
+  if (!said) return false;
+  const u = new SpeechSynthesisUtterance(said);
   u.lang = 'ko-KR';
   const v = koreanVoice();
   if (!v) return false;

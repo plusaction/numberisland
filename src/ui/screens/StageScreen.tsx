@@ -12,6 +12,7 @@ import { pickPraise, praiseCategory } from '../../domain/scoring/praise';
 import { PLAYABLE } from '../../domain/stage/types';
 import { fmt, ko, PRAISE_POOL_SIZES, praiseText } from '../../i18n/ko';
 import { audio } from '../../infra/audio/audio';
+import { stopSpeaking } from '../../infra/tts/tts';
 import type { HudView } from '../../stages/_shared/module';
 import { createStageRuntime, type StageRuntime } from '../../stages/_shared/runtime';
 import { type AnyStageModule, STAGE_LOADERS } from '../../stages/registry';
@@ -136,6 +137,7 @@ export function StageScreen({ store, reducedMotion }: { store: GameStore; reduce
     let lastCorrect = init.core.correct;
     let lastHints = init.core.puzzleHints;
     let lastSig = '';
+    let praiseTimer = 0;
     let lastPicks = mod.picks?.(init)?.length ?? 0;
     const rng = createRng(seed);
     const update = (s: typeof init) => {
@@ -170,7 +172,9 @@ export function StageScreen({ store, reducedMotion }: { store: GameStore; reduce
         praiseHistory.current = [...praiseHistory.current, id].slice(-16);
         setPraise(praiseText(id));
         send('hint.close');
-        window.setTimeout(() => setPraise(null), 1400);
+        // one timer at a time: a quick second right answer must not have its praise cut short by the first
+        window.clearTimeout(praiseTimer);
+        praiseTimer = window.setTimeout(() => setPraise(null), 1400);
       }
     };
     update(init);
@@ -184,6 +188,9 @@ export function StageScreen({ store, reducedMotion }: { store: GameStore; reduce
     return () => {
       offKeys();
       unsub();
+      window.clearTimeout(praiseTimer);
+      setPraise(null);
+      stopSpeaking(); // the friend's line stops with the stage
       audio.duck(false);
       api.setController(null);
       rtRef.current = null;

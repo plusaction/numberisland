@@ -31,6 +31,8 @@ export function Tutorial({
     }
     let i = 0;
     let loops = 0;
+    // every timer of the demo dies with it (skipping must not fire a late "done")
+    const pending: number[] = [];
     if (!targets.length) {
       doneRef.current();
       return;
@@ -39,16 +41,17 @@ export function Tutorial({
       const id = targets[i % targets.length] as number;
       const p = runtime.screenPos(id);
       if (p) setPos({ x: (p.x + 1) / 2, y: (1 - p.y) / 2, press: false });
-      window.setTimeout(() => setPos((q) => (q ? { ...q, press: true } : q)), 700);
+      pending.push(window.setTimeout(() => setPos((q) => (q ? { ...q, press: true } : q)), 700));
       i++;
       if (i % targets.length === 0) loops++;
       if (loops >= 2) {
         window.clearInterval(timer);
-        window.setTimeout(() => doneRef.current(), 1400);
+        pending.push(window.setTimeout(() => doneRef.current(), 1400));
       }
     }, 1600);
     return () => {
       window.clearInterval(timer);
+      for (const id of pending) window.clearTimeout(id);
       runtime.locked = false;
     };
   }, [runtime, mod]);
