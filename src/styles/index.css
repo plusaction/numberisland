@@ -1093,7 +1093,7 @@
       gap: 0.4rem;
     }
     .hud-goal {
-      top: 4.1rem;
+      top: 4.75rem; /* clear of the exit key above it */
       max-width: calc(100vw - 1rem);
       padding: 0.45rem 0.6rem;
       gap: 0.5rem;
@@ -1123,7 +1123,7 @@
     }
     /* phone, zombies: the cards fill the lower half, so the friend speaks from under the goal */
     .stage-hud[data-stage="zombie"] > .say-bubble {
-      top: 9.6rem;
+      top: 10.9rem;
       bottom: auto;
     }
     .race-track {
@@ -1150,9 +1150,21 @@
       bottom: 0.9rem;
       gap: 0.5rem;
     }
+    /* phone: the skip key sits bottom-left (the goal box owns the top; the friend is quiet in the demo) */
     .tutorial-skip {
-      top: 8.4rem;
-      right: 0.6rem;
+      top: auto;
+      right: auto;
+      left: 0.6rem;
+      bottom: 0.9rem;
+    }
+    /* many progress beads (a 12-square race): smaller beads so the coin pill stays on screen */
+    .dots-many {
+      gap: 0.22rem;
+      padding-inline: 0.55rem;
+    }
+    .dots-many > .dot {
+      width: 0.6rem;
+      height: 0.6rem;
     }
     .choice-btn {
       min-width: 6.5rem;
