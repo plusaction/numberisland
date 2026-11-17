@@ -1007,6 +1007,7 @@
     100% {
       scale: 1.1;
       opacity: 0;
+      visibility: hidden; /* gone for good: no invisible text left over the play field */
     }
   }
   .ribbon.toy-prize {
