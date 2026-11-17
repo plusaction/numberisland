@@ -18,7 +18,9 @@ type Rand = ReturnType<typeof createRng>;
 // biome-ignore lint/suspicious/noExplicitAny: heterogenous stage states
 type Any = any;
 const noise: Record<string, (s: Any, r: Rand, m: Any) => Any[]> = {
-  fishing: (_s, r) => [r.chance(0.2) ? { t: 'undo' } : { t: 'tap', id: r.int(0, 8) }],
+  fishing: (_s, r) => [
+    r.chance(0.15) ? { t: 'reel' } : r.chance(0.2) ? { t: 'undo' } : { t: 'tap', id: r.int(0, 8) },
+  ],
   bomb: (_s, r) => [r.chance(0.2) ? { t: 'undo' } : { t: 'cut', id: r.int(0, 5) }],
   slime: (_s, r) => [r.chance(0.2) ? { t: 'undo' } : { t: 'merge', from: r.int(0, 5), to: r.int(0, 5) }],
   escape: (_s, r) => [r.chance(0.5) ? { t: 'tap', id: r.int(0, 4) } : { t: 'pick', id: 100 + r.int(0, 2) }],
@@ -27,12 +29,17 @@ const noise: Record<string, (s: Any, r: Rand, m: Any) => Any[]> = {
     { t: 'op', op: r.chance(0.5) ? '+' : '-' },
     ...(r.chance(0.5) ? [{ t: 'play' }] : []),
   ],
-  pizza: (_s, r) => [{ t: 'pick', id: 100 + r.int(0, 2) }],
+  pizza: (_s, r) => [
+    r.chance(0.5) ? { t: 'add' } : r.chance(0.3) ? { t: 'packed' } : { t: 'pick', id: 100 + r.int(0, 2) },
+  ],
   race: (s, r, m) => {
     const c = m.hud(s).cross?.choices ?? [];
+    if (r.chance(0.15)) return [{ t: 'mode', mode: r.chance(0.5) ? 'shield' : 'dash' }];
     return c.length ? [{ t: 'pick', value: c[r.int(0, c.length - 1)].value }] : [];
   },
-  zombie: (_s, r) => [{ t: 'card', id: r.int(0, 3) }],
+  zombie: (_s, r) => [
+    r.chance(0.25) ? { t: 'aim', who: r.chance(0.5) ? 1 : 0 } : { t: 'card', id: r.int(0, 3) },
+  ],
 };
 
 const MODULES = [
@@ -79,7 +86,10 @@ describe('[S1] 스테이지 단계 전이표', () => {
             acts = [...m.solution(s), m.hintAction];
           }
           const from = s.phase as string;
+          const coins = s.core.coins as number;
           s = m.rules.step(s, { tick: ++tick, actions: acts });
+          // P2: whatever is pressed, coins never go down
+          expect(s.core.coins, `${mod.id}: coins went down`).toBeGreaterThanOrEqual(coins);
           const to = s.phase as string;
           if (to !== from) {
             seen.add(`${from}→${to}`);

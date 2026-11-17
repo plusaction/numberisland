@@ -103,7 +103,17 @@ export function HintBody({ q, level }: { q: Question; level: number }) {
 }
 
 /** Pair puzzles: target picture → strategy → glowing item in the scene → worked demo. Operands stay hidden. */
-function PairHint({ q, level, target, op }: { q: Question; level: number; target: number; op: '+' | '-' }) {
+export function PairHint({
+  q,
+  level,
+  target,
+  op,
+}: {
+  q: Question;
+  level: number;
+  target: number;
+  op: '+' | '-';
+}) {
   if (level <= 1)
     return (
       <div className="text-center">

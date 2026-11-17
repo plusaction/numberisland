@@ -18,7 +18,7 @@ import { createStageRuntime, type StageRuntime } from '../../stages/_shared/runt
 import { type AnyStageModule, STAGE_LOADERS } from '../../stages/registry';
 import { Button } from '../components/Button';
 import { FeedbackOverlay } from '../hints/FeedbackOverlay';
-import { HintBody, HintPanel } from '../hints/HintPanel';
+import { HintBody, HintPanel, PairHint } from '../hints/HintPanel';
 import { RaceBar, RoomCut, SayBubble, StepGuide } from '../hud/StageGuide';
 import { ChoiceCross } from '../question/ChoiceCross';
 import { flyToGoal } from '../question/flyToGoal';
@@ -318,12 +318,21 @@ export function StageScreen({ store, reducedMotion }: { store: GameStore; reduce
         {hud.steps && <StepGuide steps={hud.steps} />}
         {hud.race && <RaceBar race={hud.race} />}
         {/* two misses on one puzzle: the picture comes by itself (no hint is spent) */}
-        {q && core.puzzleWrong >= 2 && !hintOpen && !tutorial && hud.hintMode !== 'pair' && (
-          <div className="auto-help" data-testid="auto-help">
-            <p className="auto-help-title">{ko.stageHud.countTogether}</p>
-            <HintBody q={q} level={1} />
-          </div>
-        )}
+        {q &&
+          core.puzzleWrong >= 2 &&
+          !hintOpen &&
+          !tutorial &&
+          (hud.hintMode !== 'pair' || hud.target !== undefined) && (
+            <div className="auto-help" data-testid="auto-help">
+              <p className="auto-help-title">{ko.stageHud.countTogether}</p>
+              {hud.hintMode === 'pair' && hud.target !== undefined ? (
+                // pair puzzles: the strategy line ("9 − ★ = ?"), never the answer pair itself
+                <PairHint q={q} level={2} target={hud.target} op={hud.pairOp ?? '+'} />
+              ) : (
+                <HintBody q={q} level={1} />
+              )}
+            </div>
+          )}
         {/* praise hangs right under the goal box: never over the numbers in the scene */}
         <AnimatePresence>
           {praise && (

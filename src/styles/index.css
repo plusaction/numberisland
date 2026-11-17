@@ -1452,3 +1452,39 @@
     font-size: 80%;
   }
 }
+
+/*
+ * Short phones (≈ 360 × 640): the info card must stay under the top pills — otherwise it covers the ⚙ key
+ * and today's adventure. The card drops what is also shown elsewhere (badges: result screen, ribbon,
+ * group name) and tightens its spacing.
+ */
+@media (max-width: 640px) and (max-height: 720px) and (orientation: portrait) {
+  .hub-card .badge-row,
+  .hub-card .ribbon,
+  .hub-card .stage-group {
+    display: none;
+  }
+  .hub-card {
+    padding: 0.7rem 0.9rem;
+  }
+  .hub-card .stage-name {
+    font-size: 1.7rem;
+  }
+  .hub-card .seg {
+    margin-top: 0.4rem;
+  }
+}
+/* tablets held upright: the card battle's key row sits low, so the friend speaks from the very bottom */
+@media (min-width: 641px) and (max-width: 1100px) and (orientation: portrait) {
+  .stage-hud[data-stage="cardbattle"] > .say-bubble {
+    bottom: 1.25rem;
+    max-width: min(26rem, calc(100% - 11rem));
+  }
+}
+/* low landscape screens: a tall card (bomb's step ladder open) scrolls inside instead of reaching the ⚙ key */
+@media (max-height: 540px) and (orientation: landscape) {
+  .hub-card {
+    max-height: calc(100vh - 5rem);
+    overflow-y: auto;
+  }
+}
