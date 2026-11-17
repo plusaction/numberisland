@@ -428,26 +428,6 @@
     display: flex;
     gap: 0.6rem;
   }
-  /* race: what a turbo is for (dash / shield) — a small pair right above the lane answers */
-  .stage-hud[data-stage="race"] > .hud-toggles {
-    left: 50%;
-    translate: -50% 0;
-    bottom: 6.6rem;
-    gap: 0.5rem;
-  }
-  .stage-hud[data-stage="race"] .toggle-key {
-    min-width: 6.5rem;
-    min-height: 3rem;
-    font-family: inherit;
-    font-size: 1.25rem;
-    opacity: 0.8;
-  }
-  .stage-hud[data-stage="race"] .toggle-on {
-    opacity: 1;
-    box-shadow:
-      0 0 0 3px #ffc93c,
-      0 4px 0 #1c8296;
-  }
   /* card battle: the row sits right under the child's three cards, "내기!" at its end */
   .stage-hud > .hud-toggles.anchored {
     left: var(--ax, 50%);
@@ -866,6 +846,26 @@
   .hint-open > .hud-toggles,
   .hint-open > .hud-primary {
     visibility: hidden;
+  }
+  /* race: what a turbo is for (dash / shield) — a small pair right above the lane answers */
+  .stage-hud[data-stage="race"] > .hud-toggles {
+    left: 50%;
+    translate: -50% 0;
+    bottom: 6.6rem;
+    gap: 0.5rem;
+  }
+  .stage-hud[data-stage="race"] .toggle-key {
+    min-width: 6.5rem;
+    min-height: 3rem;
+    font-family: inherit;
+    font-size: 1.25rem;
+    opacity: 0.8;
+  }
+  .stage-hud[data-stage="race"] .toggle-on {
+    opacity: 1;
+    box-shadow:
+      0 0 0 3px #ffc93c,
+      0 4px 0 #1c8296;
   }
   /* step guide under the goal: find → think → pick (current lit, done ✓) */
   .step-guide {
@@ -1353,6 +1353,15 @@
     .hud-toggles > .hud-primary {
       min-height: 4rem;
       padding: 0 1.1rem;
+      font-size: 1.6rem;
+    }
+    /* pizza: "다 됐어요!" takes the free bottom-left corner (the friend's bubble is above it) */
+    .stage-hud[data-stage="pizza"] > .hud-primary {
+      left: 0.6rem;
+      bottom: 1rem;
+      translate: none;
+      min-height: 4.2rem;
+      padding: 0 1.2rem;
       font-size: 1.6rem;
     }
     .hud-bottom {
