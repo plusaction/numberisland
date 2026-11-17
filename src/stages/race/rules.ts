@@ -74,6 +74,16 @@ export interface RaceState {
   /** Answers already tried on this question (dimmed). */
   tried: number[];
   lastWrong: { value: number; made: number; tag?: string } | null;
+  /** The lane the kart is in (0 left, 1 middle, 2 right): it steers under the sign it picks. */
+  lane: number;
+  /**
+   * What a turbo (every third right answer in a row) is used for — the child's choice, changeable any time:
+   * 'dash' = two squares at once; 'shield' = one square and a bubble that shrugs off the next banana.
+   */
+  turboMode: 'dash' | 'shield';
+  shield: boolean;
+  /** Bananas the shield took (for the result badge). */
+  blocked: number;
   /** 1..3 once the child has crossed the line. */
   place: number | null;
   phase: RacePhase;
@@ -81,7 +91,11 @@ export interface RaceState {
 }
 
 /** `id` (CROSS_ID + slot) only tells the tutorial hand which answer key to point at. */
-export type RaceAction = { t: 'pick'; value: number; id?: number } | { t: 'hint' } | { t: 'retry' };
+export type RaceAction =
+  | { t: 'pick'; value: number; id?: number }
+  | { t: 'hint' }
+  | { t: 'retry' }
+  | { t: 'mode'; mode: 'dash' | 'shield' };
 export const CROSS_ID = 200;
 
 /** A number sentence with four different number answers, everything 0..99. */
@@ -93,7 +107,9 @@ export function preferRace(q: Question): boolean {
   return new Set(values).size >= 4 && values.includes(q.answer);
 }
 
-/** The four answers in cross order (↑ ← → ↓), as the question lists them. */
+/** Answer signs over the three lanes. */
+export const LANES = 3;
+/** The three answers, one per lane (← ↑ →), in the order the question lists them. */
 export function crossChoices(q: Question): Choice[] {
   const seen = new Set<number>();
   const out: Choice[] = [];
@@ -103,12 +119,13 @@ export function crossChoices(q: Question): Choice[] {
     out.push(c);
   }
   // the answer must be among the four shown
-  const four = out.slice(0, 4);
-  if (!four.some((c) => c.value === q.answer)) {
+  const lanes = out.slice(0, LANES);
+  if (!lanes.some((c) => c.value === q.answer)) {
     const right = out.find((c) => c.value === q.answer);
-    if (right) four[3] = right;
+    // which lane it takes follows from the numbers (no fixed "always on the right")
+    if (right) lanes[q.answer % LANES] = right;
   }
-  return four;
+  return lanes;
 }
 
 /** Current place (1 = first): rivals clearly ahead push the child back. */
@@ -155,6 +172,10 @@ export function initRace(
     stars: [],
     tried: [],
     lastWrong: null,
+    lane: 1,
+    turboMode: 'dash',
+    shield: false,
+    blocked: 0,
     place: null,
     phase: 'start',
     phaseLeft: START_TICKS,
@@ -206,16 +227,20 @@ export function stepRace(state: RaceState, input: InputFrame<RaceAction>): RaceS
   for (const a of input.actions) {
     const q = s.core.asked?.question;
     if (!q) continue;
+    if (a.t === 'mode') s = { ...s, turboMode: a.mode };
     if (a.t === 'hint' && (s.phase === 'play' || s.phase === 'start')) s = { ...s, core: takeHint(s.core) };
     if (s.phase !== 'play') continue;
     if (a.t === 'retry' && s.core.puzzleHints >= 4)
       s = { ...s, core: sameKindQuestion(s.core, preferRace), tried: [], lastWrong: null };
     if (a.t === 'pick') {
-      if (!crossChoices(q).some((c) => c.value === a.value) || s.tried.includes(a.value)) continue;
+      const lane = crossChoices(q).findIndex((c) => c.value === a.value);
+      if (lane < 0 || s.tried.includes(a.value)) continue;
+      s = { ...s, lane };
       if (a.value === q.answer) {
         const streak = s.streak + 1;
         const turbo = streak % BALANCE.race.turboEvery === 0;
-        const gain = turbo ? 2 : 1;
+        const saved = turbo && s.turboMode === 'shield' && !s.shield;
+        const gain = turbo && !saved ? 2 : 1;
         s = {
           ...s,
           core: recordAttempt(s.core, true, a.value),
@@ -224,6 +249,7 @@ export function stepRace(state: RaceState, input: InputFrame<RaceAction>): RaceS
           fuel: 1,
           boostTo: Math.min(length, s.me + gain),
           turbos: s.turbos + (turbo ? 1 : 0),
+          shield: s.shield || saved,
           phase: 'boost',
           phaseLeft: BOOST_TICKS,
         };
@@ -236,8 +262,10 @@ export function stepRace(state: RaceState, input: InputFrame<RaceAction>): RaceS
           gain: 0,
           tried: [...s.tried, a.value],
           lastWrong: tag ? { value: a.value, made: a.value, tag } : { value: a.value, made: a.value },
-          phase: 'slip',
-          phaseLeft: SLIP_TICKS,
+          // the bubble takes the banana: no spin, the kart keeps rolling (the answer is still recorded)
+          ...(s.shield
+            ? { shield: false, blocked: s.blocked + 1 }
+            : { phase: 'slip' as const, phaseLeft: SLIP_TICKS }),
         };
       }
     }
@@ -292,6 +320,7 @@ export const raceRules: StageRules<RaceState, RaceAction> = {
     const highlights = [...r.highlights];
     if (s.place === 1) highlights.push('raceWin');
     if (s.turbos > 0) highlights.push('raceTurbo');
+    if (s.blocked > 0) highlights.push('raceShield');
     return { ...r, highlights };
   },
 };

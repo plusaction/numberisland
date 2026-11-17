@@ -65,9 +65,26 @@ export interface PizzaState {
   lastWrong: { value: number; made: number; tag?: string } | null;
   served: number;
   vipServed: boolean;
+  /**
+   * Packing by hand: slices the child has tapped into the box so far (small orders only — see
+   * `countable`). "다 됐어요" then answers with that count; the number keys work as well.
+   */
+  added: number;
 }
 
-export type PizzaAction = { t: 'pick'; id: number } | { t: 'hint' } | { t: 'retry' };
+export type PizzaAction =
+  | { t: 'pick'; id: number }
+  | { t: 'hint' }
+  | { t: 'retry' }
+  /** Tap the box: one more slice in (pack orders with a small answer). */
+  | { t: 'add'; id?: number }
+  /** "다 됐어요": answer with the slices tapped in. */
+  | { t: 'packed' };
+/** The box as a tap target. */
+export const BOX_ID = 300;
+export const COUNT_MAX = 9;
+/** Orders the child may also pack by tapping slices in one by one. */
+export const countable = (o: Order | null) => !!o && o.role === 'pack' && o.answer <= COUNT_MAX;
 
 export const roleOf = (index: number): PizzaRole => (index % 2 === 0 ? 'bake' : 'pack');
 
@@ -105,7 +122,16 @@ function newOrder(s: PizzaState): PizzaState {
   const customer = (index + ((s.core.rng[0] >>> 0) % CUSTOMERS)) % CUSTOMERS;
   const r = withRng(core, (rng) => orderFromQuestion(q, role, customer, index === VIP_ORDER, rng));
   core = r.core;
-  return { ...s, core, order: r.value, tried: [], lastWrong: null, phase: 'enter', phaseLeft: ENTER_TICKS };
+  return {
+    ...s,
+    core,
+    order: r.value,
+    tried: [],
+    lastWrong: null,
+    added: 0,
+    phase: 'enter',
+    phaseLeft: ENTER_TICKS,
+  };
 }
 
 export function initPizza(
@@ -122,6 +148,7 @@ export function initPizza(
     lastWrong: null,
     served: 0,
     vipServed: false,
+    added: 0,
   });
 }
 
@@ -145,11 +172,12 @@ export function stepPizza(state: PizzaState, input: InputFrame<PizzaAction>): Pi
       const q = core.asked?.question;
       if (q) {
         const r = withRng(core, (rng) => orderFromQuestion(q, o.role, o.customer, o.vip, rng));
-        s = { ...s, core: r.core, order: r.value, tried: [], lastWrong: null };
+        s = { ...s, core: r.core, order: r.value, tried: [], lastWrong: null, added: 0 };
       }
     }
-    if (a.t === 'pick') {
-      const given = s.order?.options[a.id - KEY(0)];
+    if (a.t === 'add' && countable(s.order) && s.added < COUNT_MAX) s = { ...s, added: s.added + 1 };
+    if (a.t === 'pick' || (a.t === 'packed' && countable(s.order) && s.added > 0)) {
+      const given = a.t === 'pick' ? s.order?.options[a.id - KEY(0)] : s.added;
       if (given === undefined || !s.order) continue;
       const q = s.core.asked?.question;
       if (given === s.order.answer) {
@@ -163,7 +191,9 @@ export function stepPizza(state: PizzaState, input: InputFrame<PizzaAction>): Pi
           core: recordAttempt(s.core, false, given, tag),
           phase: 'jam',
           phaseLeft: JAM_TICKS,
-          tried: s.tried.includes(given) ? s.tried : [...s.tried, given],
+          // the box spills: the tapped-in slices go back (count again, nothing lost)
+          added: 0,
+          tried: s.tried.includes(given) || !s.order.options.includes(given) ? s.tried : [...s.tried, given],
           lastWrong: tag ? { value: given, made: given, tag } : { value: given, made: given },
         };
       }

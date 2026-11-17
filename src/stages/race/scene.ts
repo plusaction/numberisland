@@ -17,6 +17,7 @@ import {
   Group,
   InstancedMesh,
   Mesh,
+  MeshBasicNodeMaterial,
   Object3D,
   OctahedronGeometry,
   Vector3,
@@ -258,6 +259,16 @@ export function createRaceScene(world: RenderWorld, ctx: StageCtx): StageScene<R
 
   // karts: the child (friend monster driving) in the middle lane, rivals left and right
   const friend = createFriend();
+  let laneX = 0;
+  // the saved turbo: a soap bubble round the kart that takes the next banana
+  const bubbleMat = new MeshBasicNodeMaterial({ color: '#bfeaff' });
+  bubbleMat.transparent = true;
+  bubbleMat.opacity = 0.2;
+  bubbleMat.depthWrite = false;
+  const bubble = new Mesh(ball(1, 20), bubbleMat);
+  bubble.visible = false;
+  bubble.raycast = () => {};
+  root.add(bubble);
   friend.group.scale.setScalar(0.72);
   friend.group.rotation.y = Math.PI; // facing down the road
   const me = kartModel('#ff5d5d', friend.group);
@@ -477,7 +488,12 @@ export function createRaceScene(world: RenderWorld, ctx: StageCtx): StageScene<R
         ? 0
         : Math.sin(Math.min(1, boostK * 1.4) * Math.PI) * (state.gain > 1 ? 0.3 : 0.2);
       const mb = me.bounce.update(vdt);
-      me.group.position.set(0, BASE_Y + 0.12, 0);
+      // steers under the answer sign it picked (stays inside its own road, clear of the rivals)
+      laneX += ((state.lane - 1) * 0.85 - laneX) * (1 - Math.exp(-vdt * 9));
+      me.group.position.set(reduced ? 0 : laneX, BASE_Y + 0.12, 0);
+      bubble.visible = state.shield;
+      bubble.position.set(me.group.position.x, BASE_Y + 0.75, 0);
+      bubble.scale.setScalar(1.25 + (reduced ? 0 : Math.sin(t * 4) * 0.04));
       me.group.rotation.set(Math.atan(slope(me.vis)), 0, 0);
       me.body.rotation.x = wheelie + (reduced ? 0 : Math.sin(t * 30) * 0.004 * (1 + fast * 3));
       me.body.position.y = mb * 0.04 + (state.phase === 'start' && !reduced ? Math.sin(t * 40) * 0.015 : 0);

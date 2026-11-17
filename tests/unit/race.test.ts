@@ -35,8 +35,8 @@ function drive(seed: string, level: string, shift: -1 | 0 | 1 = 0, think = 0, wr
         lastKey = q.key;
         waited = 0;
         const four = crossChoices(q);
-        expect(four).toHaveLength(4);
-        expect(new Set(four.map((c) => c.value)).size).toBe(4);
+        expect(four).toHaveLength(3);
+        expect(new Set(four.map((c) => c.value)).size).toBe(3);
         expect(four.some((c) => c.value === q.answer)).toBe(true);
       }
       if (waited++ >= think) {

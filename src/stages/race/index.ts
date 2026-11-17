@@ -35,10 +35,14 @@ function say(s: RaceState): HudView['say'] {
   if (s.phase === 'finish')
     return { key: 'finish', text: s.place === 1 ? ko.race.win : fmt(ko.race.finish, { n: s.place ?? 2 }) };
   if (s.phase === 'slip') return { key: `slip-${s.core.wrong}`, text: ko.race.slip };
+  if (s.phase === 'play' && s.blocked > 0 && s.tried.length > 0 && !s.shield)
+    return { key: `blocked-${s.blocked}`, text: ko.race.blocked };
   if (s.phase === 'boost')
     return s.gain > 1
       ? { key: `turbo-${at}`, text: ko.race.turbo }
-      : { key: `boost-${at}`, text: ko.race.boost };
+      : s.shield && s.streak % 3 === 0
+        ? { key: `shield-${at}`, text: ko.race.gotShield }
+        : { key: `boost-${at}`, text: ko.race.boost };
   if (s.phase === 'start' || (at === 0 && s.me < 0.5)) return { key: 'intro', text: ko.race.intro };
   if (s.core.puzzles - s.me <= 2) return { key: 'near', text: ko.race.near };
   if (s.fuel < 0.2) return { key: `fuel-${at}`, text: ko.race.lowFuel };
@@ -46,7 +50,7 @@ function say(s: RaceState): HudView['say'] {
   return placeOf(s.me, s.rivals) > 1 ? { key: 'behind', text: ko.race.behind } : undefined;
 }
 
-const DIRS = ['up', 'left', 'right', 'down'] as const;
+const DIRS = ['left', 'up', 'right'] as const;
 
 export const raceModule: StageModule<RaceState, RaceAction> = {
   id: 'race',
@@ -56,10 +60,10 @@ export const raceModule: StageModule<RaceState, RaceAction> = {
   keyboard: {
     targets: () => [],
     confirm: () => ({}),
-    // ↑ ← → ↓ pick the answer in that slot of the cross at once
+    // ← ↑ → steer into that lane's answer at once
     direct: (s, dir) => {
       const q = s.core.asked?.question;
-      const c = q ? crossChoices(q)[DIRS.indexOf(dir)] : undefined;
+      const c = q && dir !== 'down' ? crossChoices(q)[DIRS.indexOf(dir)] : undefined;
       return c ? { t: 'pick', value: c.value } : undefined;
     },
   },
@@ -75,6 +79,10 @@ export const raceModule: StageModule<RaceState, RaceAction> = {
       hintMode: 'standard',
       ...(sayNow ? { say: sayNow } : {}),
       ...(s.phase === 'start' ? { cut: { key: 'ready', title: ko.race.ready } } : {}),
+      toggles: [
+        { id: 'dash', label: ko.race.dash, on: s.turboMode === 'dash' },
+        { id: 'shield', label: s.shield ? ko.race.shieldOn : ko.race.shield, on: s.turboMode === 'shield' },
+      ],
       ...(q && s.phase !== 'finish'
         ? { cross: { choices: crossChoices(q), tried: s.tried, off: s.phase !== 'play' } }
         : {}),
@@ -93,9 +101,10 @@ export const raceModule: StageModule<RaceState, RaceAction> = {
   initialPhase: RACE_PHASES_INITIAL,
   hudKey: (s) =>
     // positions change every tick: quarter squares / tenths of fuel are enough for the mini track
-    `${s.tried.length}|${Math.round(s.me * 4)}|${s.rivals.map((r) => Math.round(r * 4)).join(',')}|${Math.round(s.fuel * 10)}`,
+    `${s.turboMode}${s.shield ? 1 : 0}|${s.tried.length}|${Math.round(s.me * 4)}|${s.rivals.map((r) => Math.round(r * 4)).join(',')}|${Math.round(s.fuel * 10)}`,
   hintAction: { t: 'hint' },
   retryAction: { t: 'retry' },
   crossAction: (value) => ({ t: 'pick', value }),
+  toggleAction: (id) => ({ t: 'mode', mode: id === 'shield' ? 'shield' : 'dash' }),
   realtime: true,
 };

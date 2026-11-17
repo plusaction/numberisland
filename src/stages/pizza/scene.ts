@@ -36,7 +36,17 @@ import {
   partnerModel,
   pizzaModel,
 } from './props';
-import { ENTER_TICKS, KEY, KEYS, type Order, type PizzaAction, type PizzaState, SERVE_TICKS } from './rules';
+import {
+  BOX_ID,
+  countable,
+  ENTER_TICKS,
+  KEY,
+  KEYS,
+  type Order,
+  type PizzaAction,
+  type PizzaState,
+  SERVE_TICKS,
+} from './rules';
 
 const WALL_Z = -3.2;
 const COUNTER = { z: 0.7, top: 1.15 };
@@ -171,6 +181,11 @@ export function createPizzaScene(world: RenderWorld, ctx: StageCtx): StageScene<
   tray.position.set(-0.2, COUNTER.top + 0.06, COUNTER.z);
   tray.receiveShadow = true;
   root.add(tray);
+  // packing by hand: tap the box to drop one more slice in
+  const boxProxy = hitCylinder(1.25, 1.6, BOX_ID);
+  boxProxy.position.set(-0.2, COUNTER.top + 0.6, COUNTER.z);
+  root.add(boxProxy);
+  let addedShown = 0;
   const board = new Mesh(roundedBox(5.6, 0.3, 1.4, 0.1), woodMaterial('#a86f45'));
   board.position.set(0, 0.45, KEY_Z);
   board.receiveShadow = true;
@@ -447,6 +462,16 @@ export function createPizzaScene(world: RenderWorld, ctx: StageCtx): StageScene<
         const at = customer?.group.position.clone();
         build(o);
         if (same && at && customer) customer.group.position.copy(at);
+        addedShown = 0;
+      }
+      // slices tapped into the box show at once (each with a little plop); a spill empties them again
+      if (o && o.role === 'pack' && state.added !== addedShown && state.phase !== 'serve') {
+        if (state.added > addedShown) {
+          audio.play('pop', { pitch: 1 + state.added * 0.06 });
+          world.particles.emit('sparkle', tmp.set(-0.2, COUNTER.top + 0.6, COUNTER.z), 8);
+        }
+        addedShown = state.added;
+        pileA.set(o.b + state.added);
       }
       // customer: walks in on enter, bobs while waiting
       if (customer && o) {
@@ -572,10 +597,11 @@ export function createPizzaScene(world: RenderWorld, ctx: StageCtx): StageScene<
     pointer(p: PointerInfo, state, emit) {
       if (p.type !== 'down' || state.phase !== 'play') return;
       const id = hitId(
-        keys.map((k) => k.proxy),
+        [...keys.map((k) => k.proxy), ...(countable(state.order) ? [boxProxy] : [])],
         p.raycaster,
       );
-      if (id !== null && id >= KEY(0)) emit({ t: 'pick', id });
+      if (id === BOX_ID) emit({ t: 'add' });
+      else if (id !== null && id >= KEY(0)) emit({ t: 'pick', id });
     },
     screenPos(_s, id) {
       const k = keys[id - KEY(0)];

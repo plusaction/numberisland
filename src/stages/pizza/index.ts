@@ -1,6 +1,7 @@
 import { fmt as fill, ko } from '../../i18n/ko';
 import type { HudView, StageModule } from '../_shared/module';
 import {
+  countable,
   initPizza,
   KEY,
   KEYS,
@@ -18,7 +19,7 @@ import { createPizzaScene } from './scene';
 function goal(s: PizzaState): string {
   const o = s.order;
   if (!o) return '';
-  const ans = s.phase === 'serve' ? String(o.answer) : '?';
+  const ans = s.phase === 'serve' ? String(o.answer) : s.added > 0 ? String(s.added) : '?';
   return o.role === 'bake' ? `🍕 ${o.a} + ${o.b} = ${ans}` : `📦 ${o.a} − ${o.b} = ${ans}`;
 }
 
@@ -38,6 +39,7 @@ function say(s: PizzaState): HudView['say'] {
   const ask = fill(o.role === 'bake' ? ko.pizza.bake : ko.pizza.pack, { a: o.a, b: o.b });
   if (at === 0) return { key: `ask-${at}-${o.a}-${o.b}`, text: `${ko.pizza.intro} ${ask}` };
   if (o.vip) return { key: `ask-${at}-${o.a}-${o.b}`, text: `${ko.pizza.vipLine} ${ask}` };
+  if (countable(o)) return { key: `ask-${at}-${o.a}-${o.b}`, text: `${ask} ${ko.pizza.tapBox}` };
   return { key: `ask-${at}-${o.a}-${o.b}`, text: ask };
 }
 
@@ -61,6 +63,9 @@ export const pizzaModule: StageModule<PizzaState, PizzaAction> = {
       success: s.phase === 'serve',
       hintMode: 'standard',
       ...(sayNow ? { say: sayNow } : {}),
+      ...(countable(o) && s.phase === 'play'
+        ? { primary: { label: ko.pizza.packDone, left: 0, off: s.added === 0 } }
+        : {}),
       ...(s.phase === 'enter' && o
         ? {
             cut: {
@@ -80,7 +85,8 @@ export const pizzaModule: StageModule<PizzaState, PizzaAction> = {
   solution: (s) => (s.phase === 'play' || s.phase === 'enter' ? solvePizza(s) : []),
   phases: PIZZA_PHASES,
   initialPhase: PIZZA_PHASES_INITIAL,
-  hudKey: (s) => `${s.tried.length}`,
+  hudKey: (s) => `${s.tried.length}|${s.added}`,
+  primaryAction: { t: 'packed' },
   hintAction: { t: 'hint' },
   retryAction: { t: 'retry' },
 };

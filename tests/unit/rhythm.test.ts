@@ -91,3 +91,101 @@ describe('[G2] 한 판의 리듬', () => {
     expect(createRng(1)).toBeTruthy();
   });
 });
+
+describe('[G2] 레이스: 터보 선택', () => {
+  it('shield mode: the third right answer in a row saves a bubble; the next wrong answer does not spin the kart', async () => {
+    const { initRace, stepRace, solveRace, crossChoices } = await import('../../src/stages/race/rules');
+    let s = initRace(5, 'A1');
+    s = stepRace(s, { tick: 0, actions: [{ t: 'mode', mode: 'shield' }] });
+    let guard = 0;
+    while (!s.shield && guard++ < 4000)
+      s = stepRace(s, { tick: 0, actions: s.phase === 'play' ? solveRace(s) : [] });
+    expect(s.shield).toBe(true);
+    while (s.phase !== 'play' && guard++ < 6000) s = stepRace(s, { tick: 0, actions: [] });
+    const q = s.core.asked?.question;
+    const wrong = q ? crossChoices(q).find((c) => c.value !== q.answer) : undefined;
+    expect(wrong).toBeTruthy();
+    const me = s.me;
+    const coins = s.core.coins;
+    s = stepRace(s, { tick: 0, actions: [{ t: 'pick', value: wrong?.value ?? -1 }] });
+    expect(s.phase).toBe('play');
+    expect(s.shield).toBe(false);
+    expect(s.blocked).toBe(1);
+    expect(s.core.wrong).toBe(1);
+    expect(s.me).toBeGreaterThanOrEqual(me);
+    expect(s.core.coins).toBeGreaterThanOrEqual(coins);
+  });
+});
+
+describe('[G2] 좀비: 꼬마 비틀이', () => {
+  it('the little one is optional: its exact card pops it for coins, a refused card is not a wrong answer, the main zombie stays finishable', async () => {
+    const { initZombie, stepZombie, solveZombie, finisher } = await import('../../src/stages/zombie/rules');
+    let seen = 0;
+    for (let seed = 1; seed <= 12; seed++) {
+      let s = initZombie(seed, 'A1');
+      for (let i = 0; i < 60_000 && s.phase !== 'done'; i++) {
+        if (s.phase === 'play' && s.mini && s.aim === 0 && s.hand.includes(-s.mini.value)) {
+          seen++;
+          const { coins, wrong } = s.core;
+          s = stepZombie(s, { tick: 0, actions: [{ t: 'aim', who: 1 }] });
+          expect(s.aim).toBe(1);
+          // a card too big for the little balloon bounces off: no wrong answer
+          const big = s.hand.findIndex((c) => (s.mini?.value ?? 0) + c < 0);
+          if (big >= 0) {
+            const r = stepZombie(s, { tick: 0, actions: [{ t: 'card', id: big }] });
+            expect(r.core.wrong).toBe(wrong);
+            expect(r.core.coins).toBe(coins);
+          }
+          s = stepZombie(s, { tick: 0, actions: [{ t: 'card', id: s.hand.indexOf(-(s.mini?.value ?? 0)) }] });
+          while (s.phase === 'hit') s = stepZombie(s, { tick: 0, actions: [] });
+          expect(s.miniPopped).toBeGreaterThan(0);
+          expect(s.core.coins).toBeGreaterThan(coins);
+          expect(s.core.wrong).toBe(wrong);
+          expect(s.aim).toBe(0);
+          if (s.zombie) expect(finisher(s.hand, s.zombie.value)).toBeGreaterThanOrEqual(0);
+        }
+        s = stepZombie(s, { tick: 0, actions: s.phase === 'play' ? solveZombie(s) : [] });
+      }
+      expect(s.phase).toBe('done');
+    }
+    expect(seen).toBeGreaterThan(0);
+  });
+});
+
+describe('[G2] 피자: 톡톡 세어 담기', () => {
+  it('a small pack order can be answered by tapping slices in; a wrong count spills (no loss) and can be redone', async () => {
+    const { initPizza, stepPizza, countable, solvePizza } = await import('../../src/stages/pizza/rules');
+    let tested = 0;
+    for (let seed = 1; seed <= 30 && tested < 3; seed++) {
+      let s = initPizza(seed, 'A1');
+      for (let i = 0; i < 20_000 && s.phase !== 'done'; i++) {
+        const o = s.order;
+        if (
+          s.phase === 'play' &&
+          o &&
+          countable(o) &&
+          s.added === 0 &&
+          s.tried.length === 0 &&
+          o.answer >= 2
+        ) {
+          tested++;
+          const coins = s.core.coins;
+          // one too few → spill, nothing lost
+          let w = s;
+          for (let k = 0; k < o.answer - 1; k++) w = stepPizza(w, { tick: 0, actions: [{ t: 'add' }] });
+          w = stepPizza(w, { tick: 0, actions: [{ t: 'packed' }] });
+          expect(w.phase).toBe('jam');
+          expect(w.added).toBe(0);
+          expect(w.core.coins).toBe(coins);
+          // the right count serves the order
+          for (let k = 0; k < o.answer; k++) s = stepPizza(s, { tick: 0, actions: [{ t: 'add' }] });
+          s = stepPizza(s, { tick: 0, actions: [{ t: 'packed' }] });
+          expect(s.phase).toBe('serve');
+          expect(s.core.correct).toBeGreaterThan(0);
+        }
+        s = stepPizza(s, { tick: 0, actions: s.phase === 'play' ? solvePizza(s) : [] });
+      }
+    }
+    expect(tested).toBeGreaterThan(0);
+  });
+});

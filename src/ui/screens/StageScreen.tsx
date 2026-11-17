@@ -349,7 +349,7 @@ export function StageScreen({ store, reducedMotion }: { store: GameStore; reduce
               type="button"
               aria-pressed={tg.on}
               data-testid={`toggle-${tg.id}`}
-              className={`toy-btn toggle-key key-sea${pop?.id === tg.id ? ' toggle-pop' : ''}`}
+              className={`toy-btn toggle-key key-sea${tg.on ? ' toggle-on' : ''}${pop?.id === tg.id ? ' toggle-pop' : ''}`}
               onClick={() => {
                 if (mod.toggleAction) rtRef.current?.dispatch(mod.toggleAction(tg.id));
                 setPop((p) => ({ id: tg.id, n: (p?.n ?? 0) + 1 }));

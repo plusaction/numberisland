@@ -11,7 +11,7 @@
  */
 import { ConeGeometry, CylinderGeometry, Group, InstancedMesh, Mesh, Object3D, Vector3 } from 'three/webgpu';
 import { HitStop, Shake, Spring } from '../../engine/fx/juice';
-import { ball, capsule, roundedBox } from '../../engine/geo/shapes';
+import { ball, capsule, ring, roundedBox } from '../../engine/geo/shapes';
 import { NumberLabel } from '../../engine/numbers/number-label';
 import { PALETTE } from '../../engine/palette';
 import { toyMaterial, woodMaterial } from '../../engine/tsl/materials';
@@ -23,6 +23,7 @@ import { baseDiorama, disposeTree, hitCylinder, hitId, stageCamera } from '../_s
 import { celebrate } from '../_shared/fx';
 import type { StageCtx, StageScene } from '../_shared/module';
 import {
+  AIM_ID,
   HAND,
   HIT_TICKS,
   KNOCK_TICKS,
@@ -299,6 +300,15 @@ export function createZombieScene(world: RenderWorld, ctx: StageCtx): StageScene
 
   let view: ZView | null = null;
   let viewId = -1;
+  // 꼬마 비틀이 (optional second target) + what the child is aiming at
+  let mini: ZView | null = null;
+  let miniId = -1;
+  const aimRing = new Mesh(ring(0.85, 0.07), toyMaterial(PALETTE.sun, { rimStrength: 0.8 }));
+  aimRing.rotation.x = Math.PI / 2;
+  aimRing.visible = false;
+  aimRing.raycast = () => {};
+  const aimProxy = [hitCylinder(0.9, 4.4, AIM_ID(0)), hitCylinder(0.7, 3.2, AIM_ID(1))] as const;
+  root.add(aimRing, ...aimProxy);
   const party: { v: ZView; from: Vector3; to: Vector3 }[] = [];
   let shown = 0;
   let eqT = -1;
@@ -389,6 +399,54 @@ export function createZombieScene(world: RenderWorld, ctx: StageCtx): StageScene
         world.particles.emit('dust', tmp.set(DOOR_X - 0.6, 1.2, LANE_Z[z?.lane ?? 1] ?? 0), 20);
         friend.cheer(false);
       }
+      // ── the little one: toddles in its own lane; pops for a bonus or wanders home
+      const m = state.mini;
+      if (m && m.id !== miniId) {
+        miniId = m.id;
+        mini = zombieModel({
+          id: m.id + 3,
+          lane: m.lane,
+          value: m.value,
+          start: m.value,
+          walk: 0,
+          boss: false,
+          used: 0,
+        });
+        mini.group.scale.setScalar(0.62);
+        root.add(mini.group);
+        audio.play('pop', { pitch: 1.6 });
+      }
+      if (!m && mini) {
+        mini.balloon.getWorldPosition(tmp);
+        if (prev && state.miniPopped > prev.miniPopped) {
+          audio.play('zombie.pop', { pitch: 1.4 });
+          world.particles.emit('confetti', tmp, 40);
+          friend.cheer(true);
+        } else world.particles.emit('dust', tmp.setY(0.6), 12);
+        disposeTree(mini.group);
+        mini = null;
+        miniId = -1;
+      }
+      if (m && mini) {
+        const g = mini.group;
+        const walking = state.phase === 'play' || state.phase === 'nope';
+        g.position.set(
+          GATE_X + (DOOR_X - GATE_X) * m.walk,
+          0.3 + (walking && !reduced ? Math.abs(Math.sin(t * 7)) * 0.1 : 0),
+          LANE_Z[m.lane] ?? 0,
+        );
+        g.rotation.set(0, -Math.PI / 2 + 0.55, walking && !reduced ? Math.sin(t * 7) * 0.14 : 0);
+        const sp = mini.spring.update(vdt);
+        mini.body.scale.set(1 - sp * 0.04, 1 + sp * 0.07, 1 - sp * 0.04);
+        if (!(state.phase === 'hit' && state.hitMini)) mini.label.set(m.value);
+        aimProxy[1].position.set(g.position.x, 1.4, g.position.z);
+      }
+      aimProxy[1].visible = !!m;
+      // the ring marks the aimed zombie (only while there is a choice)
+      const aimed = state.aim === 1 ? mini : view;
+      aimRing.visible = !!m && !!aimed && state.phase !== 'pop';
+      if (aimed) aimRing.position.set(aimed.group.position.x, 0.36, aimed.group.position.z);
+      aimRing.scale.setScalar((state.aim === 1 ? 0.7 : 1) * (1 + (reduced ? 0 : Math.sin(t * 5) * 0.06)));
       // ── the zombie
       if (z && view) {
         const v = view;
@@ -399,6 +457,7 @@ export function createZombieScene(world: RenderWorld, ctx: StageCtx): StageScene
         const walking = state.phase === 'play' || state.phase === 'nope';
         if (state.phase !== 'pop') {
           g.position.set(x, 0.3 + (walking && !reduced ? Math.abs(Math.sin(t * 5)) * 0.12 : 0), laneZ);
+          aimProxy[0].position.set(x, 2, laneZ);
           g.rotation.set(0, -Math.PI / 2 + 0.55, walking && !reduced ? Math.sin(t * 5) * 0.12 : 0);
           if (state.phase === 'knock' && !reduced) {
             const k = 1 - state.phaseLeft / KNOCK_TICKS;
@@ -418,16 +477,19 @@ export function createZombieScene(world: RenderWorld, ctx: StageCtx): StageScene
           const u = ease(k / 0.7);
           const [fx, fy, fz] = handAt(state.slot);
           from.set(fx, fy + 0.4, fz);
-          v.balloon.getWorldPosition(tmp);
+          const hitV = state.hitMini && mini ? mini : v;
+          hitV.balloon.getWorldPosition(tmp);
           dart.visible = k < 0.7;
           dart.position.lerpVectors(from, tmp, u);
           dart.position.y += reduced ? 0 : Math.sin(u * Math.PI) * 1.4;
           dart.rotation.set(u * 9, u * 5, 0);
           if (k >= 0.7)
             once('land', () => {
-              shown = z.value;
-              v.label.set(shown);
-              v.spring.impulse(9);
+              if (hitV === v) {
+                shown = z.value;
+                v.label.set(shown);
+              } else hitV.label.set(state.mini?.value ?? 0);
+              hitV.spring.impulse(9);
               audio.play('pop', { pitch: z.value === 0 ? 1.4 : 1 });
               world.particles.emit('sparkle', tmp, 22);
               if (state.eq) {
@@ -495,11 +557,10 @@ export function createZombieScene(world: RenderWorld, ctx: StageCtx): StageScene
     },
     pointer(p: PointerInfo, state, emit) {
       if (p.type !== 'down' || state.phase !== 'play') return;
-      const id = hitId(
-        cards.map((c) => c.proxy),
-        p.raycaster,
-      );
-      if (id !== null) emit({ t: 'card', id });
+      const id = hitId([...cards.map((c) => c.proxy), ...(state.mini ? aimProxy : [])], p.raycaster);
+      if (id === null) return;
+      if (id >= AIM_ID(0)) emit({ t: 'aim', who: id === AIM_ID(1) ? 1 : 0 });
+      else emit({ t: 'card', id });
     },
     screenPos(_s, id) {
       const c = cards[id];

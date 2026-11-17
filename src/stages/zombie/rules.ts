@@ -76,11 +76,28 @@ export interface ZombieState {
   popped: number;
   knocks: number;
   bossDown: boolean;
+  /**
+   * 꼬마 비틀이: an optional second target with a small balloon (bonus coins). The child aims by tapping a
+   * zombie; a card goes to the aimed balloon. If it reaches the door it just toddles home — no knock,
+   * nothing lost (P2), and a card it refuses is not a wrong answer.
+   */
+  mini: { id: number; value: number; walk: number; lane: number } | null;
+  /** 0 = the main zombie, 1 = the little one. */
+  aim: 0 | 1;
+  /** The card in flight is for the little one. */
+  hitMini: boolean;
+  miniPopped: number;
   phase: ZombiePhase;
   phaseLeft: number;
 }
 
-export type ZombieAction = { t: 'card'; id: number } | { t: 'hint' } | { t: 'retry' };
+export type ZombieAction =
+  | { t: 'card'; id: number }
+  | { t: 'hint' }
+  | { t: 'retry' }
+  | { t: 'aim'; who: 0 | 1; id?: number };
+/** Target ids for the pointer / keyboard: the main zombie and the little one. */
+export const AIM_ID = (who: 0 | 1) => 900 + who;
 
 /** a − b = c with a 2..99 and b ≥ 1. */
 export function preferZombie(q: Question): boolean {
@@ -168,9 +185,26 @@ function spawn(s: ZombieState): ZombieState {
   const q = core.asked?.question;
   if (!q) return { ...s, core };
   const id = core.index;
-  const r = withRng(core, (rng) => ({ hand: handFor(q, rng), lane: rng.int(0, LANES - 1) }));
-  core = r.core;
   const a = q.operands[0] as number;
+  const boss = id === total(core) - 1;
+  const r = withRng(core, (rng) => {
+    const hand = handFor(q, rng);
+    const lane = rng.int(0, LANES - 1);
+    // the second zombie of each wave brings a little friend; one spare card becomes its exact take-away
+    let mini: ZombieState['mini'] = null;
+    if (id % perWave() === 1 && !boss) {
+      const value = rng.int(2, 5);
+      for (let i = 0; i < hand.length && !mini; i++) {
+        const tryHand = hand.slice();
+        tryHand[i] = -value;
+        if (hand.includes(-value) || finisher(tryHand, a) < 0) continue;
+        hand[i] = -value;
+        mini = { id, value, walk: 0, lane: (lane + 1 + rng.int(0, LANES - 2)) % LANES };
+      }
+    }
+    return { hand, lane, mini };
+  });
+  core = r.core;
   return {
     ...s,
     core,
@@ -181,11 +215,14 @@ function spawn(s: ZombieState): ZombieState {
       value: a,
       start: a,
       walk: 0,
-      boss: id === total(core) - 1,
+      boss,
       used: 0,
     },
     slot: -1,
     eq: null,
+    mini: r.value.mini,
+    aim: 0,
+    hitMini: false,
   };
 }
 
@@ -208,6 +245,10 @@ export function initZombie(
     popped: 0,
     knocks: 0,
     bossDown: false,
+    mini: null,
+    aim: 0,
+    hitMini: false,
+    miniPopped: 0,
     phase: 'wave',
     phaseLeft: WAVE_TICKS,
   });
@@ -217,7 +258,14 @@ export function initZombie(
 export function solveZombie(s: ZombieState): ZombieAction[] {
   if (!s.zombie) return [];
   const slot = finisher(s.hand, s.zombie.value);
-  return slot >= 0 ? [{ t: 'card', id: slot }] : [];
+  if (slot < 0) return [];
+  // the shortest finish is for the main zombie: aim back at it first when needed
+  return s.aim === 1
+    ? [
+        { t: 'aim', who: 0 },
+        { t: 'card', id: slot },
+      ]
+    : [{ t: 'card', id: slot }];
 }
 
 export function stepZombie(state: ZombieState, input: InputFrame<ZombieAction>): ZombieState {
@@ -240,8 +288,32 @@ export function stepZombie(state: ZombieState, input: InputFrame<ZombieAction>):
           hand: r.value,
           zombie: { ...z, value: n, start: n, walk: Math.min(z.walk, 0.3), used: 0 },
           eq: null,
+          // new numbers, new cards: the little one's card is gone, so it goes home
+          mini: null,
+          aim: 0,
         };
       }
+    }
+    if (a.t === 'aim') s = { ...s, aim: a.who === 1 && s.mini ? 1 : 0 };
+    if (a.t === 'card' && s.aim === 1 && s.mini) {
+      const delta = s.hand[a.id];
+      if (delta === undefined) continue;
+      const to = s.mini.value + delta;
+      if (to < 0 || to > 9) {
+        // the little balloon refuses it: a bounce, not a wrong answer
+        s = { ...s, slot: a.id, eq: null, phase: 'nope', phaseLeft: NOPE_TICKS };
+      } else {
+        s = {
+          ...s,
+          mini: { ...s.mini, value: to },
+          hitMini: true,
+          slot: a.id,
+          eq: { from: s.mini.value, delta, to },
+          phase: 'hit',
+          phaseLeft: HIT_TICKS,
+        };
+      }
+      continue;
     }
     if (a.t === 'card') {
       const delta = s.hand[a.id];
@@ -283,6 +355,11 @@ export function stepZombie(state: ZombieState, input: InputFrame<ZombieAction>):
         phaseLeft: KNOCK_TICKS,
       };
     s = { ...s, zombie: { ...z, walk: Math.min(1, walk) } };
+    // the little one toddles too; at the door it simply turns for home
+    if (s.mini) {
+      const mw = s.mini.walk + BALANCE.zombie.miniWalkPerSecond / 60;
+      s = mw >= 1 ? { ...s, mini: null, aim: 0 } : { ...s, mini: { ...s.mini, walk: mw } };
+    }
   }
   if (s.phase === 'play') return s;
   const left = s.phaseLeft - 1;
@@ -297,7 +374,22 @@ export function stepZombie(state: ZombieState, input: InputFrame<ZombieAction>):
   if (s.phase === 'wave' || s.phase === 'nope' || s.phase === 'knock')
     return { ...s, phase: 'play', phaseLeft: 0 };
   if (s.phase === 'hit' && z) {
-    if (z.value === 0) {
+    if (s.hitMini) {
+      // the little balloon: exactly 0 pops it for bonus coins
+      const popped = s.mini?.value === 0;
+      s = {
+        ...s,
+        hitMini: false,
+        ...(popped
+          ? {
+              mini: null,
+              aim: 0 as const,
+              miniPopped: s.miniPopped + 1,
+              core: { ...s.core, coins: s.core.coins + BALANCE.zombie.miniBonus },
+            }
+          : {}),
+      };
+    } else if (z.value === 0) {
       let core = recordAttempt(s.core, true, s.core.asked?.question.answer ?? 0);
       if (z.boss) core = { ...core, coins: core.coins + BALANCE.zombie.bossBonus };
       return { ...s, core, bossDown: s.bossDown || z.boss, phase: 'pop', phaseLeft: POP_TICKS };
@@ -336,6 +428,7 @@ export const zombieRules: StageRules<ZombieState, ZombieAction> = {
     const r = roundSummary(s.core);
     const highlights = [...r.highlights];
     if (s.bossDown) highlights.push('zombieBoss');
+    if (s.miniPopped > 0) highlights.push('zombieMini');
     if (s.knocks === 0 && s.popped >= s.core.puzzles) highlights.push('zombieNoKnock');
     return { ...r, highlights };
   },

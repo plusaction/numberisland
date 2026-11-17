@@ -1,6 +1,7 @@
 import { fmt, ko } from '../../i18n/ko';
 import type { HudView, StageModule } from '../_shared/module';
 import {
+  AIM_ID,
   HAND,
   initZombie,
   solveZombie,
@@ -20,7 +21,7 @@ function goal(s: ZombieState): string {
   const z = s.zombie;
   if (!z) return '🎈';
   if ((s.phase === 'hit' || s.phase === 'pop') && s.eq) return `🎈 ${eqText(s.eq)}`;
-  return `🎈 ${z.value} − ? = 0`;
+  return `🎈 ${s.aim === 1 && s.mini ? s.mini.value : z.value} − ? = 0`;
 }
 
 function say(s: ZombieState): HudView['say'] {
@@ -32,6 +33,11 @@ function say(s: ZombieState): HudView['say'] {
       ? { key: 'party', text: ko.zombie.party }
       : { key: `pop-${at}`, text: fmt(ko.zombie.pop, { eq: eqText(s.eq) }) };
   if (s.phase === 'knock') return { key: `knock-${s.knocks}`, text: ko.zombie.knock };
+  if (s.phase === 'nope' && s.aim === 1 && s.mini)
+    return {
+      key: `mnope-${s.core.tick - (s.core.tick % 60)}`,
+      text: fmt(ko.zombie.nope, { n: s.mini.value, k: Math.abs(s.hand[s.slot] ?? 0) }),
+    };
   if (s.phase === 'nope')
     return {
       key: `nope-${s.core.wrong}`,
@@ -40,6 +46,9 @@ function say(s: ZombieState): HudView['say'] {
   if (s.phase === 'hit' && s.eq)
     return { key: `hit-${at}-${z.used}`, text: fmt(ko.zombie.hit, { eq: eqText(s.eq), n: z.value }) };
   if (at === 0 && z.used === 0) return { key: 'intro', text: ko.zombie.intro };
+  if (s.mini && s.aim === 1)
+    return { key: `mini-aim-${at}`, text: fmt(ko.zombie.miniAim, { n: s.mini.value }) };
+  if (s.mini && z.used === 0) return { key: `mini-${at}`, text: ko.zombie.mini };
   if (z.boss && z.used === 0) return { key: 'boss', text: ko.zombie.boss };
   return { key: `ask-${at}-${z.used}`, text: fmt(ko.zombie.ask, { n: z.value }) };
 }
@@ -50,8 +59,11 @@ export const zombieModule: StageModule<ZombieState, ZombieAction> = {
   bgm: 'zombie',
   createScene: createZombieScene,
   keyboard: {
-    targets: () => Array.from({ length: HAND }, (_, i) => i),
-    confirm: (_s, id) => ({ action: { t: 'card', id } }),
+    // the cards, then (while the little one is out) the two zombies to aim at
+    targets: (s) => [...Array.from({ length: HAND }, (_, i) => i), ...(s.mini ? [AIM_ID(0), AIM_ID(1)] : [])],
+    confirm: (_s, id) => ({
+      action: id >= AIM_ID(0) ? { t: 'aim', who: id === AIM_ID(1) ? 1 : 0 } : { t: 'card', id },
+    }),
   },
   hud: (s) => {
     const sayNow = say(s);
@@ -75,7 +87,8 @@ export const zombieModule: StageModule<ZombieState, ZombieAction> = {
   },
   phases: ZOMBIE_PHASES,
   initialPhase: ZOMBIE_PHASES_INITIAL,
-  hudKey: (s) => `${s.zombie?.value ?? ''}|${s.zombie?.used ?? 0}|${s.hand.join(',')}|${s.knocks}`,
+  hudKey: (s) =>
+    `${s.zombie?.value ?? ''}|${s.zombie?.used ?? 0}|${s.hand.join(',')}|${s.knocks}|${s.mini?.value ?? ''}|${s.aim}`,
   // hint step 3+: a card of the shortest finish sparkles
   glowTarget: (s) => solveZombie(s).map((a) => (a.t === 'card' ? a.id : null))[0] ?? null,
   solution: (s) => (s.phase === 'play' || s.phase === 'wave' ? solveZombie(s) : []),

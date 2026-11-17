@@ -17,6 +17,7 @@ const SLOT_KEYS: Record<string, number> = {
 };
 // small arrows show which key picks the slot (no pad-like symbols, no clash with place-value marks)
 const ARROWS = ['↑', '←', '→', '↓'];
+const LANE_ARROWS = ['←', '↑', '→'];
 const POS = [
   'col-start-2 row-start-1',
   'col-start-1 row-start-2',
@@ -42,6 +43,8 @@ export function ChoiceCross({
   dim?: readonly number[];
 }) {
   const two = choices.length === 2;
+  // three answers: one per lane, left to right (← ↑ →)
+  const three = choices.length === 3;
   useEffect(() => {
     if (!keys) return;
     const onKey = (e: KeyboardEvent) => {
@@ -61,7 +64,13 @@ export function ChoiceCross({
 
   return (
     <div
-      className={two ? 'grid grid-cols-2 gap-6' : 'grid grid-cols-3 grid-rows-3 gap-3'}
+      className={
+        two
+          ? 'grid grid-cols-2 gap-6'
+          : three
+            ? 'grid grid-cols-3 gap-3'
+            : 'grid grid-cols-3 grid-rows-3 gap-3'
+      }
       data-testid="choices"
     >
       {choices.map((c, i) => (
@@ -71,10 +80,10 @@ export function ChoiceCross({
           disabled={disabled || dim?.includes(c.value) === true}
           data-value={c.value}
           onClick={() => onPick(c.value)}
-          className={`toy-btn choice-btn ${two ? '' : POS[i]} ${shake === c.value ? 'animate-wiggle' : ''} ${dim?.includes(c.value) ? 'choice-dim' : ''}`}
+          className={`toy-btn choice-btn ${two || three ? '' : POS[i]} ${shake === c.value ? 'animate-wiggle' : ''} ${dim?.includes(c.value) ? 'choice-dim' : ''}`}
         >
           <span aria-hidden="true" className="choice-shape">
-            {ARROWS[two ? (i === 0 ? 1 : 2) : i]}
+            {three ? LANE_ARROWS[i] : ARROWS[two ? (i === 0 ? 1 : 2) : i]}
           </span>
           <span className="choice-num">{c.display ? c.display.replaceAll('-', '−') : c.value}</span>
         </button>
