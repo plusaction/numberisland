@@ -55,6 +55,12 @@ export function SettingsSheet({ store, onClose }: { store: GameStore; onClose():
   const closeRef = useRef(onClose);
   closeRef.current = onClose;
   const sheet = useRef<HTMLElement | null>(null);
+  // focus starts on the close key (one press to leave) without scrolling a tall sheet down to it:
+  // on a short phone the title and the first switches stay in view
+  const closeKey = useRef<HTMLButtonElement | null>(null);
+  useEffect(() => {
+    closeKey.current?.focus({ preventScroll: true });
+  }, []);
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.code === 'Escape') closeRef.current();
@@ -166,7 +172,7 @@ export function SettingsSheet({ store, onClose }: { store: GameStore; onClose():
           onPick={(restMinutes) => set({ restMinutes })}
         />
         <div className="mt-5 flex justify-end">
-          <Button tone="primary" autoFocus onClick={onClose} data-testid="settings-close">
+          <Button tone="primary" ref={closeKey} onClick={onClose} data-testid="settings-close">
             {s.close}
           </Button>
         </div>

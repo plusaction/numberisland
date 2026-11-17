@@ -290,7 +290,7 @@ export function StageScreen({ store, reducedMotion }: { store: GameStore; reduce
           ✕ <span className="hide-narrow ml-1 text-xl">{ko.stageHud.exit}</span>
         </Button>
         <div
-          className={`pill${core.puzzles > 9 ? ' dots-many' : ''}`}
+          className={`pill${core.puzzles > 7 ? ' dots-many' : ''}`}
           role="img"
           aria-label={fmt(ko.stageHud.progress, { i: core.index + 1, n: core.puzzles })}
           data-testid="progress"

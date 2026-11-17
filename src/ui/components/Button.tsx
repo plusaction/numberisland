@@ -1,4 +1,4 @@
-import type { ButtonHTMLAttributes, ReactNode } from 'react';
+import type { ButtonHTMLAttributes, ReactNode, Ref } from 'react';
 import { audio } from '../../infra/audio/audio';
 
 type Tone = 'primary' | 'secondary' | 'ghost' | 'sun' | 'sea' | 'berry';
@@ -21,7 +21,13 @@ export function Button({
   big = false,
   onClick,
   ...rest
-}: ButtonHTMLAttributes<HTMLButtonElement> & { tone?: Tone; big?: boolean; children: ReactNode }) {
+}: ButtonHTMLAttributes<HTMLButtonElement> & {
+  tone?: Tone;
+  big?: boolean;
+  children: ReactNode;
+  /** React 19: a ref is a plain prop and reaches the <button> through the spread below. */
+  ref?: Ref<HTMLButtonElement>;
+}) {
   return (
     <button
       type="button"

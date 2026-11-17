@@ -197,7 +197,8 @@ export function HubScreen({
         </div>
         {nextNeed !== undefined && (
           <div className="pill" data-testid="next-reward">
-            <span className="text-base">{ko.hub.nextReward}</span>
+            {/* narrow phones: the bar alone (with its aria label) leaves room for the ⚙ key on this row */}
+            <span className="text-base max-[420px]:hidden">{ko.hub.nextReward}</span>
             <ProgressBar value={profile.trophies.total} max={nextNeed} label={ko.hub.nextReward} />
             <span className="text-base">{ko.ranks[rank + 1]}</span>
           </div>

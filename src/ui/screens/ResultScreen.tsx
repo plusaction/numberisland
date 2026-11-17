@@ -154,7 +154,7 @@ export function ResultScreen({ store }: { store: GameStore }) {
           {fmt(ko.result.coins, { n: outcome.coins })} · {fmt(ko.result.trophies, { n: outcome.trophies })}
         </p>
         <SpeakButton text={`${newThing}. ${ko.result.nextGoal}: ${goal}`} className="mx-auto mt-2" />
-        <div className="mt-6 flex justify-center gap-3">
+        <div className="mt-6 flex flex-wrap justify-center gap-3">
           <Button onClick={() => store.getState().go('hub')} data-testid="to-hub">
             {ko.result.home}
           </Button>

@@ -77,6 +77,7 @@
     display: grid;
     place-items: center;
     padding: 1.5rem;
+    overflow-y: auto; /* a tall result card on a short phone scrolls instead of being cut */
     background: color-mix(in oklab, var(--color-sand) 55%, transparent);
   }
   /* title + placement: the live 3D island shows through; the panel sits high so the monster friend is visible */
@@ -1474,8 +1475,8 @@
     margin-top: 0.4rem;
   }
 }
-/* tablets held upright: the card battle's key row sits low, so the friend speaks from the very bottom */
-@media (min-width: 641px) and (max-width: 1100px) and (orientation: portrait) {
+/* phones and tablets held upright: the card battle's key row sits low, so the friend speaks from the very bottom */
+@media (max-width: 1100px) and (orientation: portrait) {
   .stage-hud[data-stage="cardbattle"] > .say-bubble {
     bottom: 1.25rem;
     max-width: min(26rem, calc(100% - 11rem));
@@ -1486,5 +1487,42 @@
   .hub-card {
     max-height: calc(100vh - 5rem);
     overflow-y: auto;
+  }
+}
+/* narrow phones: settings rows put the name above its switches (no one-letter-per-line wrapping) */
+@media (max-width: 420px) {
+  .sheet-row {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.3rem;
+    margin-top: 0.6rem;
+    font-size: 1.2rem;
+  }
+  .sheet-row .seg {
+    display: flex;
+    width: 100%;
+    justify-content: space-between;
+  }
+  .sheet-row .seg-btn {
+    flex: 1;
+    min-width: 0;
+  }
+  .screen-center {
+    padding: 0.75rem;
+  }
+  /* card battle: the tutorial's skip key waits top-right, clear of the + / − row */
+  .stage-hud[data-stage="cardbattle"] .tutorial-skip {
+    top: 10.6rem;
+    bottom: auto;
+    left: auto;
+    right: 0.6rem;
+  }
+}
+/* short phones: there is no room under the card battle's key row, so the friend speaks from under the goal */
+@media (max-width: 420px) and (max-height: 720px) and (orientation: portrait) {
+  .stage-hud[data-stage="cardbattle"] > .say-bubble {
+    top: 10.4rem;
+    bottom: auto;
+    max-width: calc(100% - 1.2rem);
   }
 }
