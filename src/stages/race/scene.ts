@@ -20,13 +20,15 @@ import {
   MeshBasicNodeMaterial,
   Object3D,
   OctahedronGeometry,
+  TorusGeometry,
   Vector3,
 } from 'three/webgpu';
 import { HitStop, Shake, Spring } from '../../engine/fx/juice';
+import { markStatic, mergeStatic } from '../../engine/geo/merge';
 import { ball, capsule, disc, ring, roundedBox } from '../../engine/geo/shapes';
 import { NumberLabel } from '../../engine/numbers/number-label';
 import { PALETTE } from '../../engine/palette';
-import { grassMaterial, metalMaterial, toyMaterial } from '../../engine/tsl/materials';
+import { grassMaterial, metalMaterial, toyMaterial, woodMaterial } from '../../engine/tsl/materials';
 import type { RenderWorld } from '../../engine/world';
 import { audio } from '../../infra/audio/audio';
 import { createFriend } from '../../scenes/island/friend';
@@ -70,50 +72,99 @@ interface Kart {
   group: Group;
   body: Group;
   wheels: Mesh[];
+  /** Exhaust flames: they flare on a boost. */
+  flames: Mesh[];
   spin: number;
   vis: number;
   bounce: Spring;
 }
 
+/**
+ * A toy racing kart, nose to −Z (down the road): low chassis, pointed nose with a front wing, side pods,
+ * a cockpit ring round the driver, a big rear wing on struts (what the chase camera sees most), tail lights,
+ * twin exhausts with flames, fat tyres on gold rims.
+ */
 function kartModel(color: string, driver: Object3D): Kart {
   const group = new Group();
   const body = new Group();
-  const shell = new Mesh(roundedBox(1.5, 0.5, 2.3, 0.22), toyMaterial(color, { rimStrength: 0.3 }));
-  shell.position.y = 0.55;
-  shell.castShadow = true;
-  const nose = new Mesh(roundedBox(1.1, 0.34, 0.8, 0.16), toyMaterial(color, { rimStrength: 0.3 }));
-  nose.position.set(0, 0.5, -1.3);
-  const bumper = new Mesh(roundedBox(1.7, 0.2, 0.3, 0.1), toyMaterial(PALETTE.white, { finish: 'satin' }));
-  bumper.position.set(0, 0.4, -1.75);
-  const spoiler = new Mesh(roundedBox(1.6, 0.12, 0.4, 0.05), toyMaterial(PALETTE.ink, { finish: 'satin' }));
-  spoiler.position.set(0, 1.15, 1.1);
-  const pipe = new Mesh(new CylinderGeometry(0.13, 0.16, 0.5, 12), metalMaterial('#cfd6e4'));
-  pipe.rotation.x = Math.PI / 2;
-  pipe.position.set(0.45, 0.55, 1.35);
-  const pipe2 = pipe.clone();
-  pipe2.position.x = -0.45;
-  driver.position.set(0, 0.75, 0.15);
-  body.add(shell, nose, bumper, spoiler, pipe, pipe2, driver);
+  const paint = toyMaterial(color, { rimStrength: 0.35 });
+  const white = toyMaterial(PALETTE.white, { finish: 'satin' });
+  const ink = toyMaterial('#2b2f3a', { finish: 'satin' });
+  const chrome = metalMaterial('#d7dde8', 0.25);
+  const add = (
+    geo: ConstructorParameters<typeof Mesh>[0],
+    mat: ConstructorParameters<typeof Mesh>[1],
+    x: number,
+    y: number,
+    z: number,
+  ) => {
+    const m = new Mesh(geo, mat);
+    m.position.set(x, y, z);
+    m.castShadow = true;
+    body.add(markStatic(m));
+    return m;
+  };
+  add(roundedBox(1.25, 0.16, 2.7, 0.07), ink, 0, 0.32, 0.05); // floor
+  add(roundedBox(0.96, 0.44, 1.9, 0.2), paint, 0, 0.6, 0.15); // tub
+  const nose = add(new ConeGeometry(0.4, 1.15, 18), paint, 0, 0.5, -1.35);
+  nose.rotation.x = -Math.PI / 2;
+  nose.scale.set(1.25, 1, 0.62);
+  add(roundedBox(1.9, 0.07, 0.36, 0.03), white, 0, 0.3, -1.78); // front wing
+  for (const x of [-0.95, 0.95]) add(roundedBox(0.06, 0.24, 0.42, 0.02), paint, x, 0.38, -1.78);
+  for (const x of [-0.62, 0.62]) add(roundedBox(0.34, 0.34, 1.15, 0.14), paint, x, 0.5, 0.3); // side pods
+  add(roundedBox(0.2, 0.02, 2.0, 0.008), white, 0, 0.83, 0.05); // racing stripe
+  const rim = add(new TorusGeometry(0.4, 0.07, 8, 24), ink, 0, 0.84, 0.15); // cockpit ring
+  rim.rotation.x = Math.PI / 2;
+  // rear wing on two struts, with painted end plates and a white top stripe
+  for (const x of [-0.3, 0.3]) add(roundedBox(0.07, 0.5, 0.12, 0.02), ink, x, 0.98, 1.15);
+  add(roundedBox(1.85, 0.1, 0.46, 0.04), ink, 0, 1.26, 1.18);
+  add(roundedBox(1.7, 0.02, 0.1, 0.008), white, 0, 1.32, 1.3);
+  for (const x of [-0.95, 0.95]) add(roundedBox(0.07, 0.42, 0.56, 0.03), paint, x, 1.18, 1.18);
+  // tail lights and twin exhausts
+  for (const x of [-0.36, 0.36])
+    add(ball(0.08, 10), toyMaterial('#ff3b4e', { rimStrength: 1 }), x, 0.6, 1.12);
+  const flames: Mesh[] = [];
+  for (const x of [-0.2, 0.2]) {
+    const pipe = add(new CylinderGeometry(0.11, 0.12, 0.2, 12), chrome, x, 0.45, 1.2);
+    pipe.rotation.x = Math.PI / 2;
+    const flame = add(
+      new ConeGeometry(0.1, 0.55, 10),
+      new MeshBasicNodeMaterial({ color: '#ffb347' }),
+      x,
+      0.45,
+      1.5,
+    );
+    flame.rotation.x = Math.PI / 2;
+    flame.castShadow = false;
+    flame.userData.static = false; // flames stretch every frame: kept out of the batch
+    flames.push(flame);
+  }
+  // every fixed part of one material becomes one mesh (a kart was ~30 draw calls, now ~8)
+  mergeStatic(body);
+  driver.position.set(0, 0.8, 0.12);
+  body.add(driver);
   const wheels: Mesh[] = [];
-  const tyre = toyMaterial('#2b2f3a', { finish: 'matte' });
-  const hub = toyMaterial(PALETTE.sun);
-  for (const [x, z] of [
-    [-0.9, -0.95],
-    [0.9, -0.95],
-    [-0.9, 0.85],
-    [0.9, 0.85],
+  const tyre = toyMaterial('#25282f', { finish: 'matte' });
+  const gold = metalMaterial('#f2b632', 0.3);
+  for (const [x, z, r] of [
+    [-0.88, -0.98, 0.38],
+    [0.88, -0.98, 0.38],
+    [-0.92, 0.82, 0.48],
+    [0.92, 0.82, 0.48],
   ] as const) {
-    const w = new Mesh(disc(0.42, 0.34, 20), tyre);
+    const w = new Mesh(disc(r, 0.42, 22), tyre);
     w.rotation.z = Math.PI / 2;
-    w.position.set(x, 0.42, z);
+    w.position.set(x, r, z);
     w.castShadow = true;
-    const cap = new Mesh(disc(0.2, 0.36, 12), hub);
-    w.add(cap);
+    const hub = new Mesh(disc(r * 0.58, 0.44, 14), gold);
+    // a spoke bar so the spin reads
+    const spoke = new Mesh(roundedBox(r * 1.05, 0.46, 0.08, 0.02), white);
+    w.add(hub, spoke);
     wheels.push(w);
     group.add(w);
   }
   group.add(body);
-  return { group, body, wheels, spin: 0, vis: 0, bounce: new Spring(0, 200, 10) };
+  return { group, body, wheels, flames, spin: 0, vis: 0, bounce: new Spring(0, 200, 10) };
 }
 
 /** A rival driver: a round toy monster (not jelly: cheap), told apart by colour and hat. */
@@ -182,6 +233,55 @@ export function createRaceScene(world: RenderWorld, ctx: StageCtx): StageScene<R
     toyMaterial('#3fae6a', { finish: 'matte' }),
     TREES,
   );
+  // a second, smaller cone on top and a trunk under each tree (same matrices, offset)
+  const treeTops = new InstancedMesh(
+    new ConeGeometry(0.65, 1.8, 10),
+    toyMaterial('#5cc77e', { finish: 'matte' }),
+    TREES,
+  );
+  const trunks = new InstancedMesh(new CylinderGeometry(0.2, 0.26, 1.1, 8), woodMaterial('#8a5a3c'), TREES);
+  // grandstands: a stepped stand of three tiers and a crowd of round toy fans (four shirt colours)
+  const STANDS = 4;
+  const STAND_GAP = 26;
+  const TIERS = 3;
+  const PER_ROW = 9;
+  const tierMesh = new InstancedMesh(
+    roundedBox(7.2, 0.7, 1.1, 0.12),
+    toyMaterial('#e9edf5', { finish: 'satin' }),
+    STANDS * TIERS,
+  );
+  const roofMesh = new InstancedMesh(
+    roundedBox(7.8, 0.18, 3.8, 0.08),
+    toyMaterial('#ff6f91', { finish: 'satin' }),
+    STANDS,
+  );
+  const FAN_COLORS = ['#ff8fab', '#6fd0e3', '#ffd166', '#b9a6f2'];
+  const FANS = STANDS * TIERS * PER_ROW;
+  const fans = FAN_COLORS.map(
+    (c) =>
+      new InstancedMesh(
+        ball(0.32, 12),
+        toyMaterial(c, { rimStrength: 0.3 }),
+        Math.ceil(FANS / FAN_COLORS.length),
+      ),
+  );
+  // banner boards on short posts between the stands
+  const BOARDS = 6;
+  const BOARD_GAP = 17;
+  const BOARD_COLORS = ['#2fb4cc', '#ffc93c', '#7ee08a'];
+  const boards = BOARD_COLORS.map(
+    (c) =>
+      new InstancedMesh(
+        roundedBox(3.4, 0.95, 0.14, 0.06),
+        toyMaterial(c, { finish: 'satin' }),
+        Math.ceil(BOARDS / BOARD_COLORS.length),
+      ),
+  );
+  const boardStripes = new InstancedMesh(
+    roundedBox(2.9, 0.16, 0.16, 0.04),
+    toyMaterial(PALETTE.white, { finish: 'satin' }),
+    BOARDS,
+  );
   const CLOUDS = 10;
   const clouds = new InstancedMesh(
     ball(1.4, 12),
@@ -195,8 +295,11 @@ export function createRaceScene(world: RenderWorld, ctx: StageCtx): StageScene<R
     LINES,
   );
   lines.frustumCulled = false;
-  for (const m of [planksA, planksB, kerbA, kerbB, dashes, trees, clouds]) m.frustumCulled = false;
-  root.add(planksA, planksB, kerbA, kerbB, dashes, trees, clouds, lines);
+  const side = [treeTops, trunks, tierMesh, roofMesh, ...fans, ...boards, boardStripes];
+  for (const m of side) m.castShadow = true;
+  for (const m of [planksA, planksB, kerbA, kerbB, dashes, trees, clouds, ...side]) m.frustumCulled = false;
+  root.add(planksA, planksB, kerbA, kerbB, dashes, trees, clouds, lines, ...side);
+  let cheer = 0; // the crowd jumps on a boost and at the finish
 
   // square arches (a pool of three, re-used for the next squares) + the finish gate
   const ARCH_COLORS = [PALETTE.sun, PALETTE.berry, '#2fb4cc'];
@@ -329,6 +432,7 @@ export function createRaceScene(world: RenderWorld, ctx: StageCtx): StageScene<R
         me.bounce.impulse(turbo ? 9 : 6);
         shake.add((turbo ? 0.3 : 0.18) * ctx.shakeIntensity);
         friend.cheer(true);
+        cheer = turbo ? 1 : 0.6;
         if (turbo) {
           ringT = 0;
           world.particles.emit('confetti', tmp.set(0, 2, -2), 60);
@@ -377,6 +481,7 @@ export function createRaceScene(world: RenderWorld, ctx: StageCtx): StageScene<R
         audio.play('levelup', { delay: 0.35 });
         hitStop.trigger(80);
         celebrate(world, { x: 0, y: 2.5, z: -2 }, 4, false);
+        cheer = 1.6;
         placeLabel.set(state.place ?? 1);
         placeLabel.visible = true;
       }
@@ -432,8 +537,87 @@ export function createRaceScene(world: RenderWorld, ctx: StageCtx): StageScene<R
         dummy.scale.setScalar(0.8 + hash(k * 3 + i) * 0.7);
         dummy.updateMatrix();
         trees.setMatrixAt(i, dummy.matrix);
+        const ts = dummy.scale.x;
+        const tx = dummy.position.x;
+        const ty = dummy.position.y;
+        dummy.position.set(tx, ty + 1.15 * ts, dummy.position.z);
+        dummy.updateMatrix();
+        treeTops.setMatrixAt(i, dummy.matrix);
+        dummy.position.set(tx, ty - 1.5 * ts, dummy.position.z);
+        dummy.updateMatrix();
+        trunks.setMatrixAt(i, dummy.matrix);
       }
-      trees.instanceMatrix.needsUpdate = true;
+      trees.instanceMatrix.needsUpdate =
+        treeTops.instanceMatrix.needsUpdate =
+        trunks.instanceMatrix.needsUpdate =
+          true;
+      // grandstands (alternate sides) with a cheering crowd
+      cheer = Math.max(0, cheer - vdt * 0.8);
+      const sk0 = Math.floor(me.vis / STAND_GAP);
+      const fanCount = fans.map(() => 0);
+      for (let i = 0; i < STANDS; i++) {
+        const k = sk0 + i;
+        const sideX = k % 2 ? 1 : -1;
+        const d = k * STAND_GAP + 10;
+        const x = sideX * (LANE * 1.5 + 5.2);
+        const y0 = BASE_Y + hill(d) - hill(me.vis) - 0.6;
+        const z = -(d - me.vis);
+        for (let r = 0; r < TIERS; r++) {
+          // tiers step up and away from the road
+          dummy.position.set(x + sideX * r * 1.0, y0 + r * 0.7, z);
+          dummy.rotation.set(0, Math.PI / 2, 0);
+          dummy.scale.setScalar(1);
+          dummy.updateMatrix();
+          tierMesh.setMatrixAt(i * TIERS + r, dummy.matrix);
+          for (let f = 0; f < PER_ROW; f++) {
+            const n = (i * TIERS + r) * PER_ROW + f;
+            const ci = (n + k) % fans.length;
+            const mesh = fans[ci] as InstancedMesh;
+            const hop = reduced ? 0 : Math.abs(Math.sin(t * 9 + n * 1.7)) * (0.08 + cheer * 0.45);
+            dummy.position.set(
+              x + sideX * r * 1.0,
+              y0 + r * 0.7 + 0.62 + hop,
+              z + (f - (PER_ROW - 1) / 2) * 0.76,
+            );
+            dummy.rotation.set(0, 0, 0);
+            dummy.updateMatrix();
+            mesh.setMatrixAt(fanCount[ci] ?? 0, dummy.matrix);
+            fanCount[ci] = (fanCount[ci] ?? 0) + 1;
+          }
+        }
+        dummy.position.set(x + sideX * 1.0, y0 + TIERS * 0.7 + 1.6, z);
+        dummy.rotation.set(0, Math.PI / 2, sideX * 0.12);
+        dummy.updateMatrix();
+        roofMesh.setMatrixAt(i, dummy.matrix);
+      }
+      fans.forEach((m, ci) => {
+        m.count = fanCount[ci] ?? 0;
+        m.instanceMatrix.needsUpdate = true;
+      });
+      tierMesh.instanceMatrix.needsUpdate = roofMesh.instanceMatrix.needsUpdate = true;
+      // banner boards facing the road
+      const bk0 = Math.floor(me.vis / BOARD_GAP);
+      const boardCount = boards.map(() => 0);
+      for (let i = 0; i < BOARDS; i++) {
+        const k = bk0 + i;
+        const sideX = k % 2 ? -1 : 1;
+        const d = k * BOARD_GAP + 4;
+        const ci = k % boards.length;
+        const mesh = boards[ci] as InstancedMesh;
+        dummy.position.set(sideX * (LANE * 1.5 + 1.6), BASE_Y + hill(d) - hill(me.vis) + 0.75, -(d - me.vis));
+        dummy.rotation.set(0, sideX * -1.2, 0);
+        dummy.updateMatrix();
+        mesh.setMatrixAt(boardCount[ci] ?? 0, dummy.matrix);
+        boardCount[ci] = (boardCount[ci] ?? 0) + 1;
+        dummy.position.y += 0.05;
+        dummy.updateMatrix();
+        boardStripes.setMatrixAt(i, dummy.matrix);
+      }
+      boards.forEach((m, ci) => {
+        m.count = boardCount[ci] ?? 0;
+        m.instanceMatrix.needsUpdate = true;
+      });
+      boardStripes.instanceMatrix.needsUpdate = true;
       const CLOUD_GAP = 14;
       const ck0 = Math.floor(me.vis / CLOUD_GAP);
       for (let i = 0; i < CLOUDS; i++) {
@@ -508,6 +692,13 @@ export function createRaceScene(world: RenderWorld, ctx: StageCtx): StageScene<R
         if (k >= 1) slipT = -1;
       }
       for (const w of me.wheels) w.rotation.x += vdt * (2 + speed * 2.2);
+      // exhaust flames: a flicker when cruising, long and bright on a boost
+      const flare = state.phase === 'boost' ? (state.gain > 1 ? 1.9 : 1.4) : 0.12 + fast * 0.4;
+      for (const [fi, f] of me.flames.entries()) {
+        const flick = reduced ? 1 : 0.8 + Math.abs(Math.sin(t * 37 + fi * 2)) * 0.4;
+        f.scale.set(1, flare * flick, 1);
+        f.position.z = 1.3 + 0.28 * flare * flick;
+      }
       friend.update(vdt, t, reduced);
       if (fast > 0.25 && !reduced)
         world.particles.emit('sparkle', tmp.set((Math.random() - 0.5) * 0.9, 0.9, 1.6), 3);
@@ -532,8 +723,14 @@ export function createRaceScene(world: RenderWorld, ctx: StageCtx): StageScene<R
         }
         r.group.rotation.y = spin;
         const home = (state.rivals[i] ?? 0) >= length;
-        for (const w of r.wheels)
-          w.rotation.x += vdt * (home ? 0 : state.rivalFx[i]?.kind === 'boost' ? 14 : 6);
+        const boosting = state.rivalFx[i]?.kind === 'boost';
+        for (const w of r.wheels) w.rotation.x += vdt * (home ? 0 : boosting ? 14 : 6);
+        for (const [fi, f] of r.flames.entries()) {
+          const fl =
+            (boosting ? 1.6 : 0.12) * (reduced ? 1 : 0.8 + Math.abs(Math.sin(t * 33 + fi + i)) * 0.4);
+          f.scale.set(1, fl, 1);
+          f.position.z = 1.3 + 0.28 * fl;
+        }
         r.group.visible = r.group.position.z < 9 && r.group.position.z > -75;
       });
 
