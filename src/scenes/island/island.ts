@@ -88,6 +88,24 @@ export interface IslandController extends SceneController {
   portalScreenPos(stage: StageId): { x: number; y: number };
 }
 
+/** Ease `from` toward `to` around the island's axis: the shortest turn, then distance and height. */
+function orbitLerp(from: Vector3, to: Vector3, k: number) {
+  const a0 = Math.atan2(from.z, from.x);
+  const a1 = Math.atan2(to.z, to.x);
+  let d = a1 - a0;
+  d -= Math.round(d / (Math.PI * 2)) * Math.PI * 2;
+  const r0 = Math.hypot(from.x, from.z);
+  const r1 = Math.hypot(to.x, to.z);
+  // near the axis the angle means little: plain ease there
+  if (r0 < 0.5 || r1 < 0.5) {
+    from.lerp(to, k);
+    return;
+  }
+  const a = a0 + d * k;
+  const r = r0 + (r1 - r0) * k;
+  from.set(Math.cos(a) * r, from.y + (to.y - from.y) * k, Math.sin(a) * r);
+}
+
 export function createIsland(world: RenderWorld, opts: IslandOptions): IslandController {
   const rng = createRng('island');
   const root = new Group();
@@ -294,8 +312,11 @@ export function createIsland(world: RenderWorld, opts: IslandOptions): IslandCon
     }
     const p = portals.get(selected)?.pos ?? new Vector3();
     const dir = p.clone().setY(0).normalize();
-    wantLook.set(p.x * 0.6, 1.0, p.z * 0.6);
-    wantPos.copy(dir.multiplyScalar(13)).setY(8.2);
+    // portrait (phones): the info card fills the lower half, so aim lower and come closer — the picked
+    // portal then sits in the clear upper part of the screen
+    const narrow = world.camera.aspect < 1;
+    wantLook.set(p.x * 0.6, narrow ? -3.2 : 1.0, p.z * 0.6);
+    wantPos.copy(dir.multiplyScalar(narrow ? 11.5 : 13)).setY(narrow ? 7.4 : 8.2);
     if (!opts.reducedMotion) wantPos.applyAxisAngle(UP, Math.sin(t * 0.1) * 0.05);
     // dragging turns the whole view round the island (released: it settles on the nearest portal)
     if (dragYaw !== 0) {
@@ -347,8 +368,10 @@ export function createIsland(world: RenderWorld, opts: IslandOptions): IslandCon
       void input; // navigation keys are handled immediately by the hub UI (no frame latency)
       target();
       const k = 1 - Math.exp(-dt * 3.2);
-      camPos.lerp(wantPos, k);
-      camLook.lerp(wantLook, k);
+      // glide round the island (angle, distance and height each ease) instead of cutting straight across
+      // it: a straight line to a portal on the far side would dive over the tree
+      orbitLerp(camPos, wantPos, k);
+      orbitLerp(camLook, wantLook, k);
       world.camera.position.copy(camPos);
       world.camera.lookAt(camLook);
       for (const [sid, p] of portals) {

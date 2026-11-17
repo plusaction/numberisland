@@ -299,7 +299,8 @@ export function HubScreen({
           <SpeakButton text={name} />
         </div>
         {rec === selected && <p className="ribbon">{ko.hub.recommended}</p>}
-        <div className="mt-2 flex flex-wrap gap-2">
+        {/* phones: the card stays short so the picked portal shows above it */}
+        <div className="mt-2 flex flex-wrap gap-2 max-sm:hidden">
           {STAGE_SKILLS[selected].slice(0, 3).map((k) => (
             <span key={k} className="tag">
               {ko.skills[k]}
@@ -329,7 +330,9 @@ export function HubScreen({
             );
           })}
         </ul>
-        <p className="mt-1 text-lg">{fmt(ko.hub.rewardHint, { n: BALANCE.trophies.byStars[3] })}</p>
+        <p className="mt-1 text-lg max-sm:hidden">
+          {fmt(ko.hub.rewardHint, { n: BALANCE.trophies.byStars[3] })}
+        </p>
         {playable ? (
           <>
             <fieldset className="seg mt-3" aria-label="난이도">

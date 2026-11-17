@@ -1241,6 +1241,19 @@
   .tag {
     white-space: nowrap;
   }
+  /* race: the question sits right above its lane answers (eyes stay in one place); the friend speaks up top */
+  .stage-hud[data-stage="race"] > .hud-goal {
+    top: auto;
+    bottom: 10.4rem;
+  }
+  .stage-hud[data-stage="race"] > .hud-goal > .toast {
+    top: auto;
+    bottom: calc(100% + 0.6rem);
+  }
+  .stage-hud[data-stage="race"] > .say-bubble {
+    top: 5.4rem;
+    bottom: auto;
+  }
   @media (max-width: 640px) {
     .hide-narrow {
       display: none;
@@ -1401,6 +1414,12 @@
     }
     .title {
       font-size: 2.1rem;
+    }
+    .stage-hud[data-stage="race"] > .hud-goal {
+      bottom: 14.1rem;
+    }
+    .stage-hud[data-stage="race"] > .say-bubble {
+      top: 4.9rem;
     }
   }
 }
