@@ -189,3 +189,66 @@ describe('[G2] 피자: 톡톡 세어 담기', () => {
     expect(tested).toBeGreaterThan(0);
   });
 });
+
+describe('[G2] 좀비: 손패', () => {
+  it('a dealt hand never shows the same card twice, and the zombie is always finishable', async () => {
+    const { initZombie, stepZombie, solveZombie, finisher } = await import('../../src/stages/zombie/rules');
+    let dupes = 0;
+    let checks = 0;
+    for (let seed = 1; seed <= 40; seed++) {
+      let s = initZombie(seed, 'A1');
+      // play a spare card first now and then, so new cards get dealt into many hands
+      for (let i = 0; i < 40_000 && s.phase !== 'done'; i++) {
+        if (s.phase === 'play' && s.zombie) {
+          checks++;
+          if (new Set(s.hand).size !== s.hand.length) dupes++;
+          expect(finisher(s.hand, s.zombie.value)).toBeGreaterThanOrEqual(0);
+        }
+        const spareCard =
+          s.phase === 'play' && s.zombie && i % 7 === 0
+            ? s.hand.findIndex((c) => {
+                const to = (s.zombie?.value ?? 0) + c;
+                return to > 0 && to <= 99;
+              })
+            : -1;
+        s = stepZombie(s, {
+          tick: 0,
+          actions: s.phase !== 'play' ? [] : spareCard >= 0 ? [{ t: 'card', id: spareCard }] : solveZombie(s),
+        });
+      }
+    }
+    expect(checks).toBeGreaterThan(100);
+    expect(dupes).toBe(0);
+  });
+});
+
+describe('[G2] 레이스: 방패 말풍선', () => {
+  it('the "shield blocked it" line shows right after the block only, not after a later unshielded miss', async () => {
+    const { initRace, stepRace, solveRace, crossChoices } = await import('../../src/stages/race/rules');
+    const { raceModule } = await import('../../src/stages/race/index');
+    let s = initRace(5, 'A1');
+    s = stepRace(s, { tick: 0, actions: [{ t: 'mode', mode: 'shield' }] });
+    let g = 0;
+    while (!s.shield && g++ < 4000)
+      s = stepRace(s, { tick: 0, actions: s.phase === 'play' ? solveRace(s) : [] });
+    while (s.phase !== 'play' && g++ < 6000) s = stepRace(s, { tick: 0, actions: [] });
+    const wrong = (st: typeof s) => {
+      const q = st.core.asked?.question;
+      const c = q
+        ? crossChoices(q).find((x) => x.value !== q.answer && !st.tried.includes(x.value))
+        : undefined;
+      return c?.value ?? -1;
+    };
+    s = stepRace(s, { tick: 0, actions: [{ t: 'pick', value: wrong(s) }] });
+    expect(raceModule.hud(s).say?.key.startsWith('blocked')).toBe(true);
+    // answer, move on, then miss without a shield
+    const at = s.core.index;
+    for (let i = 0; i < 400 && s.core.index === at; i++)
+      s = stepRace(s, { tick: 0, actions: s.phase === 'play' ? solveRace(s) : [] });
+    while (s.phase !== 'play' && g++ < 9000) s = stepRace(s, { tick: 0, actions: [] });
+    s = stepRace(s, { tick: 0, actions: [{ t: 'pick', value: wrong(s) }] });
+    expect(s.phase).toBe('slip');
+    while (s.phase === 'slip') s = stepRace(s, { tick: 0, actions: [] });
+    expect(raceModule.hud(s).say?.key.startsWith('blocked') ?? false).toBe(false);
+  });
+});

@@ -82,8 +82,11 @@ export interface RaceState {
    */
   turboMode: 'dash' | 'shield';
   shield: boolean;
-  /** Bananas the shield took (for the result badge). */
+  /** Bananas the shield took (for the result badge), and the tick of the last one (the friend says so). */
   blocked: number;
+  blockedAt: number;
+  /** The wrong-answer count right after that block: any later miss ends the "blocked" line. */
+  blockedWrong: number;
   /** 1..3 once the child has crossed the line. */
   place: number | null;
   phase: RacePhase;
@@ -176,6 +179,8 @@ export function initRace(
     turboMode: 'dash',
     shield: false,
     blocked: 0,
+    blockedAt: -1,
+    blockedWrong: -1,
     place: null,
     phase: 'start',
     phaseLeft: START_TICKS,
@@ -264,7 +269,12 @@ export function stepRace(state: RaceState, input: InputFrame<RaceAction>): RaceS
           lastWrong: tag ? { value: a.value, made: a.value, tag } : { value: a.value, made: a.value },
           // the bubble takes the banana: no spin, the kart keeps rolling (the answer is still recorded)
           ...(s.shield
-            ? { shield: false, blocked: s.blocked + 1 }
+            ? {
+                shield: false,
+                blocked: s.blocked + 1,
+                blockedAt: s.core.tick,
+                blockedWrong: s.core.wrong + 1,
+              }
             : { phase: 'slip' as const, phaseLeft: SLIP_TICKS }),
         };
       }

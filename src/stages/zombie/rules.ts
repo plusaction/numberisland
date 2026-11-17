@@ -147,7 +147,8 @@ function spare(value: number, rng: Rng, avoid: readonly number[]): number {
 export function handFor(q: Question, rng: Rng): number[] {
   const [a = 2, b = 1] = q.operands;
   const c = q.answer;
-  const need = c === 0 ? [-a] : [-b, -c];
+  // a − b = c with b = c would deal two identical cards: then the one card that empties it is enough
+  const need = c === 0 || b === c ? [-a] : [-b, -c];
   const hand = need.slice();
   while (hand.length < HAND) hand.push(spare(a, rng, hand));
   return rng.shuffle(hand);
@@ -402,7 +403,9 @@ export function stepZombie(state: ZombieState, input: InputFrame<ZombieAction>):
       else {
         // complete a pair with a take-away already in the hand when there is one, else the exact card
         const part = others.find((c) => c < 0 && z.value + c > 0);
-        hand[s.slot] = part !== undefined && rng.chance(0.5) ? -(z.value + part) : -z.value;
+        const pair = part !== undefined ? -(z.value + part) : 0;
+        // never a second copy of a card already in the hand (two "−2"s look like a mistake)
+        hand[s.slot] = part !== undefined && !others.includes(pair) && rng.chance(0.5) ? pair : -z.value;
       }
       return hand;
     });

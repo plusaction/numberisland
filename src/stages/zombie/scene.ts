@@ -443,10 +443,14 @@ export function createZombieScene(world: RenderWorld, ctx: StageCtx): StageScene
       }
       aimProxy[1].visible = !!m;
       // the ring marks the aimed zombie (only while there is a choice)
-      const aimed = state.aim === 1 ? mini : view;
+      // keyboard / pad: while the cursor is on a zombie the ring shows the one it would aim at (pulsing faster)
+      const cursorAim = cursorId === AIM_ID(1) ? 1 : cursorId === AIM_ID(0) ? 0 : -1;
+      const ringOn = cursorAim >= 0 && m ? cursorAim : state.aim;
+      const aimed = ringOn === 1 ? mini : view;
       aimRing.visible = !!m && !!aimed && state.phase !== 'pop';
       if (aimed) aimRing.position.set(aimed.group.position.x, 0.36, aimed.group.position.z);
-      aimRing.scale.setScalar((state.aim === 1 ? 0.7 : 1) * (1 + (reduced ? 0 : Math.sin(t * 5) * 0.06)));
+      const pulse = reduced ? 0 : Math.sin(t * (cursorAim >= 0 ? 10 : 5)) * (cursorAim >= 0 ? 0.12 : 0.06);
+      aimRing.scale.setScalar((ringOn === 1 ? 0.7 : 1) * (1 + pulse));
       // ── the zombie
       if (z && view) {
         const v = view;

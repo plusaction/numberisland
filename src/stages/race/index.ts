@@ -35,7 +35,8 @@ function say(s: RaceState): HudView['say'] {
   if (s.phase === 'finish')
     return { key: 'finish', text: s.place === 1 ? ko.race.win : fmt(ko.race.finish, { n: s.place ?? 2 }) };
   if (s.phase === 'slip') return { key: `slip-${s.core.wrong}`, text: ko.race.slip };
-  if (s.phase === 'play' && s.blocked > 0 && s.tried.length > 0 && !s.shield)
+  // only right after the bubble took the banana (a later miss without it must not say so)
+  if (s.phase === 'play' && s.core.wrong === s.blockedWrong && s.core.tick - s.blockedAt < 150)
     return { key: `blocked-${s.blocked}`, text: ko.race.blocked };
   if (s.phase === 'boost')
     return s.gain > 1
@@ -101,7 +102,7 @@ export const raceModule: StageModule<RaceState, RaceAction> = {
   initialPhase: RACE_PHASES_INITIAL,
   hudKey: (s) =>
     // positions change every tick: quarter squares / tenths of fuel are enough for the mini track
-    `${s.turboMode}${s.shield ? 1 : 0}|${s.tried.length}|${Math.round(s.me * 4)}|${s.rivals.map((r) => Math.round(r * 4)).join(',')}|${Math.round(s.fuel * 10)}`,
+    `${s.turboMode}${s.shield ? 1 : 0}|${s.core.wrong === s.blockedWrong && s.core.tick - s.blockedAt < 150 ? 1 : 0}|${s.tried.length}|${Math.round(s.me * 4)}|${s.rivals.map((r) => Math.round(r * 4)).join(',')}|${Math.round(s.fuel * 10)}`,
   hintAction: { t: 'hint' },
   retryAction: { t: 'retry' },
   crossAction: (value) => ({ t: 'pick', value }),

@@ -296,7 +296,8 @@ export function createRaceScene(world: RenderWorld, ctx: StageCtx): StageScene<R
   );
   lines.frustumCulled = false;
   const side = [treeTops, trunks, tierMesh, roofMesh, ...fans, ...boards, boardStripes];
-  for (const m of side) m.castShadow = true;
+  // only the big pieces throw shadows (a hundred little fans in the shadow pass cost more than they show)
+  for (const m of [tierMesh, roofMesh, ...boards]) m.castShadow = true;
   for (const m of [planksA, planksB, kerbA, kerbB, dashes, trees, clouds, ...side]) m.frustumCulled = false;
   root.add(planksA, planksB, kerbA, kerbB, dashes, trees, clouds, lines, ...side);
   let cheer = 0; // the crowd jumps on a boost and at the finish

@@ -1254,6 +1254,11 @@
     top: 5.4rem;
     bottom: auto;
   }
+  /* the hint panel takes the bottom: the question goes back up top while it is open */
+  .stage-hud[data-stage="race"].hint-open > .hud-goal {
+    top: 5.25rem;
+    bottom: auto;
+  }
   @media (max-width: 640px) {
     .hide-narrow {
       display: none;
@@ -1420,6 +1425,14 @@
     }
     .stage-hud[data-stage="race"] > .say-bubble {
       top: 4.9rem;
+    }
+    .stage-hud[data-stage="race"].hint-open > .hud-goal {
+      top: 4.75rem;
+    }
+    /* race: the lane answers fill the bottom row, so the tutorial's skip key waits up top */
+    .stage-hud[data-stage="race"] .tutorial-skip {
+      top: 4.9rem;
+      bottom: auto;
     }
   }
 }
