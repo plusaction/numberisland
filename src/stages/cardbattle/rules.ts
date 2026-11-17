@@ -111,6 +111,17 @@ export function preferCards(q: Question): boolean {
   );
 }
 
+/**
+ * Habits: when it is not at its best the chick adds, the octopus takes away, the robot uses its two
+ * biggest cards. A habit is a blind spot — the child's own hand always holds the exact answer.
+ */
+export function botLikes(bot: BotId, p: Play, hand: readonly number[]): boolean {
+  if (bot === 'chick') return p.op === '+';
+  if (bot === 'octopus') return p.op === '-';
+  const small = hand.indexOf(Math.min(...hand));
+  return !p.cards.includes(small);
+}
+
 const botFor = (shift: number): BotId => (shift < 0 ? 'chick' : shift > 0 ? 'robot' : 'octopus');
 
 export function duelFromQuestion(q: Question, bot: BotId, rng: Rng): Duel {
@@ -131,8 +142,11 @@ export function duelFromQuestion(q: Question, bot: BotId, rng: Rng): Duel {
   const y = Math.max(1, target - x + off);
   const z = rng.int(1, top);
   const botHand = rng.shuffle([x, y, z]);
-  const all = plays(botHand);
-  const play = rng.chance(BOT_SKILL[bot]) ? bestPlay(botHand, target) : rng.pick(all);
+  // each monster has a habit the child can learn to read
+  const liked = plays(botHand).filter((p) => botLikes(bot, p, botHand));
+  const pool = liked.length > 0 ? liked : plays(botHand);
+  // skill = how often it finds its best play; otherwise it falls back on its habit
+  const play = rng.chance(BOT_SKILL[bot]) ? bestPlay(botHand, target) : rng.pick(pool);
   return { target, hand, botHand, bot: play };
 }
 
@@ -225,6 +239,13 @@ export function stepCards(state: CardState, input: InputFrame<CardAction>): Card
       const q = s.core.asked?.question;
       let core = recordAttempt(s.core, perfect, result, perfect ? undefined : q?.misconceptionMap[result]);
       if (perfect) core = { ...core, coins: core.coins + BALANCE.cards.perfectBonus };
+      // the duel that wins the match is the big one
+      if (outcome === 1 && s.wins + 1 >= WINS_NEEDED && !core.highlights.includes('finale'))
+        core = {
+          ...core,
+          coins: core.coins + BALANCE.finaleBonus,
+          highlights: [...core.highlights, 'finale'],
+        };
       s = {
         ...s,
         core,

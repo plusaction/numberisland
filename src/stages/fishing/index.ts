@@ -1,5 +1,6 @@
 import { ko } from '../../i18n/ko';
 import type { StageModule } from '../_shared/module';
+import { isFinale } from '../_shared/round';
 import {
   FISHING_PHASES,
   FISHING_PHASES_INITIAL,
@@ -43,22 +44,35 @@ export const fishingModule: StageModule<FishingState, FishingAction> = {
     goal: goal(s),
     wrong: s.phase === 'bounce' ? s.lastWrong : null,
     success: s.phase === 'hook' || s.phase === 'reel',
-    ...(s.phase === 'hook' ? { primary: { label: ko.stageHud.reel, left: s.reelLeft } } : {}),
+    ...(s.phase === 'hook'
+      ? { primary: { label: ko.stageHud.reel, left: s.reelLeft } }
+      : s.bonus === 1 && s.phase === 'play'
+        ? { primary: { label: ko.stageHud.moveOn, left: 0 } }
+        : {}),
+    ...(s.bonus === 1 && (s.phase === 'play' || s.phase === 'bounce')
+      ? { say: { key: `bonus-${s.core.index}`, text: ko.stageHud.secondPair } }
+      : {}),
     hintMode: s.puzzle && s.puzzle.mode !== 'missing' ? 'pair' : 'standard',
     ...(s.puzzle ? { target: s.puzzle.target, pairOp: s.puzzle.mode === 'diff' ? '-' : '+' } : {}),
   }),
   // only pair puzzles glow one *part*; in □ mode the single fish is the answer itself, so no glow
   glowTarget: (s) =>
-    s.puzzle && s.puzzle.mode !== 'missing' ? (solveFishing(s.puzzle)[0]?.[0] ?? null) : null,
+    s.puzzle && s.puzzle.mode !== 'missing' && s.bonus === 0
+      ? (solveFishing(s.puzzle)[0]?.[0] ?? null)
+      : null,
   solution: (s) =>
     s.phase === 'hook'
       ? Array.from({ length: s.reelLeft }, () => ({ t: 'reel' as const }))
-      : s.puzzle
-        ? (solveFishing(s.puzzle)[0] ?? []).map((id) => ({ t: 'tap' as const, id }))
-        : [],
+      : s.bonus === 1
+        ? // the second pair is optional: the shortest way on is the big key
+          [{ t: 'reel' as const }]
+        : s.puzzle
+          ? (solveFishing(s.puzzle)[0] ?? []).map((id) => ({ t: 'tap' as const, id }))
+          : [],
   phases: FISHING_PHASES,
   initialPhase: FISHING_PHASES_INITIAL,
-  hudKey: (s) => `${s.puzzle ? 1 : 0}|${s.picked.join(',')}|${s.reelLeft}`,
+  hudKey: (s) => `${s.puzzle ? 1 : 0}|${s.picked.join(',')}|${s.reelLeft}|${s.bonus}`,
+  finale: (s) => isFinale(s.core),
   hintAction: { t: 'hint' },
   undoAction: { t: 'undo' },
   primaryAction: { t: 'reel' },

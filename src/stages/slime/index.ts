@@ -1,4 +1,6 @@
+import { ko } from '../../i18n/ko';
 import type { StageModule } from '../_shared/module';
+import { isFinale } from '../_shared/round';
 import {
   initSlime,
   isStuck,
@@ -69,6 +71,8 @@ export const slimeModule: StageModule<SlimeState, SlimeAction> = {
   phases: SLIME_PHASES,
   initialPhase: SLIME_PHASES_INITIAL,
   hudKey: (s) => `${s.puzzle ? 1 : 0}|${s.slimes.length}|${s.undo.length}`,
+  finale: (s) => isFinale(s.core),
+  praise: (s) => (s.lastNeat ? ko.stageHud.neat : null),
   hintAction: { t: 'hint' },
   retryAction: { t: 'retry' },
   undoAction: { t: 'undo' },

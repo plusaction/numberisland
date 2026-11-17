@@ -122,6 +122,10 @@ export interface StageModule<S extends { phase: string; core: RoundCore }, A> {
   toggleAction?(id: string): A;
   /** The action for an answer of the HUD's `cross`. */
   crossAction?(value: number): A;
+  /** The round's "big one" is on (last puzzle / match point): the HUD shows the finale ribbon. */
+  finale?(state: S): boolean;
+  /** A stage's own praise for the answer just given (instead of a line from the common pool). */
+  praise?(state: S): string | null;
   /** Dispatched by the HUD's big `primary` key. */
   primaryAction?: A;
   /**

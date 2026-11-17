@@ -299,6 +299,14 @@ export function takeHint(core: RoundCore): RoundCore {
   return { ...core, puzzleHints: core.puzzleHints + 1, hintsUsed: core.hintsUsed + 1 };
 }
 
+/** The last puzzle of a round — the "big one" (same maths; the stage dresses it up). */
+export const isFinale = (core: RoundCore) => core.puzzles > 1 && core.index === core.puzzles - 1;
+/** Call right after the finale was solved: the bonus coins and the result badge (never a penalty, P2). */
+export function finaleBonus(core: RoundCore): RoundCore {
+  if (!isFinale(core) || core.highlights.includes('finale')) return core;
+  return { ...core, coins: core.coins + BALANCE.finaleBonus, highlights: [...core.highlights, 'finale'] };
+}
+
 /** Advance to the next puzzle index; marks done after the last one. */
 export function advancePuzzle(core: RoundCore): RoundCore {
   const index = core.index + 1;

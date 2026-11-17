@@ -120,6 +120,15 @@ export const rivalSpeed = (shift: number, i: number) =>
   (shift < 0 ? BALANCE.race.rival.easy : shift > 0 ? BALANCE.race.rival.hard : BALANCE.race.rival.normal) *
   (i === 0 ? 1 : 0.85);
 
+/**
+ * Each rival has a character: the first sprints away early and tires, the second starts slowly and comes
+ * on strong at the end (`progress` = how far along the track it is, 0..1).
+ */
+export const rivalPace = (i: number, progress: number) => {
+  const p = Math.max(0, Math.min(1, progress));
+  return i === 0 ? 1.22 - 0.4 * p : 0.84 + 0.4 * p;
+};
+
 /** Rubber band: a rival ahead of the child eases off, one behind speeds up. */
 export const band = (gap: number) => Math.max(0.04, Math.min(2.1, 1 - 0.55 * (gap - 0.3)));
 
@@ -179,7 +188,10 @@ function driveRivals(s: RaceState, mySpeed: number): RaceState {
     rivalFx[i] = fx;
     const gap = pos - s.me;
     let v =
-      rivalSpeed(s.core.shift, i) * band(gap) * (fx.kind === 'boost' ? 2.4 : fx.kind === 'slip' ? 0 : 1);
+      rivalSpeed(s.core.shift, i) *
+      rivalPace(i, pos / length) *
+      band(gap) *
+      (fx.kind === 'boost' ? 2.4 : fx.kind === 'slip' ? 0 : 1);
     // the hard end of the band: at the maximum lead a rival only keeps the child's own pace
     if (gap >= MAX_LEAD - 0.1) v = Math.min(v, mySpeed);
     return Math.min(length, pos + v / 60);

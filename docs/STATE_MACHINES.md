@@ -124,6 +124,7 @@ stateDiagram-v2
   [*] --> play
   play --> hook
   play --> bounce
+  play --> done
   hook --> reel
   reel --> play
   reel --> done
@@ -133,7 +134,7 @@ stateDiagram-v2
 
 | 단계 | 입력 | 연출 | 다음 | 설명 |
 |---|---|---|---|---|
-| play | 예 | — | hook, bounce | pick the fish (two for a sum / difference) |
+| play | 예 | — | hook, bounce, done | pick the fish (two for a sum / difference); after a catch a second pair may be offered |
 | hook | 예 | — | reel | right catch on the line: wind the reel (taps, never timed) |
 | reel | — | 예 | play, done | the catch flies into the bucket |
 | bounce | — | 예 | play | wrong pick: the fish puff up and bounce back |

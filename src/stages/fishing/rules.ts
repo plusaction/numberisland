@@ -12,6 +12,7 @@ import type { InputFrame, RoundResult, StageRules } from '../../domain/stage/typ
 import {
   advancePuzzle,
   bandOf,
+  finaleBonus,
   initRound,
   nextStageQuestion,
   type RoundCore,
@@ -84,6 +85,12 @@ export interface FishingState {
   /** This catch brings up the golden fish (fixed rule, never chance): every 3rd right answer in a row. */
   goldenNow: boolean;
   goldenCaught: number;
+  /**
+   * The optional second catch: 0 none, 1 offered (another pair still swims — catch it or move on),
+   * 2 taken. Extra coins only; a miss here is not a wrong answer and nothing is lost (P2).
+   */
+  bonus: 0 | 1 | 2;
+  bonusCaught: number;
 }
 
 export type FishingAction =
@@ -231,6 +238,8 @@ export function initFishing(
     reelTotal: 0,
     goldenNow: false,
     goldenCaught: 0,
+    bonus: 0,
+    bonusCaught: 0,
   };
   return newPuzzle(base);
 }
@@ -256,8 +265,26 @@ function evaluate(s: FishingState): FishingState {
   const made = p.mode === 'missing' ? (p.op === '+' ? x + k : p.blank === 0 ? x - k : k - x) : given;
   // misconception tags only describe the *answer slot* (□ mode); in pair mode the child chose fish, not a result
   const tag = p.mode === 'missing' ? q.misconceptionMap[given] : undefined;
+  if (s.bonus === 1) {
+    // the second pair: coins if right, a harmless splash if not (neither is recorded as an answer)
+    if (!ok) return { ...s, phase: 'bounce', phaseLeft: BOUNCE_TICKS, lastWrong: null };
+    return {
+      ...s,
+      core: { ...s.core, coins: s.core.coins + BALANCE.secondPairBonus },
+      puzzle: { ...p, fish: p.fish.map((f) => (s.picked.includes(f.id) ? { ...f, caught: true } : f)) },
+      phase: 'hook',
+      phaseLeft: 0,
+      reelLeft: BALANCE.fishing.reelWinds,
+      reelTotal: BALANCE.fishing.reelWinds,
+      reeled: s.picked,
+      picked: [],
+      goldenNow: false,
+      bonus: 2,
+      bonusCaught: s.bonusCaught + 1,
+    };
+  }
   if (ok) {
-    let core = recordAttempt(s.core, true, given);
+    let core = finaleBonus(recordAttempt(s.core, true, given));
     const fish = p.fish.map((f) => (s.picked.includes(f.id) ? { ...f, caught: true } : f));
     const goldenNow = isGoldenCatch(core.streak);
     const winds = s.picked.length >= 2 ? BALANCE.fishing.reelWindsPair : BALANCE.fishing.reelWinds;
@@ -294,6 +321,12 @@ export function stepFishing(state: FishingState, input: InputFrame<FishingAction
   let s: FishingState = { ...state, core: { ...state.core, tick: state.core.tick + 1 } };
   const tick = s.core.tick;
   for (const a of input.actions) {
+    // moving on from the optional second catch (the big key, or any reel press)
+    if (a.t === 'reel' && s.phase === 'play' && s.bonus === 1) {
+      s = next(s);
+      continue;
+    }
+    if (s.bonus === 1 && (a.t === 'hint' || a.t === 'retry')) continue;
     if (a.t === 'hint' && s.phase === 'play') s = { ...s, core: takeHint(s.core) };
     if (a.t === 'undo' && s.phase === 'play' && s.picked.length > 0)
       s = { ...s, picked: s.picked.slice(0, -1) };
@@ -337,11 +370,19 @@ export function stepFishing(state: FishingState, input: InputFrame<FishingAction
     const left = s.phaseLeft - 1;
     if (left > 0) return { ...s, phaseLeft: left };
     if (s.phase === 'bounce') return { ...s, phase: 'play', phaseLeft: 0, picked: [] };
-    const core = advancePuzzle(s.core);
-    if (core.done) return { ...s, core, phase: 'done', puzzle: s.puzzle };
-    return newPuzzle({ ...s, core });
+    // another pair still makes the target: offer it once (optional, never timed)
+    if (s.bonus === 0 && s.puzzle && s.puzzle.mode !== 'missing' && solveFishing(s.puzzle).length > 0)
+      return { ...s, phase: 'play', phaseLeft: 0, picked: [], bonus: 1 };
+    return next(s);
   }
   return s;
+}
+
+/** On to the next puzzle (or the end of the round). */
+function next(s: FishingState): FishingState {
+  const core = advancePuzzle(s.core);
+  if (core.done) return { ...s, core, phase: 'done', puzzle: s.puzzle, bonus: 0 };
+  return newPuzzle({ ...s, core, bonus: 0 });
 }
 
 export const fishingRules: StageRules<FishingState, FishingAction> = {
@@ -354,6 +395,7 @@ export const fishingRules: StageRules<FishingState, FishingAction> = {
     const highlights = [...r.highlights];
     if (s.oddCaught) highlights.push('oddFish');
     if (s.goldenCaught) highlights.push('goldenFish');
+    if (s.bonusCaught) highlights.push('secondPair');
     return { ...r, highlights };
   },
 };
@@ -364,8 +406,8 @@ export const FISHING_PHASES: PhaseTable<FishingPhase> = {
   play: {
     input: true,
     timed: false,
-    to: ['hook', 'bounce'],
-    note: 'pick the fish (two for a sum / difference)',
+    to: ['hook', 'bounce', 'done'],
+    note: 'pick the fish (two for a sum / difference); after a catch a second pair may be offered',
   },
   hook: {
     input: true,

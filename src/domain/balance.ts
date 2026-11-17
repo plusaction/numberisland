@@ -27,6 +27,12 @@ export const BALANCE = {
   escape: { rooms: 4 },
   /** Card battle: at most 5 duels (first to 3 wins), +1 coin for an exact PERFECT. */
   cards: { rounds: 5, perfectBonus: 1 },
+  /** The last puzzle of a round is the "big one": same maths, extra coins for solving it. */
+  finaleBonus: 3,
+  /** Slime: coins for making the target in the fewest merges ("깔끔!"). */
+  slimeNeatBonus: 1,
+  /** Fishing: coins for also catching the second pair when the pond holds one (optional). */
+  secondPairBonus: 2,
   /** Pizza shop: orders per round (roles swap each order), +1 tip coin from the VIP (always order 3). */
   pizza: { orders: 5, vipBonus: 1 },
   /** Zombies: waves × zombies per wave; walking speed (door in ~28 s, slower after refused cards); boss coins. */

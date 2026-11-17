@@ -4,14 +4,16 @@
  * Puzzles are generated backwards from the target, so a solution always exists (verified by BFS).
  */
 
+import { BALANCE } from '../../domain/balance';
 import { levelSpec } from '../../domain/curriculum/curriculum';
 import type { Question, SkillId } from '../../domain/edu/types';
 import type { PhaseTable } from '../../domain/fsm';
 import type { Rng } from '../../domain/rng/rng';
-import type { InputFrame, StageRules } from '../../domain/stage/types';
+import type { InputFrame, RoundResult, StageRules } from '../../domain/stage/types';
 import {
   advancePuzzle,
   bandOf,
+  finaleBonus,
   initRound,
   nextStageQuestion,
   type RoundCore,
@@ -54,6 +56,12 @@ export interface SlimeState {
   puzzle: SlimePuzzle | null;
   slimes: Slime[];
   undo: Slime[][];
+  /** Merges made on this puzzle (undo does not take them back) vs the fewest that can do it. */
+  moves: number;
+  par: number;
+  /** Puzzles solved in the fewest merges ("깔끔!"), and whether the last win was one. */
+  neat: number;
+  lastNeat: boolean;
   phase: SlimePhase;
   phaseLeft: number;
   /** Visual events for the view: last merge / bounce / split. */
@@ -207,6 +215,8 @@ function newPuzzle(s: SlimeState): SlimeState {
     puzzle: r.value,
     slimes: r.value.slimes,
     undo: [],
+    moves: 0,
+    par: solveSlime(r.value.target, r.value.slimes) ?? 0,
     phase: 'play',
     phaseLeft: 0,
     event: null,
@@ -225,6 +235,10 @@ export function initSlime(
     puzzle: null,
     slimes: [],
     undo: [],
+    moves: 0,
+    par: 0,
+    neat: 0,
+    lastNeat: false,
     phase: 'play',
     phaseLeft: 0,
     event: null,
@@ -252,6 +266,8 @@ export function stepSlime(state: SlimeState, input: InputFrame<SlimeAction>): Sl
           puzzle: r.value,
           slimes: r.value.slimes,
           undo: [],
+          moves: 0,
+          par: solveSlime(r.value.target, r.value.slimes) ?? 0,
           stuckReported: false,
           event: null,
         };
@@ -287,13 +303,20 @@ export function stepSlime(state: SlimeState, input: InputFrame<SlimeAction>): Sl
       s = {
         ...s,
         undo: [...s.undo, s.slimes],
+        moves: s.moves + 1,
         slimes,
         event: { kind: from.minus ? 'split' : 'merge', to: to.id, from: from.id, tick },
       };
       if (value === puzzle.target) {
+        // the fewest merges possible, first go: a tidy bonus (extra only — a longer way costs nothing)
+        const neat = s.par > 0 && s.moves <= s.par;
+        let core = finaleBonus(recordAttempt(s.core, true, value));
+        if (neat) core = { ...core, coins: core.coins + BALANCE.slimeNeatBonus };
         s = {
           ...s,
-          core: recordAttempt(s.core, true, value),
+          core,
+          neat: s.neat + (neat ? 1 : 0),
+          lastNeat: neat,
           phase: 'win',
           phaseLeft: WIN_TICKS,
           winner: to.id,
@@ -325,7 +348,11 @@ export const slimeRules: StageRules<SlimeState, SlimeAction> = {
   init: (seed, level, opts) => initSlime(seed, level, opts),
   step: stepSlime,
   isDone: (s) => s.phase === 'done',
-  summary: (s) => roundSummary(s.core),
+  summary: (s): RoundResult => {
+    const r = roundSummary(s.core);
+    // "깔끔 합체": at least half of the puzzles in the fewest merges
+    return s.neat * 2 >= s.core.puzzles ? { ...r, highlights: [...r.highlights, 'slimeNeat'] } : r;
+  },
 };
 
 /** The phases as a table (docs + tests hold the step function to it; see `domain/fsm.ts`). */

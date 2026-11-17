@@ -1,4 +1,5 @@
 import type { StageModule } from '../_shared/module';
+import { isFinale } from '../_shared/round';
 import {
   BOMB_PHASES,
   BOMB_PHASES_INITIAL,
@@ -56,6 +57,7 @@ export const bombModule: StageModule<BombState, BombAction> = {
   phases: BOMB_PHASES,
   initialPhase: BOMB_PHASES_INITIAL,
   hudKey: (s) => `${s.puzzle ? 1 : 0}|${s.cut.join(',')}`,
+  finale: (s) => isFinale(s.core),
   hintAction: { t: 'hint' },
   picks: (s) => s.cut,
   pickValue: (s, id) => s.puzzle?.wires.find((w) => w.id === id)?.value,

@@ -15,6 +15,7 @@ import type { InputFrame, StageRules } from '../../domain/stage/types';
 import {
   advancePuzzle,
   bandOf,
+  finaleBonus,
   initRound,
   nextStageQuestion,
   type RoundCore,
@@ -282,7 +283,12 @@ export function stepBomb(state: BombState, input: InputFrame<BombAction>): BombS
         const given = selectionValue(p, cut);
         const q = s.core.asked?.question;
         if (selectionValid(p, cut)) {
-          s = { ...s, core: recordAttempt(s.core, true, given), phase: 'defuse', phaseLeft: DEFUSE_TICKS };
+          s = {
+            ...s,
+            core: finaleBonus(recordAttempt(s.core, true, given)),
+            phase: 'defuse',
+            phaseLeft: DEFUSE_TICKS,
+          };
         } else {
           // the child cut wires (chose parts), so result-misconception tags do not apply
           const tag = p.mode === 'PLACE' ? q?.misconceptionMap[given] : undefined;

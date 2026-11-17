@@ -11,6 +11,7 @@ import {
   HAND,
   initCards,
   solveCards,
+  WINS_NEEDED,
 } from './rules';
 import { createCardScene, TOGGLE_ANCHOR } from './scene';
 
@@ -53,6 +54,9 @@ function say(s: CardState): HudView['say'] {
     return { key: `reveal-${at}`, text };
   }
   if (at === 0) return { key: 'intro', text: fill(ko.cards.intro, { bot: name, t: d.target }) };
+  // the second duel gives the monster's habit away (a hint the child can use for the whole match)
+  if (at === 1)
+    return { key: 'habit', text: `${ko.cards.habits[s.bot]} ${fill(ko.cards.next, { t: d.target })}` };
   return { key: `duel-${at}`, text: fill(ko.cards.next, { t: d.target }) };
 }
 
@@ -103,7 +107,9 @@ export const cardModule: StageModule<CardState, CardAction> = {
   solution: (s) => (s.phase === 'play' || s.phase === 'deal' ? solveCards(s) : []),
   phases: CARD_PHASES,
   initialPhase: CARD_PHASES_INITIAL,
-  hudKey: (s) => `${s.picked.join(',')}|${s.op}`,
+  hudKey: (s) => `${s.picked.join(',')}|${s.op}|${s.wins}`,
+  // match point: one more win takes the match
+  finale: (s) => s.wins === WINS_NEEDED - 1 && s.phase !== 'done',
   hintAction: { t: 'hint' },
   retryAction: { t: 'retry' },
   primaryAction: { t: 'play' },

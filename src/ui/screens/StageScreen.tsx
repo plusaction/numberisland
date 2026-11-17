@@ -18,7 +18,7 @@ import { createStageRuntime, type StageRuntime } from '../../stages/_shared/runt
 import { type AnyStageModule, STAGE_LOADERS } from '../../stages/registry';
 import { Button } from '../components/Button';
 import { FeedbackOverlay } from '../hints/FeedbackOverlay';
-import { HintPanel } from '../hints/HintPanel';
+import { HintBody, HintPanel } from '../hints/HintPanel';
 import { RaceBar, RoomCut, SayBubble, StepGuide } from '../hud/StageGuide';
 import { ChoiceCross } from '../question/ChoiceCross';
 import { flyToGoal } from '../question/flyToGoal';
@@ -36,6 +36,7 @@ export function StageScreen({ store, reducedMotion }: { store: GameStore; reduce
   const [mod, setMod] = useState<AnyStageModule | null>(null);
   const [hud, setHud] = useState<HudView | null>(null);
   const [praise, setPraise] = useState<string | null>(null);
+  const [finale, setFinale] = useState(false);
   const sessionRef = useRef<SessionState>(SESSION.initial);
   // one explicit state for the sitting (tutorial / playing / hint / finished) instead of loose flags
   const [session, send] = useReducer(
@@ -148,6 +149,7 @@ export function StageScreen({ store, reducedMotion }: { store: GameStore; reduce
       if (sig !== lastSig) {
         lastSig = sig;
         setHud(mod.hud(s));
+        setFinale(!!mod.finale?.(s));
       }
       // a picked number flies from the 3D thing into its ? box (bomb wires)
       const picks = mod.picks?.(s);
@@ -171,7 +173,7 @@ export function StageScreen({ store, reducedMotion }: { store: GameStore; reduce
         });
         const id = pickPraise(cat, PRAISE_POOL_SIZES, praiseHistory.current, rng);
         praiseHistory.current = [...praiseHistory.current, id].slice(-16);
-        setPraise(praiseText(id));
+        setPraise(mod.praise?.(s) ?? praiseText(id));
         send('hint.close');
         // one timer at a time: a quick second right answer must not have its praise cut short by the first
         window.clearTimeout(praiseTimer);
@@ -307,9 +309,21 @@ export function StageScreen({ store, reducedMotion }: { store: GameStore; reduce
       </header>
 
       <section className="hud-goal card" data-testid="goal" aria-live="polite">
+        {finale && (
+          <p className="finale-ribbon" data-testid="finale">
+            {selected === 'cardbattle' ? ko.stageHud.matchPoint : ko.stageHud.finale}
+          </p>
+        )}
         <GoalTiles goal={hud.goal} />
         {hud.steps && <StepGuide steps={hud.steps} />}
         {hud.race && <RaceBar race={hud.race} />}
+        {/* two misses on one puzzle: the picture comes by itself (no hint is spent) */}
+        {q && core.puzzleWrong >= 2 && !hintOpen && !tutorial && hud.hintMode !== 'pair' && (
+          <div className="auto-help" data-testid="auto-help">
+            <p className="auto-help-title">{ko.stageHud.countTogether}</p>
+            <HintBody q={q} level={1} />
+          </div>
+        )}
         {/* praise hangs right under the goal box: never over the numbers in the scene */}
         <AnimatePresence>
           {praise && (
