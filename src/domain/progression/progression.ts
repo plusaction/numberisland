@@ -3,8 +3,10 @@
  * (SPEC §12, §12.2). Pure: profile in → profile out. Nothing ever decreases (P2).
  */
 
+import { newBadges } from '../badges';
 import { BALANCE } from '../balance';
 import type { SkillId } from '../edu/types';
+import { dailyCourse, dailyDone, dayKey } from '../meta';
 import { type Profile, pushHistory } from '../profile';
 import { coinsForClear, type Stars, trophiesFor } from '../scoring/medals';
 import type { RoundResult, StageId } from '../stage/types';
@@ -42,6 +44,10 @@ export interface ApplyOutcome {
   newFirsts: SkillId[];
   /** Bomb round cleared: the gift toy added to the shelf this time. */
   newToy?: ToyId;
+  /** Challenge badges earned for the first time in this round. */
+  newBadges: string[];
+  /** This round completed today's adventure (a new stamp). */
+  stamped: boolean;
 }
 
 /**
@@ -96,6 +102,8 @@ export function applyRoundResult(
   result: RoundResult,
   nowIso: string,
   playable: readonly StageId[],
+  /** For the daily adventure: the device's timezone offset in minutes (omit to skip the stamp). */
+  tzOffsetMin?: number,
 ): ApplyOutcome {
   const coins = result.coins + coinsForClear(result.stars);
   const trophies = trophiesFor(result.stars);
@@ -124,8 +132,10 @@ export function applyRoundResult(
   }
   const prev = before.stageStats[result.stage];
   const newToy = result.stage === 'bomb' && result.cleared ? nextToy(before.toys) : null;
-  const profile: Profile = {
+  const earned = newBadges(before.badges, result);
+  let profile: Profile = {
     ...before,
+    badges: earned.length ? [...before.badges, ...earned] : before.badges,
     economy: {
       coins: before.economy.coins + coins,
       snacks: before.economy.snacks + Math.floor(result.correct / BALANCE.snacks.perCorrect),
@@ -150,6 +160,17 @@ export function applyRoundResult(
         : before.bombEasyStep,
     ...(result.adaptiveAfter ? { adaptive: result.adaptiveAfter } : {}),
   };
+  // today's adventure: the course is fixed for the day; finishing its last stage stamps the calendar once
+  let stamped = false;
+  if (tzOffsetMin !== undefined) {
+    const day = dayKey(nowIso, tzOffsetMin);
+    const course = dailyCourse(day, playable);
+    const done = dailyDone(course, profile, day, tzOffsetMin);
+    if (course.length > 0 && done.every(Boolean) && !profile.stamps.includes(day)) {
+      stamped = true;
+      profile = { ...profile, stamps: [...profile.stamps, day] };
+    }
+  }
   const rankAfter = rankFor(profile.trophies.total);
   return {
     profile,
@@ -159,6 +180,8 @@ export function applyRoundResult(
     trophies,
     newFirsts,
     ...(newToy ? { newToy } : {}),
+    newBadges: earned,
+    stamped,
   };
 }
 

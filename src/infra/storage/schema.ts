@@ -83,6 +83,10 @@ export const ProfileSchema = v.object({
   firsts: v.array(skillId),
   toys: v.array(v.pipe(v.string(), v.maxLength(24))),
   bombEasyStep: v.pipe(v.number(), v.integer(), v.minValue(1), v.maxValue(5)),
+  badges: v.array(v.pipe(v.string(), v.maxLength(40))),
+  friendFed: nonNeg,
+  decorSeen: nonNeg,
+  stamps: v.array(v.pipe(v.string(), v.maxLength(10))),
   version: v.literal(PROFILE_VERSION),
 });
 
@@ -93,6 +97,8 @@ const MIGRATIONS: ((p: Raw) => Raw)[] = [
   (p) => ({ ...p, firsts: Array.isArray(p.firsts) ? p.firsts : [], version: 1 }),
   (p) => ({ ...p, toys: Array.isArray(p.toys) ? p.toys : [], version: 2 }),
   (p) => ({ ...p, bombEasyStep: 1, version: 3 }),
+  // v4: badges, friend feeding, decorations, daily stamps — all start empty, nothing earned is touched
+  (p) => ({ ...p, badges: [], friendFed: 0, decorSeen: 0, stamps: [], version: 4 }),
 ];
 
 export interface LoadResult {

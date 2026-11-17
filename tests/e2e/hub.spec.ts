@@ -19,12 +19,14 @@ test('[G7] hub: 8 portals selectable by keyboard, info card + medals, intro and 
   await expect(page.getByTestId('next-reward')).toBeVisible();
   // every stage is built now: each one offers its start key (no "준비 중" left)
   await page
-    .getByRole('button', { name: '좀비 숫자 막기' })
+    .getByRole('button', { name: '좀비 숫자 막기', exact: true })
     .evaluate((el) => (el as HTMLButtonElement).click());
   await expect(page.getByTestId('start')).toBeVisible();
   await expect(page.getByTestId('soon')).toHaveCount(0);
   // fishing → intro → back to the island (P10)
-  await page.getByRole('button', { name: '숫자 낚시' }).evaluate((el) => (el as HTMLButtonElement).click());
+  await page
+    .getByRole('button', { name: '숫자 낚시', exact: true })
+    .evaluate((el) => (el as HTMLButtonElement).click());
   await page.getByTestId('start').click();
   await expect(page.getByTestId('intro')).toBeVisible();
   await page.getByRole('button', { name: '섬으로' }).click();
@@ -141,4 +143,50 @@ test('[G7] dragging the island turns it and settles on the portal now in front; 
   for (let i = 1; i <= 8; i++) await page.mouse.move(vp.width * (0.66 - 0.045 * i), y, { steps: 2 });
   await page.mouse.up();
   await expect(card).not.toHaveAttribute('data-stage', turned ?? '', { timeout: 10_000 });
+});
+
+test('[R2] long game on the island: badges, snack feeding (never below zero), today’s adventure', async ({
+  page,
+}, info) => {
+  await startFresh(page, url(info, '/'));
+  await throughPlacement(page);
+  await expect(page.getByTestId('hub')).toBeVisible();
+  // three badge slots per stage, none owned yet
+  await expect(page.locator('[data-testid=badges] > li')).toHaveCount(3);
+  await expect(page.locator('[data-testid=badges] > li[data-owned=true]')).toHaveCount(0);
+  // no snack: feeding changes nothing
+  const feed = page.getByTestId('feed');
+  await feed.click();
+  await expect(feed).toHaveAttribute('data-fed', '0');
+  // give two snacks and a badge the way a finished round would
+  await page.evaluate(() => {
+    const st = (
+      globalThis as unknown as {
+        __store: { getState(): { profile: Record<string, never>; setProfile(p: unknown): void } };
+      }
+    ).__store.getState();
+    const p = st.profile as unknown as { economy: { snacks: number }; badges: string[] };
+    st.setProfile({ ...p, economy: { ...p.economy, snacks: 2 }, badges: ['bomb.noHint'] });
+  });
+  await feed.click();
+  await feed.click();
+  await feed.click();
+  await expect(feed).toHaveAttribute('data-fed', '2');
+  await expect(feed).toHaveAttribute('data-snacks', '0');
+  // today's adventure points at a stage; pressing it selects that stage
+  const daily = page.getByTestId('daily');
+  await expect(daily).toHaveAttribute('data-done', '0');
+  await daily.click();
+  const picked = await page.getByTestId('info-card').getAttribute('data-stage');
+  expect(picked).toBeTruthy();
+  await page.evaluate(() =>
+    (globalThis as unknown as { __store: { getState(): { select(s: string): void } } }).__store
+      .getState()
+      .select('bomb'),
+  );
+  await expect(page.locator('[data-testid=badges] > li[data-owned=true]')).toHaveCount(1);
+  // fed count survives a reload
+  await page.waitForTimeout(1200);
+  await page.reload();
+  await expect(page.getByTestId('feed')).toHaveAttribute('data-fed', '2', { timeout: 30_000 });
 });

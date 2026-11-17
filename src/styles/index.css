@@ -537,6 +537,117 @@
   .result-badges > .tag {
     font-size: 1.15rem;
   }
+  /* challenge badges: three slots per stage (hub card) and the new ones on the result card */
+  .badge-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.35rem;
+    margin: 0.6rem 0 0;
+    padding: 0;
+    list-style: none;
+  }
+  .badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+    padding: 0.15rem 0.6rem;
+    border-radius: 999px;
+    border: 2px dashed color-mix(in srgb, var(--color-ink) 35%, transparent);
+    font-size: 1rem;
+    color: color-mix(in srgb, var(--color-ink) 75%, transparent);
+  }
+  .badge-on {
+    border: 2px solid #d99a0b;
+    background: #fff3c9;
+    color: var(--color-ink);
+    font-weight: 700;
+  }
+  .new-badges {
+    align-items: center;
+  }
+  .new-badges-title {
+    font-weight: 800;
+    font-size: 1.2rem;
+  }
+  /* the long game on the island: today's adventure, the snack bag, the next decoration */
+  .hub-meta {
+    position: absolute;
+    top: 5.2rem;
+    left: 1.25rem;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.45rem;
+    pointer-events: none;
+  }
+  .hub-meta > * {
+    pointer-events: auto;
+  }
+  .meta-pill {
+    gap: 0.45rem;
+    font-size: 1.15rem;
+    min-height: 2.8rem;
+    cursor: pointer;
+  }
+  p.meta-pill {
+    cursor: default;
+  }
+  .meta-quiet {
+    font-size: 1rem;
+    min-height: 2.2rem;
+    opacity: 0.92;
+  }
+  .meta-go {
+    padding: 0.05rem 0.55rem;
+    border-radius: 999px;
+    background: #ffc93c;
+    font-size: 1rem;
+    font-weight: 700;
+  }
+  .meta-ready {
+    box-shadow: 0 0 0 3px #ffc93c;
+  }
+  .daily-dots {
+    display: inline-flex;
+    gap: 0.25rem;
+  }
+  .daily-dot {
+    width: 0.8rem;
+    height: 0.8rem;
+    border-radius: 50%;
+    border: 2px solid var(--color-ink);
+    background: transparent;
+  }
+  .daily-on {
+    background: #22a654;
+  }
+  .hub-note {
+    position: absolute;
+    top: 30%;
+    left: 50%;
+    translate: -50% 0;
+    margin: 0;
+    padding: 0.5rem 1.3rem;
+    border-radius: 999px;
+    background: #fff3c9;
+    border: 3px solid var(--color-ink);
+    font-size: 1.7rem;
+    font-weight: 800;
+    white-space: nowrap;
+    pointer-events: none;
+    animation: hub-note-in 0.35s cubic-bezier(0.3, 1.6, 0.5, 1);
+  }
+  @keyframes hub-note-in {
+    from {
+      scale: 0.5;
+      opacity: 0;
+    }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .hub-note {
+      animation: none;
+    }
+  }
   /* rest reminder: a quiet card at the top of the island, never a blocker */
   .rest-card {
     position: absolute;
@@ -1077,6 +1188,28 @@
       min-height: 2.6rem;
       font-size: 1.15rem;
       padding: 0.2rem 0.75rem;
+    }
+    .hub-meta {
+      top: 6.6rem;
+      left: 0.6rem;
+      right: 0.6rem;
+      flex-direction: row;
+      flex-wrap: wrap;
+      gap: 0.35rem;
+    }
+    .meta-pill {
+      font-size: 1rem;
+      min-height: 2.4rem;
+    }
+    .meta-quiet {
+      display: none;
+    }
+    .hub-note {
+      top: 13.4rem;
+      font-size: 1.3rem;
+    }
+    .badge {
+      font-size: 0.9rem;
     }
     .hub-card {
       right: 0.6rem;

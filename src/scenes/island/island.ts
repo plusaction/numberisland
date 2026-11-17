@@ -4,6 +4,7 @@
  */
 import {
   Color,
+  ConeGeometry,
   CylinderGeometry,
   Group,
   InstancedMesh,
@@ -17,6 +18,7 @@ import {
   Vector2,
   Vector3,
 } from 'three/webgpu';
+import { DECOR, type DecorId } from '../../domain/meta';
 import { createRng } from '../../domain/rng/rng';
 import { STAGE_GROUP, STAGE_IDS, type StageId } from '../../domain/stage/types';
 import { Spring } from '../../engine/fx/juice';
@@ -35,6 +37,7 @@ import { WAVES_SEA } from '../../engine/water/waves';
 import { type RenderWorld, SKIES } from '../../engine/world';
 import type { ActionSnapshot } from '../../infra/input/input';
 import type { PointerInfo, SceneController } from '../common/controller';
+import { DECOR_SPOT, type Decor, decorModel } from './decor';
 import { createFriend } from './friend';
 import { portalModel } from './portal-models';
 
@@ -59,6 +62,18 @@ export interface IslandOptions {
   showcase?: boolean;
   onSelect(stage: StageId): void;
   onEnter(stage: StageId): void;
+  /** The roaming monster friend was tapped (hub: feed it). */
+  onFriend?(): void;
+}
+
+/** What the child has earned so far, as the island shows it. */
+export interface IslandMeta {
+  /** Best stars per stage → pennants beside its portal. */
+  stars: Partial<Record<StageId, number>>;
+  /** How many decorations are open (in `DECOR` order). */
+  decor: number;
+  /** 0 baby, 1 child, 2 grown. */
+  friendStage: 0 | 1 | 2;
 }
 
 export interface IslandController extends SceneController {
@@ -66,6 +81,10 @@ export interface IslandController extends SceneController {
   cheer(ok: boolean): void;
   select(stage: StageId): void;
   setFruits(n: number): void;
+  /** Hub: show earned stars, decorations and the friend's size (new decorations pop in with sparkles). */
+  setMeta(meta: IslandMeta): void;
+  /** Hub: the friend got a snack. */
+  feed(): void;
   portalScreenPos(stage: StageId): { x: number; y: number };
 }
 
@@ -222,20 +241,47 @@ export function createIsland(world: RenderWorld, opts: IslandOptions): IslandCon
     portals.get(id)?.spring.impulse(4);
   };
   applySelection(selected);
-  const friend = opts.showcase ? createFriend() : null;
+  // star pennants beside each portal (up to three), hidden until earned
+  const pennants = new Map<StageId, Mesh[]>();
+  for (const [sid, p] of portals) {
+    const list: Mesh[] = [];
+    for (let i = 0; i < 3; i++) {
+      const f = new Mesh(new ConeGeometry(0.14, 0.3, 4), toyMaterial(PALETTE.sun, { rimStrength: 0.8 }));
+      f.position.set(-0.4 + i * 0.4, 1.95, -0.75);
+      f.visible = false;
+      p.group.add(f);
+      list.push(f);
+    }
+    pennants.set(sid, list);
+  }
+  // decorations: built when first opened
+  const decor = new Map<DecorId, Decor>();
+  let decorShown = -1;
+  const friend = createFriend();
+  // hub: a tap target on the roaming friend
+  const friendProxy = new Mesh(
+    new CylinderGeometry(0.9, 0.9, 1.8, 10),
+    new MeshBasicNodeMaterial({ transparent: true, opacity: 0, depthWrite: false }),
+  );
+  friendProxy.position.y = 0.8;
+  friendProxy.layers.set(1);
+  friendProxy.userData.friend = true;
+  let friendSize = 0.75;
   const friendRay = new Raycaster();
   const friendNdc = new Vector2();
   const friendGround = new Plane(new Vector3(0, 1, 0), -0.3);
   const friendHit = new Vector3();
-  if (friend) {
-    friend.group.position.set(3.9, 0.25, 5.0);
-    root.add(friend.group);
-    for (const p of portals.values()) p.ring.visible = false;
+  friend.group.position.set(3.9, 0.25, 5.0);
+  root.add(friend.group);
+  if (opts.showcase) for (const p of portals.values()) p.ring.visible = false;
+  else {
+    friend.group.add(friendProxy);
+    proxies.push(friendProxy);
   }
   const UP = new Vector3(0, 1, 0);
   /** Drag-to-turn: yaw added to the selected portal's view while a pointer drags (radians). */
   let dragYaw = 0;
-  let drag: { x: number; moved: boolean; id: StageId | undefined } | null = null;
+  let drag: { x: number; moved: boolean; id: StageId | undefined; friend: boolean } | null = null;
   const DRAG_START = 0.03; // NDC: less than this is a tap
   const TURN = 2.2; // radians per full screen width
 
@@ -264,6 +310,34 @@ export function createIsland(world: RenderWorld, opts: IslandOptions): IslandCon
   return {
     select: (id) => applySelection(id),
     setFruits,
+    setMeta(meta) {
+      for (const [sid, list] of pennants)
+        list.forEach((f, i) => {
+          f.visible = i < (meta.stars[sid] ?? 0);
+        });
+      DECOR.slice(0, meta.decor).forEach((id, i) => {
+        if (decor.has(id)) return;
+        const d = decorModel(id);
+        const [deg, r] = DECOR_SPOT[id];
+        const a = (deg * Math.PI) / 180;
+        if (id !== 'rainbow') {
+          d.group.position.set(Math.cos(a) * r, 0.25, Math.sin(a) * r);
+          d.group.lookAt(0, 0.25, 0);
+          d.group.rotateY(Math.PI);
+        }
+        root.add(d.group);
+        decor.set(id, d);
+        // only the ones opened after the first paint arrive with a cheer
+        if (decorShown >= 0 && i >= decorShown)
+          world.particles.emit('sparkle', d.group.position.clone().setY(1.5), 40);
+      });
+      decorShown = meta.decor;
+      friendSize = [0.75, 0.98, 1.25][meta.friendStage] ?? 0.75;
+    },
+    feed() {
+      friend.cheer(true);
+      world.particles.emit('sparkle', friend.group.position.clone().setY(1.6), 24);
+    },
     portalScreenPos(stage) {
       const p = (portals.get(stage)?.pos ?? new Vector3()).clone().setY(1.6).project(world.camera);
       return { x: p.x, y: p.y };
@@ -285,7 +359,7 @@ export function createIsland(world: RenderWorld, opts: IslandOptions): IslandCon
         if (!opts.reducedMotion) p.group.rotation.y += dt * (sid === selected ? 0.8 : 0.15);
       }
       crown.scale.setScalar(1 + Math.sin(t * 1.3) * 0.015);
-      if (friend) {
+      if (opts.showcase) {
         // keep the friend in the lower-right corner of the screen (beside the card) on any aspect ratio
         friendRay.setFromCamera(friendNdc.set(0.8, -0.6), world.camera);
         if (friendRay.ray.intersectPlane(friendGround, friendHit)) {
@@ -297,18 +371,40 @@ export function createIsland(world: RenderWorld, opts: IslandOptions): IslandCon
           world.camera.position.x - friend.group.position.x,
           world.camera.position.z - friend.group.position.z,
         );
-        friend.update(dt, t, opts.reducedMotion);
+      } else {
+        // hub: the friend strolls round the tree (bigger when it has been fed)
+        const a = opts.reducedMotion ? 0.9 : t * 0.22;
+        friend.group.position.set(Math.cos(a) * 2.3, 0.25, Math.sin(a) * 2.3);
+        friend.group.rotation.y = opts.reducedMotion
+          ? Math.atan2(world.camera.position.x, world.camera.position.z)
+          : -a;
+        const sc = friend.group.scale.x + (friendSize - friend.group.scale.x) * (1 - Math.exp(-dt * 3));
+        friend.group.scale.setScalar(sc);
+      }
+      friend.update(dt, t, opts.reducedMotion);
+      for (const d of decor.values()) if (!opts.reducedMotion) d.update?.(t);
+      // the rainbow always arches across the back of the view (seen edge-on it would look like a pole)
+      const bow = decor.get('rainbow');
+      if (bow) {
+        const yaw = Math.atan2(camPos.x, camPos.z);
+        bow.group.rotation.y = yaw;
+        bow.group.position.set(-Math.sin(yaw) * 3, 0.2, -Math.cos(yaw) * 3);
       }
     },
     cheer(ok) {
-      friend?.cheer(ok);
-      if (ok && friend) world.particles.emit('sparkle', friend.group.position.clone().setY(1.8), 30);
+      friend.cheer(ok);
+      if (ok) world.particles.emit('sparkle', friend.group.position.clone().setY(1.8), 30);
     },
     pointer(p: PointerInfo) {
       if (opts.showcase) return;
       if (p.type === 'down') {
         const hit = p.raycaster.intersectObjects(proxies, false)[0];
-        drag = { x: p.x, moved: false, id: hit?.object.userData.stage as StageId | undefined };
+        drag = {
+          x: p.x,
+          moved: false,
+          id: hit?.object.userData.stage as StageId | undefined,
+          friend: hit?.object.userData.friend === true,
+        };
         return;
       }
       if (!drag) return;
@@ -321,7 +417,7 @@ export function createIsland(world: RenderWorld, opts: IslandOptions): IslandCon
         return;
       }
       // up
-      const { moved, id } = drag;
+      const { moved, id, friend: friendTap } = drag;
       drag = null;
       if (moved) {
         // settle on the portal the camera now faces
@@ -341,6 +437,10 @@ export function createIsland(world: RenderWorld, opts: IslandOptions): IslandCon
           applySelection(best);
           opts.onSelect(best);
         }
+        return;
+      }
+      if (friendTap) {
+        opts.onFriend?.();
         return;
       }
       // a plain tap: pick that portal, or enter the one already picked

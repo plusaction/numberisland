@@ -3,6 +3,7 @@ import { motion, useReducedMotion } from 'motion/react';
 import { useEffect } from 'react';
 import { useStore } from 'zustand';
 import type { GameStore } from '../../application/stores/game';
+import type { BadgeKind } from '../../domain/badges';
 import type { Achievement, NextGoal } from '../../domain/progression/progression';
 import { fmt, ko } from '../../i18n/ko';
 import { audio } from '../../infra/audio/audio';
@@ -112,6 +113,31 @@ export function ResultScreen({ store }: { store: GameStore }) {
               </li>
             ))}
           </ul>
+        )}
+        {outcome.newBadges.length > 0 && (
+          <motion.ul
+            className="result-badges new-badges"
+            data-testid="new-badges"
+            initial={reduce ? false : { scale: 0.6, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            transition={{ type: 'spring', stiffness: 260, damping: 12, delay: delay(5) }}
+          >
+            <li className="new-badges-title">{ko.badges.fresh}</li>
+            {outcome.newBadges.map((id) => {
+              const kind = id.split('.')[1] as BadgeKind;
+              return (
+                <li key={id} className="badge badge-on">
+                  <span aria-hidden="true">{ko.badges.icons[kind]}</span>
+                  {kind === 'special' ? ko.badges.special[result.stage] : ko.badges.kinds[kind]}
+                </li>
+              );
+            })}
+          </motion.ul>
+        )}
+        {outcome.stamped && (
+          <p className="ribbon mx-auto mt-3" data-testid="stamped">
+            {ko.daily.stamped}
+          </p>
         )}
         {outcome.newToy && (
           <motion.p

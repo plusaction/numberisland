@@ -48,17 +48,36 @@ describe('[P4] 데이터 안정성', () => {
     expect(profile.settings.term).toBe('1-2');
   });
 
+  it('a v3 save (before badges / friend / stamps) keeps everything earned when it becomes v4', () => {
+    const p = defaultProfile('k', '별', now) as unknown as Record<string, unknown>;
+    for (const k of ['badges', 'friendFed', 'decorSeen', 'stamps']) delete p[k];
+    p.version = 3;
+    p.economy = { coins: 321, snacks: 17 };
+    p.trophies = { total: 12 };
+    p.toys = ['top', 'robot'];
+    p.bombEasyStep = 4;
+    const { profile, repaired } = parseProfile(p, now);
+    expect(repaired).toEqual(['migrated to v4']);
+    expect(profile.economy).toEqual({ coins: 321, snacks: 17 });
+    expect(profile.trophies.total).toBe(12);
+    expect(profile.toys).toEqual(['top', 'robot']);
+    expect(profile.bombEasyStep).toBe(4);
+    expect(profile.badges).toEqual([]);
+  });
+
   it('migrates v0 drafts and refuses newer versions', () => {
     const p = defaultProfile('m', '바다', now) as unknown as Record<string, unknown>;
     delete p.firsts;
     p.version = 0;
     const { profile, repaired } = parseProfile(p, now);
-    expect(profile.version).toBe(3);
+    expect(profile.version).toBe(4);
     expect(profile.bombEasyStep).toBe(1);
     expect(repaired).toContain('migrated to v1');
     expect(repaired).toContain('migrated to v2');
     expect(repaired).toContain('migrated to v3');
+    expect(repaired).toContain('migrated to v4');
     expect(profile.toys).toEqual([]);
+    expect(profile).toMatchObject({ badges: [], friendFed: 0, decorSeen: 0, stamps: [] });
     expect(() => parseProfile({ ...p, version: 99 }, now)).toThrow();
   });
 

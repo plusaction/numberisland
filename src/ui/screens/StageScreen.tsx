@@ -108,6 +108,7 @@ export function StageScreen({ store, reducedMotion }: { store: GameStore; reduce
           result,
           new Date().toISOString(),
           PLAYABLE,
+          new Date().getTimezoneOffset(),
         );
         // the child may have pressed "나가기" in the last 400 ms: then stay on the island
         window.setTimeout(() => {
@@ -204,7 +205,12 @@ export function StageScreen({ store, reducedMotion }: { store: GameStore; reduce
     // finished in the last moment: hand the full result over (the result screen shows it)
     if (rt && mod && p && rt.state.phase === 'done') {
       const result = mod.rules.summary(rt.state);
-      store.getState().finishRound(result, applyRoundResult(p, result, new Date().toISOString(), PLAYABLE));
+      store
+        .getState()
+        .finishRound(
+          result,
+          applyRoundResult(p, result, new Date().toISOString(), PLAYABLE, new Date().getTimezoneOffset()),
+        );
       return;
     }
     // keep what was learned in an unfinished round (P2: nothing is lost)

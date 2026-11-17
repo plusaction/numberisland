@@ -15,6 +15,8 @@ export const BALANCE = {
   /** Winds of the reel after a right catch (taps, never timed); two fish on the line are heavier. */
   fishing: { reelWinds: 3, reelWindsPair: 5 },
   evolution: { stage2: 5, stage3: 12 },
+  /** Coins ever earned that open the island decorations, in order (coins are never spent). */
+  decorAt: [30, 70, 120, 180, 260, 350, 460, 600, 760, 950] as const,
   eggs: { playsToHatch: 3 },
   trophies: { byStars: [1, 2, 3, 5] as const },
   ranks: [0, 10, 30, 60, 100, 160, 240, 350] as const,

@@ -5,7 +5,7 @@ import type { LevelId, SkillId } from './edu/types';
 import type { Stars } from './scoring/medals';
 import { STAGE_IDS, type StageId } from './stage/types';
 
-export const PROFILE_VERSION = 3;
+export const PROFILE_VERSION = 4;
 export const MAX_PROFILES = 3;
 export const HISTORY_LIMIT = 500;
 
@@ -66,6 +66,14 @@ export interface Profile {
   toys: string[];
   /** Bomb "쉽게" ladder step reached (1–5): goes up one per cleared easy round, never down. */
   bombEasyStep: number;
+  /** Challenge badges earned (`stage.kind`); only ever grows. */
+  badges: string[];
+  /** Snacks fed to the monster friend so far (it grows at set marks). */
+  friendFed: number;
+  /** How many island decorations the child has already been shown (the rest pop in with a cheer). */
+  decorSeen: number;
+  /** Days ("YYYY-MM-DD") on which the daily adventure was finished. */
+  stamps: string[];
   version: number;
 }
 
@@ -106,6 +114,10 @@ export function defaultProfile(id: string, nickname: string, now: string): Profi
     firsts: [],
     toys: [],
     bombEasyStep: 1,
+    badges: [],
+    friendFed: 0,
+    decorSeen: 0,
+    stamps: [],
     version: PROFILE_VERSION,
   };
 }
