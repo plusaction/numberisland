@@ -25,7 +25,7 @@ import { type JellyMaterial, jellyMaterial, toyMaterial } from '../../engine/tsl
 import type { RenderWorld } from '../../engine/world';
 import { audio } from '../../infra/audio/audio';
 import type { PointerInfo } from '../../scenes/common/controller';
-import { baseDiorama, disposeTree, hitCylinder, hitId, stageCamera } from '../_shared/diorama';
+import { baseDiorama, disposeTree, hitCylinder, stageCamera } from '../_shared/diorama';
 import { celebrate } from '../_shared/fx';
 import type { StageCtx, StageScene } from '../_shared/module';
 import type { SlimeAction, SlimeState } from './rules';
@@ -71,6 +71,10 @@ interface SlimeView {
   accel: Vector3;
   label: NumberLabel;
   proxy: Mesh;
+  /** How far it is lifted off the tray right now (eased, so picking up never pops). */
+  lift: number;
+  /** A quick swell after a merge (decays), on top of the squash spring. */
+  punch: number;
   spring: Spring;
   home: Vector3;
   value: number;
@@ -106,6 +110,35 @@ export function createSlimeScene(world: RenderWorld, ctx: StageCtx): StageScene<
   let dragging: number | null = null;
   const dragPos = new Vector3();
   const plane = new Plane(new Vector3(0, 1, 0), -0.9);
+  /** The slime under the finger while another is carried (it perks up: "drop it on me"). */
+  let dropId: number | null = null;
+  const centre = new Vector3();
+  /**
+   * Which slime the pointer means: the one whose body (or number badge) the ray passes closest to — not
+   * the first tall column it enters, so a front-row slime never steals a tap meant for the row behind.
+   */
+  const pick = (
+    ray: { distanceSqToPoint(p: Vector3): number },
+    skip: number | null,
+    reach = 1,
+  ): number | null => {
+    let best: number | null = null;
+    let bestD = Number.POSITIVE_INFINITY;
+    for (const [id, v] of views) {
+      if (id === skip) continue;
+      const r = radiusFor(v.value);
+      centre.copy(v.home).setY(0.55 + r);
+      const body = Math.sqrt(ray.distanceSqToPoint(centre)) / (r * 1.15 + 0.2);
+      centre.y = 0.55 + r + r * 1.05 + 0.55;
+      const badge = Math.sqrt(ray.distanceSqToPoint(centre)) / 0.5;
+      const d = Math.min(body, badge);
+      if (d < reach && d < bestD) {
+        bestD = d;
+        best = id;
+      }
+    }
+    return best;
+  };
   const hitStop = new HitStop();
   const shake = new Shake(!ctx.reducedMotion && ctx.shakeIntensity > 0);
   let cursorId: number | null = null;
@@ -178,6 +211,8 @@ export function createSlimeScene(world: RenderWorld, ctx: StageCtx): StageScene<
       accel: new Vector3(),
       label,
       proxy,
+      lift: 0,
+      punch: 0,
       spring: new Spring(0, 120, 4.2), // soft + low damping = chewy jiggle
       home,
       value,
@@ -301,6 +336,13 @@ export function createSlimeScene(world: RenderWorld, ctx: StageCtx): StageScene<
     });
   };
 
+  /** The carried slime rides a plane at its own held height, so it stays right under the finger. */
+  const holdPlane = (id: number) => {
+    const v = views.get(id);
+    const r = v ? radiusFor(v.value) : 0.6;
+    plane.constant = -(0.55 + r + 0.55 + r * 0.3);
+  };
+
   return {
     sync(state, _prev, dt) {
       const vdt = hitStop.filter(dt);
@@ -317,13 +359,23 @@ export function createSlimeScene(world: RenderWorld, ctx: StageCtx): StageScene<
           // gooey squelch (bigger slimes sound a little lower)
           audio.play('slime.squish', { pitch: 1.15 - Math.min(0.35, v.value / 150) });
           audio.play('merge', { pitch: 0.9 + Math.min(0.5, v.value / 200), delay: 0.08 });
-          v.spring.impulse(-11); // deep squash → chewy overshoot → long wobbly settle (signature)
-          v.soft.poke(UP, 4);
-          v.mood.joyUntil = t + 1.6;
+          audio.play('slime.squish', { pitch: 0.8, delay: 0.16 });
+          v.spring.impulse(-16); // deep squash → chewy overshoot → long wobbly settle (signature)
+          v.punch = ctx.reducedMotion ? 0 : 0.34; // swallows its partner: swells, then settles
+          v.soft.poke(UP, 6);
+          v.mood.joyUntil = t + 1.8;
           v.jelly.wobble.value = 1;
-          hitStop.trigger(40);
-          world.particles.emit('sparkle', v.group.position, 25);
-          world.burst('drop', v.group.position, 8, ['#ff8fab', '#b9a6f2', '#a8ebd8']);
+          hitStop.trigger(70);
+          shake.add(0.22 * ctx.shakeIntensity);
+          world.particles.emit('sparkle', v.group.position, 40);
+          world.burst('drop', v.group.position, 16, ['#ff8fab', '#b9a6f2', '#a8ebd8', '#ffc93c']);
+          // the tray feels it: the neighbours jiggle, nearer ones more
+          for (const [oid, o] of views) {
+            if (oid === ev.to) continue;
+            const near = Math.max(0, 1 - o.home.distanceTo(v.home) / 4.5);
+            o.spring.impulse(-5 * near);
+            o.jelly.wobble.value = Math.max(o.jelly.wobble.value, 0.6 * near);
+          }
         } else if (ev.kind === 'split' && v) {
           audio.play('slime.split');
           v.spring.impulse(5);
@@ -358,18 +410,33 @@ export function createSlimeScene(world: RenderWorld, ctx: StageCtx): StageScene<
         const sq = squashScale(v.spring.update(vdt) * 0.16);
         const breathe = 0; // breathing now lives in the soft-body shell
         // held up by the finger: hangs a little longer and thinner, like soft mochi
-        const hang = dragging === id ? 1.14 + Math.sin(t * 9) * 0.03 : 1;
+        const held = dragging === id;
+        v.lift += ((held ? 1 : 0) - v.lift) * (1 - Math.exp(-vdt * 14));
+        v.punch *= Math.exp(-vdt * 5);
+        const hang = 1 + v.lift * 0.12;
         const thin = 1 / Math.sqrt(hang);
         v.body.scale.set(
-          r * sq.x * (1 - breathe) * thin,
-          r * sq.y * (1 + breathe) * hang,
-          r * sq.z * (1 - breathe) * thin,
+          r * sq.x * (1 - breathe) * thin * (1 + v.punch),
+          r * sq.y * (1 + breathe) * hang * (1 + v.punch * 0.6),
+          r * sq.z * (1 - breathe) * thin * (1 + v.punch),
         );
         v.jelly.wobble.value *= Math.exp(-vdt * 1.3);
         const target = dragging === id ? dragPos : v.home;
-        v.group.position.lerp(target, 1 - Math.exp(-vdt * (dragging === id ? 25 : 10)));
+        const px = v.group.position.x;
+        const pz = v.group.position.z;
+        v.group.position.lerp(target, 1 - Math.exp(-vdt * (held ? 22 : 10)));
+        // carried: it leans into the move like something soft being swung (settles upright when still)
+        const lean = ctx.reducedMotion || vdt <= 0 ? 0 : v.lift;
+        const vx = vdt > 0 ? (v.group.position.x - px) / vdt : 0;
+        const vz = vdt > 0 ? (v.group.position.z - pz) / vdt : 0;
+        const ease = 1 - Math.exp(-vdt * 9);
+        v.body.rotation.z += (Math.max(-0.45, Math.min(0.45, -vx * 0.06)) * lean - v.body.rotation.z) * ease;
+        v.body.rotation.x += (Math.max(-0.45, Math.min(0.45, vz * 0.06)) * lean - v.body.rotation.x) * ease;
         v.group.position.y =
-          (dragging === id ? 1.6 : 0.55 + r) + (cursorId === id || heldId === id ? 0.25 : 0);
+          0.55 + r + v.lift * (0.55 + r * 0.3) + (cursorId === id || heldId === id ? 0.25 : 0);
+        // the one about to be merged into perks up under the carried slime
+        if (dropId === id) v.group.position.y += 0.12 + Math.abs(Math.sin(t * 6)) * 0.08;
+        v.label.scale.setScalar(1 + v.punch * 0.9);
         v.label.position.y = r * 1.05 + 0.55;
         if (state.phase === 'win' && state.winner === id && !ctx.reducedMotion)
           v.group.position.y += Math.abs(Math.sin(t * 7)) * 0.4;
@@ -400,9 +467,10 @@ export function createSlimeScene(world: RenderWorld, ctx: StageCtx): StageScene<
     },
     pointer(p: PointerInfo, state, emit) {
       if (p.type === 'down') {
-        const id = hitId(proxies, p.raycaster);
+        const id = pick(p.raycaster.ray, null);
         if (id !== null && state.phase === 'play') {
           dragging = id;
+          holdPlane(id);
           p.raycaster.ray.intersectPlane(plane, dragPos);
           audio.play('slime.grab');
           const v = views.get(id);
@@ -414,19 +482,25 @@ export function createSlimeScene(world: RenderWorld, ctx: StageCtx): StageScene<
         }
       } else if (p.type === 'move' && dragging !== null) {
         p.raycaster.ray.intersectPlane(plane, dragPos);
+        const over = pick(p.raycaster.ray, dragging, 1.5);
+        if (over !== dropId) {
+          dropId = over;
+          const o = over !== null ? views.get(over) : undefined;
+          if (o) {
+            o.spring.impulse(2.5);
+            o.jelly.wobble.value = Math.max(o.jelly.wobble.value, 0.5);
+          }
+        }
       } else if (p.type === 'up' && dragging !== null) {
         const from = dragging;
         dragging = null;
-        // drop target: the nearest other slime within reach of the drop point
-        let best: number | null = null;
-        let bestD = 1.9;
-        for (const [id, v] of views) {
-          if (id === from) continue;
-          const d = v.home.distanceTo(new Vector3(dragPos.x, v.home.y, dragPos.z));
-          if (d < bestD) {
-            bestD = d;
-            best = id;
-          }
+        dropId = null;
+        // drop target: the slime under the finger (a little generous — small hands)
+        const best = pick(p.raycaster.ray, from, 1.5);
+        const v = views.get(from);
+        if (v) {
+          v.spring.impulse(-4); // lands with a soft plop
+          v.jelly.wobble.value = 0.6;
         }
         if (best !== null) emit({ t: 'merge', from, to: best });
       }
