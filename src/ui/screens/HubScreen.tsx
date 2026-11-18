@@ -138,6 +138,10 @@ export function HubScreen({
     });
   }, [api, store]);
   useEffect(() => islandRef.current?.select(selected), [selected]);
+  // the island has its own tune (stages and the result screen switch to theirs)
+  useEffect(() => {
+    audio.playBgm('island', store.getState().profile?.id ?? 0);
+  }, [store]);
   useEffect(() => {
     if (profile) islandRef.current?.setMeta(islandMeta(profile));
   }, [profile]);

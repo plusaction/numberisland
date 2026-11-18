@@ -2,7 +2,7 @@
  * Web Audio engine (SPEC §8.2): master limiter (no clipping), BGM/SFX/voice buses with separate volumes,
  * AudioWorklet monster voices, procedural BGM with ducking. Unlocked on the first user gesture.
  */
-import { BGM_PRESETS, type BgmId, generatePattern, midiToFreq } from './bgm';
+import { type BgmEvent, type BgmId, expandSong, midiToFreq, songTiming } from './bgm';
 import { type Note, SFX, type SfxId } from './sfx';
 
 export interface Volumes {
@@ -172,46 +172,206 @@ export class AudioEngine {
     if (this.bgmId === id && this.bgmTimer) return;
     this.stopBgm();
     this.bgmId = id;
-    const preset = BGM_PRESETS[id];
-    const pattern = generatePattern(id, seed);
-    const stepDur = 60 / preset.bpm / 4;
-    let step = 0;
-    let next = this.ctx.currentTime + 0.1;
+    const events = expandSong(id, seed);
+    const { loop, stepDur, swing } = songTiming(id);
+    let loopStart = this.ctx.currentTime + 0.1;
+    let i = 0;
     const schedule = () => {
       const ctx = this.ctx;
       if (!ctx) return;
-      // after a throttled timer (background tab), skip missed steps instead of firing them all at once
-      if (next < ctx.currentTime) next = ctx.currentTime + 0.02;
-      while (next < ctx.currentTime + 0.25) {
-        const s = pattern[step % pattern.length];
-        const swing = step % 2 === 1 ? preset.swing * stepDur : 0;
-        if (s?.lead)
-          this.note(
-            { at: swing, freq: midiToFreq(s.lead), dur: stepDur * 1.6, wave: preset.lead, gain: 0.16 },
-            next,
-            1,
-            this.bus.bgm,
-          );
-        if (s?.bass)
-          this.note(
-            { at: 0, freq: midiToFreq(s.bass), dur: stepDur * 3, wave: preset.bass, gain: 0.22 },
-            next,
-            1,
-            this.bus.bgm,
-          );
-        if (s?.hat)
-          this.note(
-            { at: swing, freq: 8000, dur: 0.03, wave: 'sine', gain: 0.05, noise: true },
-            next,
-            1,
-            this.bus.bgm,
-          );
-        next += stepDur;
-        step++;
+      // after a throttled timer (background tab), start the loop fresh instead of firing missed notes
+      if (loopStart + (events[i]?.step ?? loop) * stepDur < ctx.currentTime - 0.1) {
+        loopStart = ctx.currentTime + 0.05;
+        i = 0;
+      }
+      const horizon = ctx.currentTime + 0.3;
+      for (;;) {
+        if (i >= events.length) {
+          i = 0;
+          loopStart += loop * stepDur;
+        }
+        const ev = events[i] as (typeof events)[number];
+        const at = loopStart + ev.step * stepDur + (ev.step % 2 === 1 ? swing * stepDur : 0);
+        if (at > horizon) break;
+        this.instrument(ev, at, stepDur);
+        i++;
       }
     };
     schedule();
-    this.bgmTimer = setInterval(schedule, 60);
+    this.bgmTimer = setInterval(schedule, 80);
+  }
+
+  /** One BGM sound: the instrument's oscillators, envelope and filter (all short-lived nodes). */
+  private instrument(ev: BgmEvent, at: number, stepDur: number) {
+    const ctx = this.ctx as AudioContext;
+    const out = this.bus.bgm;
+    const f = midiToFreq(ev.midi);
+    const len = ev.len * stepDur;
+    const env = (g: GainNode, peak: number, attack: number, hold: number, release: number) => {
+      g.gain.setValueAtTime(0.0001, at);
+      g.gain.exponentialRampToValueAtTime(Math.max(0.0002, peak), at + attack);
+      g.gain.setValueAtTime(Math.max(0.0002, peak), at + attack + hold);
+      g.gain.exponentialRampToValueAtTime(0.0001, at + attack + hold + release);
+      return at + attack + hold + release + 0.02;
+    };
+    const osc = (type: OscillatorType, freq: number, dest: AudioNode, stop: number, detune = 0) => {
+      const o = ctx.createOscillator();
+      o.type = type;
+      o.frequency.setValueAtTime(freq, at);
+      o.detune.value = detune;
+      o.connect(dest);
+      o.start(at);
+      o.stop(stop);
+      return o;
+    };
+    const lowpass = (freq: number, q = 0.7) => {
+      const lp = ctx.createBiquadFilter();
+      lp.type = 'lowpass';
+      lp.frequency.value = freq;
+      lp.Q.value = q;
+      return lp;
+    };
+    const noise = (filter: BiquadFilterType, freq: number, peak: number, dur: number, q = 1) => {
+      if (!this.noise) return;
+      const src = ctx.createBufferSource();
+      src.buffer = this.noise;
+      const bp = ctx.createBiquadFilter();
+      bp.type = filter;
+      bp.frequency.value = freq;
+      bp.Q.value = q;
+      const g = ctx.createGain();
+      const stop = env(g, peak, 0.002, 0, dur);
+      src.connect(bp).connect(g).connect(out);
+      src.start(at, Math.random() * 0.5);
+      src.stop(stop);
+    };
+    const g = ctx.createGain();
+    switch (ev.inst) {
+      case 'pluck': {
+        const lp = lowpass(2600);
+        lp.frequency.setValueAtTime(3400, at);
+        lp.frequency.exponentialRampToValueAtTime(900, at + 0.25);
+        g.connect(lp).connect(out);
+        const stop = env(g, ev.gain, 0.004, 0, Math.min(0.45, len + 0.15));
+        osc('triangle', f, g, stop);
+        // a little bite on the attack
+        const bite = ctx.createGain();
+        bite.gain.value = 0.3;
+        bite.connect(g);
+        osc('square', f, bite, stop, 4);
+        return;
+      }
+      case 'bell': {
+        g.connect(out);
+        const stop = env(g, ev.gain, 0.003, 0, Math.max(0.6, len * 1.4));
+        osc('sine', f, g, stop);
+        const g2 = ctx.createGain();
+        g2.gain.value = 0.25;
+        g2.connect(g);
+        osc('sine', f * 2.76, g2, stop); // the glassy partial
+        return;
+      }
+      case 'marimba': {
+        g.connect(out);
+        const stop = env(g, ev.gain, 0.002, 0, 0.35);
+        osc('sine', f, g, stop);
+        const g2 = ctx.createGain();
+        g2.gain.setValueAtTime(0.5, at);
+        g2.gain.exponentialRampToValueAtTime(0.001, at + 0.05);
+        g2.connect(g);
+        osc('sine', f * 4, g2, stop); // the wooden knock
+        return;
+      }
+      case 'pad': {
+        const lp = lowpass(1100);
+        g.connect(lp).connect(out);
+        const stop = env(g, ev.gain, Math.min(0.35, len * 0.3), Math.max(0, len - 0.4), 0.5);
+        osc('sawtooth', f, g, stop, -7);
+        osc('sawtooth', f, g, stop, 7);
+        return;
+      }
+      case 'organ': {
+        const lp = lowpass(1900);
+        g.connect(lp).connect(out);
+        const stop = env(g, ev.gain, 0.01, Math.max(0, len - 0.05), 0.08);
+        osc('square', f, g, stop, -5);
+        osc('square', f * 2, g, stop, 5);
+        return;
+      }
+      case 'lead': {
+        const lp = lowpass(2400);
+        g.connect(lp).connect(out);
+        const stop = env(g, ev.gain, 0.01, Math.max(0, len - 0.06), 0.12);
+        const o = osc('square', f, g, stop);
+        // a gentle vibrato on long notes
+        if (len > 0.3) {
+          const lfo = ctx.createOscillator();
+          lfo.frequency.value = 5.5;
+          const depth = ctx.createGain();
+          depth.gain.value = f * 0.008;
+          lfo.connect(depth).connect(o.frequency);
+          lfo.start(at + 0.15);
+          lfo.stop(stop);
+        }
+        return;
+      }
+      case 'bass': {
+        const lp = lowpass(700);
+        g.connect(lp).connect(out);
+        const stop = env(g, ev.gain, 0.006, Math.max(0, len * 0.6), 0.12);
+        osc('triangle', f, g, stop);
+        osc('sine', f / 2, g, stop);
+        return;
+      }
+      case 'wobble': {
+        const lp = lowpass(400, 6);
+        lp.frequency.setValueAtTime(1400, at);
+        lp.frequency.exponentialRampToValueAtTime(260, at + Math.min(0.4, len));
+        g.connect(lp).connect(out);
+        const stop = env(g, ev.gain, 0.006, Math.max(0, len * 0.5), 0.1);
+        const o = osc('square', f * 1.06, g, stop);
+        o.frequency.exponentialRampToValueAtTime(f, at + 0.08); // the boing: slides down into the note
+        return;
+      }
+      case 'kick': {
+        g.connect(out);
+        const stop = env(g, ev.gain, 0.002, 0, 0.22);
+        const o = osc('sine', 130, g, stop);
+        o.frequency.exponentialRampToValueAtTime(42, at + 0.16);
+        return;
+      }
+      case 'snare':
+        noise('bandpass', 2000, ev.gain, 0.13, 0.8);
+        g.connect(out);
+        osc('triangle', 190, g, env(g, ev.gain * 0.6, 0.002, 0, 0.08));
+        return;
+      case 'clap':
+        for (const k of [0, 0.012, 0.024]) {
+          const t = at + k;
+          if (!this.noise) break;
+          const src = ctx.createBufferSource();
+          src.buffer = this.noise;
+          const bp = lowpass(2600, 0.5);
+          const cg = ctx.createGain();
+          cg.gain.setValueAtTime(ev.gain, t);
+          cg.gain.exponentialRampToValueAtTime(0.0001, t + 0.09);
+          src.connect(bp).connect(cg).connect(out);
+          src.start(t, Math.random() * 0.5);
+          src.stop(t + 0.1);
+        }
+        return;
+      case 'hat':
+        noise('highpass', 7500, ev.gain, 0.04);
+        return;
+      case 'shaker':
+        noise('bandpass', 6000, ev.gain, 0.07, 1.5);
+        return;
+      case 'tick': {
+        g.connect(out);
+        osc('sine', 2400, g, env(g, ev.gain, 0.001, 0, 0.03));
+        return;
+      }
+    }
   }
 
   stopBgm() {

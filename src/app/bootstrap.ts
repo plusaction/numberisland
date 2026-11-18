@@ -42,6 +42,8 @@ export async function bootApp(): Promise<App> {
   );
   (globalThis as { __store?: GameStore }).__store = store;
   // one call tells a coding agent (or a test) where the app is: screen, legal next screens, stage phase
+  // for tests and coding agents: which tune is playing (`bgmId`), audio context state
+  (globalThis as { __audio?: unknown }).__audio = audio;
   (globalThis as { __game?: unknown }).__game = {
     snapshot: () => {
       const st = store.getState();
