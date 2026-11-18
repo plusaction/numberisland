@@ -167,11 +167,25 @@ export function createFishingScene(
   // the catch bucket: a tapered toy pail with a rolled rim, a metal handle and water inside
   const bucket = new Group();
   bucket.position.set(-4.6, 0.35, 4.6);
+  // open-topped pail (no lid face for the water to fight with) plus an inside wall facing inwards
   const pail = new Mesh(
-    new CylinderGeometry(0.58, 0.44, 0.72, 28),
+    new CylinderGeometry(0.58, 0.44, 0.72, 28, 1, true),
     toyMaterial('#4aa8d6', { finish: 'satin' }),
   );
   pail.castShadow = true;
+  const innerGeo = new CylinderGeometry(0.55, 0.41, 0.7, 28, 1, true);
+  const idx = innerGeo.getIndex();
+  if (idx) {
+    // flip the winding and the normals so the wall is seen from inside the pail
+    for (let i = 0; i < idx.count; i += 3) {
+      const a = idx.getX(i + 1);
+      idx.setX(i + 1, idx.getX(i + 2));
+      idx.setX(i + 2, a);
+    }
+    const n = innerGeo.getAttribute('normal');
+    for (let i = 0; i < n.count; i++) n.setXYZ(i, -n.getX(i), -n.getY(i), -n.getZ(i));
+  }
+  const inner = new Mesh(innerGeo, toyMaterial('#2f86b3', { finish: 'satin' }));
   const rim = new Mesh(
     new TorusGeometry(0.58, 0.05, 10, 32),
     toyMaterial(PALETTE.white, { finish: 'satin' }),
@@ -181,13 +195,17 @@ export function createFishingScene(
   const stripe = new Mesh(new TorusGeometry(0.52, 0.025, 8, 32), toyMaterial(PALETTE.sun));
   stripe.rotation.x = Math.PI / 2;
   stripe.position.y = 0.05;
-  const water = new Mesh(disc(0.55, 0.02, 28), waterMaterial());
-  water.position.y = 0.36; // sits on the pail's top: the bucket looks full
+  // calm, opaque water a little below the rim (the pond's wave shader would poke through a tiny disc)
+  const water = new Mesh(
+    disc(0.55, 0.02, 28),
+    toyMaterial('#5cc4ea', { roughness: 0.08, rimStrength: 0.25 }),
+  );
+  water.position.y = 0.25;
   const handle = new Mesh(new TorusGeometry(0.6, 0.025, 8, 24, Math.PI), metalMaterial('#cfd6e4'));
   handle.position.y = 0.36;
   handle.rotation.y = 0.5;
   handle.rotation.x = -0.35;
-  bucket.add(pail, rim, stripe, water, handle);
+  bucket.add(pail, inner, rim, stripe, water, handle);
   root.add(bucket);
 
   const fishViews = new Map<number, FishView>();
