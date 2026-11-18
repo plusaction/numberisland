@@ -64,7 +64,7 @@ export function createCardScene(world: RenderWorld, ctx: StageCtx): StageScene<C
   root.add(table, neonA, neonB);
 
   // score gems: the child's (left, front), the monster's (right, back)
-  const gems: Mesh[] = [];
+  const gems: Group[] = [];
   const gemAt = (side: 0 | 1, i: number) =>
     side === 0 ? new Vector3(-4.3, 0.55, 2.4 - i * 0.75) : new Vector3(4.3, 0.55, -0.6 - i * 0.75);
   const renderGems = (wins: number, losses: number) => {

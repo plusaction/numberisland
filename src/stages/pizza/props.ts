@@ -155,7 +155,7 @@ export class NumberPile {
       this.layers.push({ mesh, offset: new Matrix4().makeTranslation(x, y, z) });
       return mesh;
     };
-    // the slices stand crust-up, so their -Y face is the one turned to the camera: toppings go there
+    // the slices lean back crust-up, so their -Y face is the one turned to the camera: toppings go there
     const sauce = layer(wedgeOf(0.45, 0.03, 0.02), COLORS.sauce, 0, -0.055, 0);
     const cheese = layer(wedgeOf(0.41, 0.035, 0.04), COLORS.cheese, 0, -0.07, 0);
     const pepA = layer(new CylinderGeometry(0.055, 0.055, 0.03, 14), COLORS.pepperoni, 0.02, -0.09, 0.3);
@@ -190,7 +190,8 @@ export class NumberPile {
       const row = i < 5 ? 0 : 1;
       const k = row === 0 ? i : i - 5;
       d.position.set(-0.25 + k * 0.36, 0.06 + row * 0.12, 0.25 - row * 0.45);
-      d.rotation.set(-Math.PI / 2 + 0.35, 0, 0);
+      // leaning back with the toppings turned up to the camera (crust at the top), like 🍕
+      d.rotation.set(-2.27, 0, 0);
       d.scale.setScalar(1);
       d.updateMatrix();
       this.slices.setMatrixAt(i, d.matrix);

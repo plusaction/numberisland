@@ -7,7 +7,7 @@
  */
 import { color, cos, float, mix, normalView, sin, smoothstep, texture, time, uv, vec3 } from 'three/tsl';
 import { ConeGeometry, Group, Mesh, MeshStandardNodeMaterial, OctahedronGeometry } from 'three/webgpu';
-import { ball, capsule, roundedBox } from '../../engine/geo/shapes';
+import { ball, capsule, disc, roundedBox } from '../../engine/geo/shapes';
 import { NumberLabel } from '../../engine/numbers/number-label';
 import { PALETTE } from '../../engine/palette';
 import { jellyMaterial, metalMaterial, toyMaterial } from '../../engine/tsl/materials';
@@ -68,14 +68,26 @@ export function card(tint: string, value: number): Card {
 }
 
 /** A score gem slot (empty = dim glass, won = bright). */
-export function gem(won: boolean, hex: string): Mesh {
-  const m = new Mesh(
-    new OctahedronGeometry(0.26),
-    won ? toyMaterial(hex, { rimStrength: 0.9 }) : toyMaterial('#d8d3e6', { finish: 'matte' }),
-  );
-  m.scale.y = 1.3;
-  m.castShadow = true;
-  return m;
+/**
+ * A score slot: a little pedestal in the side's colour with a socket on top. Won = a bright gem sits in it
+ * (and sparkles); not yet = an empty socket, so it reads as "3 to win", not as stray grey pyramids.
+ */
+export function gem(won: boolean, hex: string): Group {
+  const g = new Group();
+  const base = new Mesh(disc(0.3, 0.16, 24), toyMaterial(hex, { finish: 'satin' }));
+  base.position.y = -0.45;
+  base.castShadow = true;
+  const socket = new Mesh(disc(0.2, 0.05, 20), toyMaterial('#3b3355', { finish: 'matte' }));
+  socket.position.y = -0.35;
+  g.add(base, socket);
+  if (won) {
+    const stone = new Mesh(new OctahedronGeometry(0.24), toyMaterial(hex, { rimStrength: 0.9 }));
+    stone.scale.y = 1.3;
+    stone.position.y = -0.05;
+    stone.castShadow = true;
+    g.add(stone);
+  }
+  return g;
 }
 
 export interface Bot {

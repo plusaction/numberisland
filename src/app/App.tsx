@@ -1,7 +1,9 @@
 import { lazy, Suspense, useEffect, useState } from 'react';
 import { useStore } from 'zustand';
 import { createAdaptiveState, DEFAULT_SETTINGS } from '../domain/edu/adaptive';
+import type { StageId } from '../domain/stage/types';
 import { ko } from '../i18n/ko';
+import { STAGE_LOADERS } from '../stages/registry';
 import { ErrorBoundary } from '../ui/components/ErrorBoundary';
 import { HubScreen } from '../ui/screens/HubScreen';
 import { IntroScreen } from '../ui/screens/IntroScreen';
@@ -20,14 +22,18 @@ const StageScreen = lazy(() => loadStage().then((m) => ({ default: m.StageScreen
 const ResultScreen = lazy(() => loadResult().then((m) => ({ default: m.ResultScreen })));
 const EngineDemo = lazy(() => import('./EngineDemo').then((m) => ({ default: m.EngineDemo })));
 /** Fetch the play screens in the background while the child looks at the island. */
-export function prefetchPlay() {
-  const idle = (globalThis as { requestIdleCallback?: (f: () => void) => void }).requestIdleCallback;
+export function prefetchPlay(stage?: StageId) {
+  const idle = (globalThis as { requestIdleCallback?: (f: () => void, o?: { timeout: number }) => void })
+    .requestIdleCallback;
   const go = () => {
     void loadStage();
     void loadResult();
+    // the stage the child is about to start (its rules + scene chunk)
+    if (stage) void STAGE_LOADERS[stage]?.();
   };
-  if (idle) idle(go);
-  else globalThis.setTimeout(go, 1500);
+  // a busy 3D page may never be idle: start within 1.5 s regardless
+  if (idle) idle(go, { timeout: 1500 });
+  else globalThis.setTimeout(go, 300);
 }
 
 function usePrefersReducedMotion(): boolean {
@@ -84,7 +90,7 @@ function Screens({ app }: { app: AppHandle }) {
       ) : null;
     case 'hub':
     case 'intro':
-      prefetchPlay();
+      prefetchPlay(screen === 'intro' ? store.getState().selected : undefined);
       // the intro card floats over the living island (same HubScreen instance: the 3D scene stays up)
       return (
         <>
@@ -122,7 +128,19 @@ export function App() {
     <WorldHost>
       <main className="ui-layer" aria-label={ko.app.title}>
         <ErrorBoundary>
-          {app ? <Screens app={app} /> : <p className="screen-center text-3xl font-bold">{ko.app.loading}</p>}
+          {app ? (
+            <Screens app={app} />
+          ) : (
+            <div className="loading-screen" role="status">
+              <p className="loading-title">{ko.app.title}</p>
+              <span className="loading-dots" aria-hidden="true">
+                <span />
+                <span />
+                <span />
+              </span>
+              <p className="loading-text">{ko.app.loading}</p>
+            </div>
+          )}
         </ErrorBoundary>
       </main>
     </WorldHost>

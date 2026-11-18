@@ -134,7 +134,8 @@ export function WorldHost({ children }: { children: ReactNode }) {
 
   return (
     <Ctx.Provider value={api}>
-      <div ref={holder} className="fixed inset-0" />
+      {/* sky behind the canvas: what shows while the first scene's shaders are still being prepared */}
+      <div ref={holder} className="fixed inset-0 world-sky" />
       {debug && <DebugHud world={api?.world ?? null} frameMs={() => loopRef.current?.frameMs ?? 0} />}
       {children}
       {fatal && (

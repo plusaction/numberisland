@@ -1554,3 +1554,65 @@
     bottom: 1rem;
   }
 }
+/* the stage card over the island: a light veil, so the island stays bright behind it */
+.screen-center.intro-back {
+  background: color-mix(in oklab, var(--color-ink) 14%, transparent);
+}
+/* first moments: sky, the game's name and three bouncing dots (no grey page) */
+.loading-screen {
+  position: fixed;
+  inset: 0;
+  display: grid;
+  place-content: center;
+  justify-items: center;
+  gap: 0.9rem;
+  background: linear-gradient(#9fd8ff, #fff1d6 70%);
+  color: var(--color-ink);
+  text-align: center;
+}
+.loading-title {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: clamp(2.4rem, 8vw, 4rem);
+  text-shadow: 0 4px 0 rgb(255 255 255 / 0.7);
+}
+.loading-text {
+  margin: 0;
+  font-size: 1.3rem;
+  opacity: 0.75;
+}
+.loading-dots {
+  display: inline-flex;
+  gap: 0.6rem;
+}
+.loading-dots > span {
+  width: 1rem;
+  height: 1rem;
+  border-radius: 50%;
+  background: #ffc93c;
+  box-shadow: 0 3px 0 #d99a0b;
+  animation: loading-hop 0.9s ease-in-out infinite;
+}
+.loading-dots > span:nth-child(2) {
+  background: #ff6f91;
+  box-shadow: 0 3px 0 #c94867;
+  animation-delay: 0.15s;
+}
+.loading-dots > span:nth-child(3) {
+  background: #2fb4cc;
+  box-shadow: 0 3px 0 #1c8296;
+  animation-delay: 0.3s;
+}
+@keyframes loading-hop {
+  50% {
+    translate: 0 -0.7rem;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .loading-dots > span {
+    animation: none;
+  }
+}
+.world-sky {
+  background: linear-gradient(#9fd8ff, #cdeefa 45%, #7fd0e6 75%, #3fb3d1);
+}

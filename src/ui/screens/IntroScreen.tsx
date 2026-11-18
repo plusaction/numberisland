@@ -11,7 +11,7 @@ export function IntroScreen({ store }: { store: GameStore }) {
   const name = ko.stages[selected].name;
   const playable = PLAYABLE.includes(selected);
   return (
-    <div className="screen-center" data-testid="intro">
+    <div className="screen-center intro-back" data-testid="intro">
       <div className="card max-w-xl text-center">
         <h2 className="title">{name}</h2>
         <SpeakButton text={name} className="mx-auto mt-2" />
