@@ -38,9 +38,10 @@ import { WAVES_SEA } from '../../engine/water/waves';
 import { type RenderWorld, SKIES } from '../../engine/world';
 import type { ActionSnapshot } from '../../infra/input/input';
 import type { PointerInfo, SceneController } from '../common/controller';
-import { DECOR_SPOT, type Decor, decorModel } from './decor';
+import { DECOR_SIZE, DECOR_SPOT, type Decor, decorModel } from './decor';
 import { createFriend } from './friend';
 import { portalModel } from './portal-models';
+import { initWander, type Obstacle, stepWander, type WanderWorld } from './wander';
 
 const ZONE_COLOR = { block: PALETTE.peach, collect: PALETTE.sky, together: PALETTE.lavender } as const;
 /** Portal angles: block (left), collect (front-right), together (back). */
@@ -221,8 +222,12 @@ export function createIsland(world: RenderWorld, opts: IslandOptions): IslandCon
     [170, PALETTE.sky, 0.7],
     [255, PALETTE.mint, 0.8],
   ];
+  // everything the friend has to walk round (its little brain gets this list — see wander.ts)
+  const obstacles: Obstacle[] = [{ x: 0, z: 0, r: 1.15, interesting: true }];
+  for (const p of portals.values()) obstacles.push({ x: p.pos.x, z: p.pos.z, r: 0.88, interesting: true });
   for (const [deg, color, size] of buildings) {
     const a = (deg * Math.PI) / 180;
+    obstacles.push({ x: Math.cos(a) * 2.6, z: Math.sin(a) * 2.6, r: size * 0.72 });
     const house = new Mesh(roundedBox(size, size * 0.9, size), toyMaterial(color, { finish: 'satin' }));
     house.position.set(Math.cos(a) * 2.6, 0.25 + size * 0.45, Math.sin(a) * 2.6);
     house.castShadow = true;
@@ -249,6 +254,7 @@ export function createIsland(world: RenderWorld, opts: IslandOptions): IslandCon
       i,
       tmp.compose(new Vector3(Math.cos(a) * r, 0.4, Math.sin(a) * r), q, new Vector3(sc, sc * 0.85, sc)),
     );
+    obstacles.push({ x: Math.cos(a) * r, z: Math.sin(a) * r, r: 0.42 * sc });
     bushes.setColorAt(i, tint.set(i % 3 ? '#86d49a' : '#a8ebd8'));
   }
   root.add(bushes);
@@ -287,6 +293,12 @@ export function createIsland(world: RenderWorld, opts: IslandOptions): IslandCon
   const friendHit = new Vector3();
   friend.group.position.set(3.9, 0.25, 5.0);
   root.add(friend.group);
+  const strollWorld: WanderWorld = { obstacles, edge: 5.7, body: 0.5, focus: null };
+  const strollRng = createRng('friend-stroll');
+  const stroll = initWander(strollWorld, strollRng, 2.4, 3.2);
+  let strollMode = stroll.mode;
+  let walkPhase = 0;
+  const gaze = new Vector3();
   if (opts.showcase) for (const p of portals.values()) p.ring.visible = false;
   else {
     friend.group.add(friendProxy);
@@ -340,6 +352,8 @@ export function createIsland(world: RenderWorld, opts: IslandOptions): IslandCon
         }
         root.add(d.group);
         decor.set(id, d);
+        const dr = DECOR_SIZE[id];
+        if (dr) obstacles.push({ x: d.group.position.x, z: d.group.position.z, r: dr, interesting: true });
         // only the ones opened after the first paint arrive with a cheer
         if (decorShown >= 0 && i >= decorShown)
           world.particles.emit('sparkle', d.group.position.clone().setY(1.5), 40);
@@ -387,14 +401,44 @@ export function createIsland(world: RenderWorld, opts: IslandOptions): IslandCon
           world.camera.position.z - friend.group.position.z,
         );
       } else {
-        // hub: the friend strolls round the tree (bigger when it has been fed)
-        const a = opts.reducedMotion ? 0.9 : t * 0.22;
-        friend.group.position.set(Math.cos(a) * 2.3, 0.25, Math.sin(a) * 2.3);
-        friend.group.rotation.y = opts.reducedMotion
-          ? Math.atan2(world.camera.position.x, world.camera.position.z)
-          : -a;
+        // hub: the friend wanders the island on its own — picks somewhere to go (often a portal, a
+        // decoration or the portal the child picked), plans a way round things, stops to look, and
+        // never walks through anything (bigger when it has been fed)
         const sc = friend.group.scale.x + (friendSize - friend.group.scale.x) * (1 - Math.exp(-dt * 3));
         friend.group.scale.setScalar(sc);
+        strollWorld.body = 0.6 * sc;
+        const pick = portals.get(selected)?.pos;
+        strollWorld.focus = pick ? { x: pick.x, z: pick.z } : null;
+        if (opts.reducedMotion) {
+          friend.group.position.set(stroll.x, 0.25, stroll.z);
+          friend.group.rotation.y = Math.atan2(
+            world.camera.position.x - stroll.x,
+            world.camera.position.z - stroll.z,
+          );
+          friend.lookAt(world.camera.position);
+        } else {
+          stepWander(stroll, strollWorld, Math.min(dt, 1 / 20), strollRng);
+          if (stroll.mode !== strollMode) {
+            if (stroll.mode === 'startle') friend.surprise();
+            strollMode = stroll.mode;
+          }
+          // a bouncy waddle while walking, still when it stops
+          walkPhase += dt * (2 + stroll.speed * 9);
+          const hop = Math.abs(Math.sin(walkPhase)) * 0.09 * Math.min(1, stroll.speed / 0.4);
+          friend.group.position.set(stroll.x, 0.25 + hop, stroll.z);
+          const turn = Math.atan2(
+            Math.sin(stroll.heading - friend.group.rotation.y),
+            Math.cos(stroll.heading - friend.group.rotation.y),
+          );
+          friend.group.rotation.y += turn * Math.min(1, dt * 8);
+          friend.group.rotation.z = Math.sin(walkPhase) * 0.06 * Math.min(1, stroll.speed / 0.4);
+          // eyes: on what it is looking at, else a little way down the path; now and then at the child
+          if (stroll.lookX !== null && stroll.lookZ !== null) gaze.set(stroll.lookX, 0.9, stroll.lookZ);
+          else if (stroll.mode === 'walk' && Math.sin(t * 0.37) > 0.9) gaze.copy(world.camera.position);
+          else
+            gaze.set(stroll.x + Math.sin(stroll.heading) * 2, 0.6, stroll.z + Math.cos(stroll.heading) * 2);
+          friend.lookAt(gaze);
+        }
       }
       friend.update(dt, t, opts.reducedMotion);
       for (const d of decor.values()) if (!opts.reducedMotion) d.update?.(t);

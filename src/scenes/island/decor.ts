@@ -28,6 +28,20 @@ export const DECOR_SPOT: Record<DecorId, readonly [number, number]> = {
   rainbow: [0, 0],
 };
 
+/** How much room each one takes on the ground (for the friend's stroll); 0 = out of reach / in the sky. */
+export const DECOR_SIZE: Record<DecorId, number> = {
+  flags: 0.95,
+  lanterns: 0.4,
+  balloons: 0.45,
+  bench: 0.7,
+  windmill: 0.7,
+  swing: 0.85,
+  fountain: 0.75,
+  kite: 0.3,
+  lighthouse: 0.6,
+  rainbow: 0,
+};
+
 const post = (h: number, color = '#8a5a3c') => {
   const m = new Mesh(capsule(0.06, h), woodMaterial(color));
   m.position.y = h / 2 + 0.06;
