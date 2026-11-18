@@ -9,6 +9,7 @@ import {
   Group,
   InstancedMesh,
   type Material,
+  Matrix4,
   Mesh,
   Object3D,
   OctahedronGeometry,
@@ -75,6 +76,54 @@ export function boxModel(): Group {
 }
 
 /**
+ * A pizza box that opens: a tray with low walls and a lid hinged at the back edge. `lid.rotation.x` runs from
+ * `LID_OPEN` (tipped back, its inside — printed with a pizza — towards the camera) to 0 (shut).
+ */
+export const LID_OPEN = -1.95;
+export function openBoxModel(): { group: Group; lid: Group } {
+  const g = new Group();
+  const card = toyMaterial(COLORS.box, { finish: 'matte' });
+  const inside = toyMaterial('#f4dcb4', { finish: 'matte' });
+  const floor = new Mesh(roundedBox(1.0, 0.04, 1.0, 0.015), inside);
+  floor.position.y = 0.02;
+  floor.receiveShadow = true;
+  g.add(floor);
+  for (const [x, z, w, d] of [
+    [0, 0.48, 1.0, 0.04],
+    [0, -0.48, 1.0, 0.04],
+    [0.48, 0, 0.04, 1.0],
+    [-0.48, 0, 0.04, 1.0],
+  ] as const) {
+    const wall = new Mesh(roundedBox(w, 0.16, d, 0.015), card);
+    wall.position.set(x, 0.08, z);
+    wall.castShadow = true;
+    g.add(wall);
+  }
+  // the lid pivots on the back edge
+  const lid = new Group();
+  lid.position.set(0, 0.16, -0.5);
+  const top = new Mesh(roundedBox(1.02, 0.04, 1.02, 0.015), card);
+  top.position.set(0, 0.02, 0.51);
+  top.castShadow = true;
+  const stripe = new Mesh(
+    roundedBox(1.04, 0.05, 0.16, 0.02),
+    toyMaterial(COLORS.stripe, { finish: 'satin' }),
+  );
+  stripe.position.set(0, 0.03, 0.51);
+  // a printed pizza on the inside of the lid (seen while it is open) and a little one on top
+  const print = new Mesh(disc(0.3, 0.012, 28), toyMaterial(COLORS.sauce, { finish: 'matte' }));
+  print.position.set(0, -0.006, 0.6);
+  const printCheese = new Mesh(disc(0.24, 0.014, 28), toyMaterial(COLORS.cheese, { finish: 'matte' }));
+  printCheese.position.set(0, -0.012, 0.6);
+  const badge = new Mesh(disc(0.12, 0.012, 20), toyMaterial(COLORS.sauce, { finish: 'matte' }));
+  badge.position.set(0, 0.046, 0.25);
+  lid.add(top, stripe, print, printCheese, badge);
+  g.add(lid);
+  lid.rotation.x = LID_OPEN;
+  return { group: g, lid };
+}
+
+/**
  * A pile that shows a number: `tens` boxes stacked + `ones` slices fanned in front, plus its numeral.
  * Instanced so up to 9 + 9 pieces cost two draw calls.
  */
@@ -84,7 +133,10 @@ export class NumberPile {
   private boxes: InstancedMesh;
   private stripes: InstancedMesh;
   private slices: InstancedMesh;
+  /** The layers on top of each slice (sauce, cheese, two pepperoni) follow the slice's own matrix. */
+  private layers: { mesh: InstancedMesh; offset: Matrix4 }[] = [];
   private dummy = new Object3D();
+  private m4 = new Matrix4();
   value = -1;
   constructor(labelY = 1.9) {
     const boxGeo = roundedBox(0.7, 0.14, 0.7, 0.03);
@@ -94,10 +146,21 @@ export class NumberPile {
       toyMaterial(COLORS.stripe, { finish: 'satin' }),
       9,
     );
-    // a slice: a 1/8 wedge of a short cylinder (cheese top + crust edge read as one colour toy)
-    const wedge = new CylinderGeometry(0.5, 0.5, 0.1, 6, 1, false, -Math.PI / 9, (Math.PI * 2) / 9);
-    this.slices = new InstancedMesh(wedge, toyMaterial(COLORS.cheese, { finish: 'satin' }), 9);
-    for (const m of [this.boxes, this.stripes, this.slices]) {
+    // a slice: a crust wedge, a thin ring of tomato sauce, melted cheese on top and two pepperoni
+    const wedgeOf = (r: number, h: number, trim = 0) =>
+      new CylinderGeometry(r, r, h, 8, 1, false, -Math.PI / 9 + trim, (Math.PI * 2) / 9 - trim * 2);
+    this.slices = new InstancedMesh(wedgeOf(0.5, 0.1), toyMaterial(COLORS.crust, { finish: 'satin' }), 9);
+    const layer = (geo: CylinderGeometry, color: string, x: number, y: number, z: number) => {
+      const mesh = new InstancedMesh(geo, toyMaterial(color, { finish: 'satin' }), 9);
+      this.layers.push({ mesh, offset: new Matrix4().makeTranslation(x, y, z) });
+      return mesh;
+    };
+    // the slices stand crust-up, so their -Y face is the one turned to the camera: toppings go there
+    const sauce = layer(wedgeOf(0.45, 0.03, 0.02), COLORS.sauce, 0, -0.055, 0);
+    const cheese = layer(wedgeOf(0.41, 0.035, 0.04), COLORS.cheese, 0, -0.07, 0);
+    const pepA = layer(new CylinderGeometry(0.055, 0.055, 0.03, 14), COLORS.pepperoni, 0.02, -0.09, 0.3);
+    const pepB = layer(new CylinderGeometry(0.04, 0.04, 0.03, 12), COLORS.pepperoni, -0.015, -0.09, 0.17);
+    for (const m of [this.boxes, this.stripes, this.slices, sauce, cheese, pepA, pepB]) {
       m.castShadow = true;
       m.count = 0;
       this.group.add(m);
@@ -131,9 +194,14 @@ export class NumberPile {
       d.scale.setScalar(1);
       d.updateMatrix();
       this.slices.setMatrixAt(i, d.matrix);
+      for (const l of this.layers) l.mesh.setMatrixAt(i, this.m4.multiplyMatrices(d.matrix, l.offset));
     }
     this.boxes.count = this.stripes.count = tens;
     this.slices.count = ones;
+    for (const l of this.layers) {
+      l.mesh.count = ones;
+      l.mesh.instanceMatrix.needsUpdate = true;
+    }
     this.boxes.instanceMatrix.needsUpdate = true;
     this.stripes.instanceMatrix.needsUpdate = true;
     this.slices.instanceMatrix.needsUpdate = true;

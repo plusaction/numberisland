@@ -1527,3 +1527,30 @@
     max-width: calc(100% - 1.2rem);
   }
 }
+/* pizza: the friend speaks from the bottom centre, right under the three number keys */
+.stage-hud[data-stage="pizza"] > .say-bubble {
+  left: 50%;
+  translate: -50% 0;
+  bottom: 1.25rem;
+  max-width: min(34rem, 60vw);
+}
+/* …so "다 됐어요!" moves to the right, above the hint key */
+.stage-hud[data-stage="pizza"] > .hud-primary {
+  left: auto;
+  right: 1rem;
+  bottom: 6.4rem;
+  translate: none;
+}
+@media (max-width: 640px) {
+  /* phones: the bubble spans the width above the bottom row (done key left, hint key right) */
+  .stage-hud[data-stage="pizza"] > .say-bubble {
+    bottom: 5.8rem;
+    max-width: calc(100% - 1.2rem);
+    width: max-content;
+  }
+  .stage-hud[data-stage="pizza"] > .hud-primary {
+    right: auto;
+    left: 0.6rem;
+    bottom: 1rem;
+  }
+}

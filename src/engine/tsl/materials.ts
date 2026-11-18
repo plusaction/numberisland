@@ -9,6 +9,7 @@
  */
 
 import {
+  cameraPosition,
   color,
   cos,
   float,
@@ -17,6 +18,8 @@ import {
   normalView,
   positionLocal,
   positionViewDirection,
+  positionWorld,
+  reflect,
   sin,
   smoothstep,
   texture,
@@ -37,6 +40,8 @@ import {
   MeshPhysicalNodeMaterial,
   MeshStandardNodeMaterial,
   type Node,
+  type ReflectorNode,
+  Vector3,
 } from 'three/webgpu';
 import { WAVES_POND, type WaveParams } from '../water/waves';
 import { noiseTexture } from './noise-texture';
@@ -46,13 +51,17 @@ import { noiseTexture } from './noise-texture';
  * floating objects use exactly the time the shader uses.
  */
 export const waterTime = uniform(0);
+/** The sky the water mirrors (kept in step with `RenderWorld.setSky`) and where the sun is. */
+export const waterSkyTop = uniform(new Color('#9fd8ff'));
+export const waterSkyBottom = uniform(new Color('#fff1d6'));
+export const waterSunDir = uniform(new Vector3(0.45, 0.8, 0.35).normalize());
 
 /** Fresnel-style rim term (0 facing camera → 1 at silhouette). */
 const rim = (power: number) =>
   float(1).sub(normalView.dot(positionViewDirection).abs().clamp(0, 1)).pow(power);
 
-const cache = new Map<string, MeshPhysicalNodeMaterial | MeshStandardNodeMaterial>();
-function shared<T extends MeshPhysicalNodeMaterial | MeshStandardNodeMaterial>(
+const cache = new Map<string, MeshPhysicalNodeMaterial | MeshStandardNodeMaterial | MeshBasicNodeMaterial>();
+function shared<T extends MeshPhysicalNodeMaterial | MeshStandardNodeMaterial | MeshBasicNodeMaterial>(
   key: string,
   make: () => T,
 ): T {
@@ -83,6 +92,9 @@ export function lowVariant(m: {
   userData: Record<string, unknown>;
   transparent: boolean;
 }): MeshLambertNodeMaterial | null {
+  // water brings its own cheap stand-in (sky tint + moving ripples) instead of a flat dark colour
+  const own = m.userData.lowMaterial as MeshLambertNodeMaterial | undefined;
+  if (own) return own;
   const hex = m.userData.lowColor;
   if (typeof hex !== 'number') return null;
   const key = hex * 2 + (m.transparent ? 1 : 0);
@@ -273,9 +285,14 @@ export function waterMaterial(
   waves: WaveParams = WAVES_POND,
   /** Open sea: no see-through (saves a full-screen blended layer and the seabed under it). */
   opaque = false,
+  /**
+   * A live mirror of the scene (`reflector()` from three/tsl, its target added to the mesh): the island and
+   * its toys wobble in the waves. High tiers only — it renders the scene a second time. Not cached.
+   */
+  mirror?: ReflectorNode,
 ): MeshStandardNodeMaterial {
   const key = `water|${new Color(deep).getHexString()}|${new Color(shallow).getHexString()}|${radius}|${waves.name}|${opaque}`;
-  return shared(key, () => {
+  const build = () => {
     const m = new MeshStandardNodeMaterial({ roughness: 0.05, metalness: 0, transparent: !opaque });
     m.userData.lowColor = new Color(opaque ? deep : shallow).getHex();
     const p = positionLocal;
@@ -316,7 +333,16 @@ export function waterMaterial(
     // keep the shoreline still so the water never pulls away from the bank
     const shore = smoothstep(radius, radius * 0.82, r);
     m.positionNode = p.add(vec3(dx, dy, dz).mul(shore));
-    const n = vec3(nx.mul(shore), ny, nz.mul(shore)).normalize();
+    // fine ripples running over the swell: two noise layers scrolling against each other tilt the normal
+    // (cheap: two texture reads), so light and reflections shimmer all over the surface
+    const rippleA = texture(noiseTexture(), xz.mul(0.9).add(vec2(waterTime.mul(0.07), waterTime.mul(0.045))));
+    const rippleB = texture(noiseTexture(), xz.mul(1.6).sub(vec2(waterTime.mul(0.05), waterTime.mul(0.08))));
+    const chop = vec3(
+      rippleA.r.add(rippleB.g).sub(1).mul(0.45),
+      float(0),
+      rippleA.g.add(rippleB.r).sub(1).mul(0.45),
+    ).mul(shore);
+    const n = vec3(nx.mul(shore), ny, nz.mul(shore)).add(chop).normalize();
     m.normalNode = transformNormalToView(n);
     const facing = normalView.dot(positionViewDirection).abs().clamp(0, 1);
     const fresnel = float(0.02).add(float(0.98).mul(float(1).sub(facing).pow(5)));
@@ -335,13 +361,60 @@ export function waterMaterial(
     // tiny sparkling glints (sun on wave facets), strongest at grazing angles
     const sparkle = texture(noiseTexture(), scrollA.mul(6)).r.mul(texture(noiseTexture(), scrollB.mul(7)).r);
     const glint = smoothstep(0.5, 0.75, sparkle);
-    m.emissiveNode = vec3(1, 0.97, 0.88)
-      .mul(glint.mul(fresnel.add(0.15)).mul(1.4))
+    // reflection: the sky (or, on high tiers, the live scene) mirrored by the rippled surface, strongest at
+    // grazing angles (Fresnel), plus a sharp sun streak dancing on the wave facets
+    const toEye = cameraPosition.sub(positionWorld).normalize();
+    const refl = reflect(toEye.negate(), n);
+    const skyRefl = mix(waterSkyBottom, waterSkyTop, smoothstep(0.0, 0.55, refl.y.max(0)));
+    let reflected: Node<'vec3'> = skyRefl;
+    if (mirror) {
+      // ripple the mirror image with the same chop + swell slopes, and fade to the sky at the very edge
+      mirror.uvNode = (mirror.uvNode as unknown as Node<'vec2'>).add(
+        vec2(chop.x.add(nx.mul(0.3)), chop.z.add(nz.mul(0.3))).mul(0.06),
+      );
+      reflected = mix(skyRefl, mirror.rgb, float(0.85));
+    }
+    const sunStreak = refl.dot(waterSunDir).max(0).pow(220).mul(6);
+    const reflectAmount = fresnel
+      .mul(0.75)
+      .add(0.08)
+      .mul(float(1).sub(foam.mul(0.8)));
+    m.emissiveNode = reflected
+      .mul(reflectAmount)
+      .add(vec3(1, 0.95, 0.82).mul(sunStreak.add(glint.mul(fresnel.add(0.15)).mul(1.4))))
       .add(body.mul(0.06));
     if (!opaque)
       m.opacityNode = mix(float(0.86), float(0.99), fresnel.add(foam).clamp(0, 1)).mul(
         smoothstep(radius, radius * 0.97, r),
       );
+    m.userData.lowMaterial = waterLow(deep, shallow, radius, opaque);
+    return m;
+  };
+  return mirror ? build() : shared(key, build);
+}
+
+/**
+ * Low-tier water: unlit, no vertex waves — but not a flat dark disc: the body colour, a sky tint that grows
+ * toward the far side, and bright ripple lines drifting over it (one texture read).
+ */
+function waterLow(deep: ColorRepresentation, shallow: ColorRepresentation, radius: number, opaque: boolean) {
+  const key = `waterLow|${new Color(deep).getHexString()}|${new Color(shallow).getHexString()}|${radius}|${opaque}`;
+  return shared(key, () => {
+    const m = new MeshBasicNodeMaterial({ transparent: !opaque });
+    const p = positionLocal;
+    const xz = vec2(p.x, p.z);
+    const rr = xz.length();
+    const body = opaque
+      ? mix(color(new Color(shallow)), color(new Color(deep)), smoothstep(radius * 0.36, radius * 0.75, rr))
+      : mix(color(new Color(deep)), color(new Color(shallow)), smoothstep(radius * 0.45, radius * 1.05, rr));
+    const toEye = cameraPosition.sub(positionWorld).normalize();
+    const grazing = float(1).sub(toEye.y.abs()).pow(3);
+    const n = texture(noiseTexture(), xz.mul(0.6).add(vec2(waterTime.mul(0.05), waterTime.mul(0.03))));
+    const lines = smoothstep(0.62, 0.72, n.r).mul(0.35);
+    m.colorNode = mix(body, waterSkyTop, grazing.mul(0.55)).add(vec3(lines, lines, lines));
+    if (!opaque) m.opacityNode = float(0.9).mul(smoothstep(radius, radius * 0.97, rr));
+    m.userData.shared = true;
+    m.userData.isLow = true;
     return m;
   });
 }

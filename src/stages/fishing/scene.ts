@@ -1,5 +1,14 @@
 /** ③ 숫자 낚시 diorama: TSL pond, number fish, rod & line; reel = slow-mo parabola + droplets (signature). */
-import { CylinderGeometry, Group, InstancedMesh, Matrix4, Mesh, Quaternion, Vector3 } from 'three/webgpu';
+import {
+  CylinderGeometry,
+  Group,
+  InstancedMesh,
+  Matrix4,
+  Mesh,
+  Quaternion,
+  RingGeometry,
+  Vector3,
+} from 'three/webgpu';
 import { BALANCE } from '../../domain/balance';
 import { createRng } from '../../domain/rng/rng';
 import { HitStop, Shake, Spring } from '../../engine/fx/juice';
@@ -76,9 +85,15 @@ export function createFishingScene(
   stageCamera(world, 11.5, 10, 38);
   root.add(baseDiorama(PALETTE.leaf, 7));
   const rng = createRng('fishing-deco');
+  // the pond bed sits a little lower than the bank, so even the deepest wave troughs stay above it
   const sand = new Mesh(disc(5.2, 0.12, 64), sandMaterial(PALETTE.sand, true));
-  sand.position.y = 0.02;
+  sand.position.y = -0.12;
   root.add(sand);
+  // the sandy bank round the edge (where the water meets the shore)
+  const bank = new Mesh(new RingGeometry(4.35, 5.25, 72).rotateX(-Math.PI / 2), sandMaterial(PALETTE.sand));
+  bank.position.y = 0.075;
+  bank.receiveShadow = true;
+  root.add(bank);
   const pond = new Mesh(waterPlane(4.6, 96), waterMaterial());
   pond.position.y = 0.16;
   pond.receiveShadow = true;

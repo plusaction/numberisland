@@ -22,27 +22,31 @@ export interface WaveParams {
   foamAt: number;
 }
 
-/** Small pond: gentle slosh. */
+/** Small pond: a lively slosh — six crossing wave trains so the surface never looks still. */
 export const WAVES_POND: WaveParams = {
   name: 'pond',
-  foamAt: 0.05,
+  foamAt: 0.075,
   list: [
-    { dir: [1, 0.3], length: 3.1, amp: 0.035, steep: 0.5, speed: 0.55 },
-    { dir: [-0.4, 1], length: 2.2, amp: 0.025, steep: 0.45, speed: 0.6 },
-    { dir: [0.7, -0.8], length: 1.3, amp: 0.012, steep: 0.4, speed: 0.7 },
-    { dir: [-1, -0.2], length: 0.8, amp: 0.006, steep: 0.3, speed: 0.8 },
+    { dir: [1, 0.3], length: 3.1, amp: 0.06, steep: 0.55, speed: 0.6 },
+    { dir: [-0.4, 1], length: 2.2, amp: 0.045, steep: 0.5, speed: 0.65 },
+    { dir: [0.7, -0.8], length: 1.3, amp: 0.022, steep: 0.45, speed: 0.75 },
+    { dir: [-1, -0.2], length: 0.8, amp: 0.011, steep: 0.35, speed: 0.85 },
+    { dir: [0.2, 1], length: 0.55, amp: 0.006, steep: 0.3, speed: 0.95 },
+    { dir: [-0.8, 0.6], length: 0.37, amp: 0.004, steep: 0.25, speed: 1.05 },
   ],
 };
 
-/** Sea around the hub island: longer rolling swell. */
+/** Sea around the hub island: a big rolling swell with choppy little waves riding on it. */
 export const WAVES_SEA: WaveParams = {
   name: 'sea',
-  foamAt: 0.1,
+  foamAt: 0.15,
   list: [
-    { dir: [1, 0.2], length: 7, amp: 0.09, steep: 0.55, speed: 0.45 },
-    { dir: [-0.3, 1], length: 4.5, amp: 0.06, steep: 0.5, speed: 0.5 },
-    { dir: [0.8, -0.7], length: 2.4, amp: 0.025, steep: 0.45, speed: 0.6 },
-    { dir: [-1, -0.4], length: 1.2, amp: 0.01, steep: 0.35, speed: 0.75 },
+    { dir: [1, 0.2], length: 7, amp: 0.15, steep: 0.6, speed: 0.5 },
+    { dir: [-0.3, 1], length: 4.5, amp: 0.1, steep: 0.55, speed: 0.55 },
+    { dir: [0.8, -0.7], length: 2.4, amp: 0.045, steep: 0.5, speed: 0.65 },
+    { dir: [-1, -0.4], length: 1.2, amp: 0.018, steep: 0.4, speed: 0.8 },
+    { dir: [0.4, 0.9], length: 0.75, amp: 0.009, steep: 0.35, speed: 0.95 },
+    { dir: [-0.6, -0.9], length: 0.48, amp: 0.005, steep: 0.3, speed: 1.1 },
   ],
 };
 

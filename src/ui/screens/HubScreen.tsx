@@ -131,8 +131,10 @@ export function HubScreen({
       const st = store.getState();
       if (st.screen !== 'hub' || sheetRef.current) return;
       const i = ORDER.indexOf(st.selected);
-      if (a === 'left' || a === 'p2.left') st.select(ORDER[(i - 1 + ORDER.length) % ORDER.length] as StageId);
-      if (a === 'right' || a === 'p2.right') st.select(ORDER[(i + 1) % ORDER.length] as StageId);
+      // ORDER runs anticlockwise round the island, which is right-to-left on screen: ◀ / ← takes the next one
+      if (a === 'left' || a === 'p2.left') st.select(ORDER[(i + 1) % ORDER.length] as StageId);
+      if (a === 'right' || a === 'p2.right')
+        st.select(ORDER[(i - 1 + ORDER.length) % ORDER.length] as StageId);
     });
   }, [api, store]);
   useEffect(() => islandRef.current?.select(selected), [selected]);
@@ -165,7 +167,8 @@ export function HubScreen({
   const players = STAGE_PLAYERS[selected];
   const step = (d: 1 | -1) => {
     const i = ORDER.indexOf(selected);
-    store.getState().select(ORDER[(i + d + ORDER.length) % ORDER.length] as StageId);
+    // ▶ picks the portal on the right of the screen (ORDER goes right-to-left as seen from outside)
+    store.getState().select(ORDER[(i - d + ORDER.length) % ORDER.length] as StageId);
   };
   const random = () => {
     const options = PLAYABLE.filter((s) => s !== selected);

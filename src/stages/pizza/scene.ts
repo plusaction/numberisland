@@ -25,13 +25,14 @@ import { baseDiorama, disposeTree, hitCylinder, hitId, stageCamera } from '../_s
 import { celebrate } from '../_shared/fx';
 import type { StageCtx, StageScene } from '../_shared/module';
 import {
-  boxModel,
   COLORS,
   crownModel,
   customerModel,
   keyModel,
+  LID_OPEN,
   type Monster,
   NumberPile,
+  openBoxModel,
   ovenModel,
   partnerModel,
   pizzaModel,
@@ -145,6 +146,58 @@ export function createPizzaScene(world: RenderWorld, ctx: StageCtx): StageScene<
   const oven = ovenModel();
   oven.group.position.copy(OVEN);
   root.add(oven.group);
+  // chimney smoke: soft round puffs that billow up, sway, swell and melt away (two instanced meshes:
+  // the everyday white wisps and the grey cough of a burnt pizza — one draw call each, no transparency)
+  const CHIMNEY_TOP = new Vector3(OVEN.x + 0.45, OVEN.y + 2.68, OVEN.z - 0.2);
+  type Puff = { age: number; life: number; size: number; drift: number; seed: number; rise: number };
+  const smokeOf = (color: string, n: number) => {
+    const mesh = new InstancedMesh(ball(1, 16), toyMaterial(color, { finish: 'matte' }), n);
+    mesh.frustumCulled = false;
+    mesh.count = 0;
+    root.add(mesh);
+    return { mesh, puffs: [] as Puff[], n };
+  };
+  const smoke = smokeOf('#f6f2ee', 16);
+  const soot = smokeOf('#7d7480', 12);
+  let smokeEvery = 0;
+  const puff = (pool: ReturnType<typeof smokeOf>, size: number, rise: number, life: number) => {
+    if (pool.puffs.length >= pool.n) pool.puffs.shift();
+    pool.puffs.push({
+      age: 0,
+      life,
+      size,
+      drift: 0.25 + Math.random() * 0.35,
+      seed: Math.random() * 6.28,
+      rise,
+    });
+  };
+  const smokeTick = (pool: ReturnType<typeof smokeOf>, dt: number) => {
+    for (const p of pool.puffs) p.age += dt;
+    pool.puffs = pool.puffs.filter((p) => p.age < p.life);
+    pool.puffs.forEach((p, i) => {
+      const u = p.age / p.life;
+      const sway = reduced ? 0 : Math.sin(p.age * 2.2 + p.seed) * 0.14 * u;
+      dummy.position.set(
+        CHIMNEY_TOP.x + p.drift * u + sway,
+        CHIMNEY_TOP.y + p.rise * (1 - (1 - u) * (1 - u)),
+        CHIMNEY_TOP.z - p.drift * 0.4 * u,
+      );
+      // swells as it leaves the chimney, then shrinks away near the end of its life
+      const grow = 0.3 + 0.7 * ease(Math.min(1, u * 2.4));
+      const fade = 1 - ease(seg(u, 0.55, 1));
+      const sq = reduced ? 1 : 1 + Math.sin(p.age * 3 + p.seed) * 0.08;
+      dummy.scale.set(
+        p.size * grow * fade * sq,
+        p.size * grow * fade * (2 - sq) * 0.85,
+        p.size * grow * fade,
+      );
+      dummy.rotation.set(0, 0, 0);
+      dummy.updateMatrix();
+      pool.mesh.setMatrixAt(i, dummy.matrix);
+    });
+    pool.mesh.count = pool.puffs.length;
+    pool.mesh.instanceMatrix.needsUpdate = true;
+  };
   const belt = new Mesh(roundedBox(4.4, 0.16, 0.9, 0.06), toyMaterial('#4b4f63', { finish: 'satin' }));
   belt.position.set(0.25, 1.0, -1.3);
   const beltLegs = new Mesh(roundedBox(4.2, 0.7, 0.6, 0.05), toyMaterial('#9aa3b5', { finish: 'satin' }));
@@ -173,7 +226,8 @@ export function createPizzaScene(world: RenderWorld, ctx: StageCtx): StageScene<
   pileB.label.position.set(0.25, 1.0, 0.1);
   pileA.group.position.copy(PILE_A);
   pileB.group.position.copy(PILE_B);
-  const sign2 = new NumberLabel('+', { size: 0.55, tint: PALETTE.ink });
+  // signs and "?" in bright, cheerful colours (digits keep their place colours)
+  const sign2 = new NumberLabel('+', { size: 0.55, tint: '#e8590c' });
   sign2.position.set(-0.1, COUNTER.top + 0.45, COUNTER.z + 0.3);
   root.add(pileA.group, pileB.group, sign2);
   // the box being filled (pack) / closed (both): an open tray + a hinged lid
@@ -210,10 +264,16 @@ export function createPizzaScene(world: RenderWorld, ctx: StageCtx): StageScene<
   const hero = pizzaModel(0.8);
   hero.visible = false;
   root.add(hero);
-  const heroBox = boxModel();
+  // the box that opens, takes the pizza and shuts
+  const { group: heroBox, lid } = openBoxModel();
   heroBox.scale.setScalar(1.25);
   heroBox.visible = false;
   root.add(heroBox);
+  // the pizza that goes into it (the flying one may be a single slice, so the box gets its own)
+  const boxed = pizzaModel(0.62);
+  boxed.position.y = 0.06;
+  boxed.visible = false;
+  heroBox.add(boxed);
   const burnt = new Group();
   const burntDisc = new Mesh(disc(0.55, 0.1, 28), toyMaterial('#4a2a1c', { finish: 'matte' }));
   burnt.add(burntDisc);
@@ -247,7 +307,7 @@ export function createPizzaScene(world: RenderWorld, ctx: StageCtx): StageScene<
 
   let customer: Monster | null = null;
   let crown: Group | null = null;
-  const bubble = new NumberLabel('?', { size: 0.5, placeColors: true });
+  const bubble = new NumberLabel('?', { size: 0.5, placeColors: true, tint: '#e2246b' });
   root.add(bubble);
 
   let orderRef: Order | null = null;
@@ -308,7 +368,7 @@ export function createPizzaScene(world: RenderWorld, ctx: StageCtx): StageScene<
   /** The serve show, k = 0..1 over SERVE_TICKS. */
   const serve = (o: Order, k: number, streak: number, sixSeven: boolean) => {
     const bake = o.role === 'bake';
-    const deliverFrom = bake ? 0.62 : 0.5;
+    const deliverFrom = bake ? 0.63 : 0.5;
     if (bake) {
       // the two piles slide together into one
       const m = ease(seg(k, 0, 0.1));
@@ -345,6 +405,7 @@ export function createPizzaScene(world: RenderWorld, ctx: StageCtx): StageScene<
         if (k >= 0.4)
           once('ding', () => {
             audio.play('pizza.ding');
+            for (let i = 0; i < 3; i++) puff(smoke, 0.3, 2.1 + i * 0.3, 2.4);
             world.particles.emit('sparkle', MOUTH, 30);
             oven.fire.scale.setScalar(1.6);
           });
@@ -384,19 +445,55 @@ export function createPizzaScene(world: RenderWorld, ctx: StageCtx): StageScene<
         hero.visible = false;
       }
     }
-    // the lid shuts over the pizza (bake: at the packing table; pack: on the counter)
-    const lidAt = bake ? 0.58 : 0.44;
+    // the box pops up open, the pizza drops in, the lid snaps shut, then off it goes to the customer
+    // (bake: at the packing table as the pizza comes off the belt; pack: on the counter, slices all in)
+    const openAt = bake ? 0.46 : 0.4;
+    const inAt = bake ? 0.56 : 0.43;
+    const lidAt = bake ? 0.58 : 0.45;
+    const shutAt = lidAt + 0.035;
     const from = bake
-      ? tmp2.set(PACK.x, PACK.y + 0.15, PACK.z)
-      : tmp2.set(-0.2, COUNTER.top + 0.15, COUNTER.z);
-    if (k >= lidAt) {
-      once('lid', () => {
+      ? tmp2.set(PACK.x, PACK.y + 0.02, PACK.z)
+      : tmp2.set(-0.2, COUNTER.top + 0.02, COUNTER.z);
+    if (k >= openAt) {
+      once('boxopen', () => {
         heroBox.visible = true;
+        boxed.visible = false;
+        lid.rotation.x = LID_OPEN;
+        audio.play('pizza.box', { pitch: 1.3 });
+        world.particles.emit('sparkle', tmp.copy(from).setY(from.y + 0.6), 12);
+      });
+      // pops up out of nowhere (squash-in), lid wide open
+      const pop = ease(seg(k, openAt, openAt + 0.03));
+      if (k < lidAt) heroBox.position.copy(from);
+      heroBox.rotation.y = 0;
+      heroBox.scale.setScalar(1.25 * (0.3 + 0.7 * pop));
+    }
+    if (k >= inAt)
+      once('boxin', () => {
+        // the pizza (or the counted slices) settles into the box
+        boxed.visible = true;
         hero.visible = false;
         if (!bake) pileA.group.visible = tray.visible = false;
-        audio.play('pizza.box');
-        world.particles.emit('dust', from, 10);
+        audio.play('merge', { pitch: 1.2 });
+        pileSpring.impulse(6);
       });
+    if (k >= inAt && k < lidAt) {
+      // a little drop into the box
+      const dpz = seg(k, inAt, lidAt);
+      boxed.position.y = 0.06 + (reduced ? 0 : (1 - ease(dpz)) * 0.5);
+    }
+    if (k >= lidAt) {
+      boxed.position.y = 0.06;
+      // the lid swings shut with a bounce
+      const c = seg(k, lidAt, shutAt);
+      lid.rotation.x = LID_OPEN * (1 - ease(c)) + (reduced || c >= 1 ? 0 : Math.sin(c * Math.PI) * 0.12);
+      if (c >= 1)
+        once('shut', () => {
+          lid.rotation.x = 0;
+          audio.play('pizza.box');
+          world.particles.emit('dust', tmp.copy(from).setY(from.y + 0.3), 10);
+          world.particles.emit('sparkle', tmp.copy(from).setY(from.y + 0.5), 20);
+        });
       const d = ease(seg(k, deliverFrom, deliverFrom + 0.16));
       const to = tmp
         .copy(SPOT)
@@ -405,8 +502,7 @@ export function createPizzaScene(world: RenderWorld, ctx: StageCtx): StageScene<
       heroBox.position.lerpVectors(from, to, d);
       heroBox.position.y += reduced ? 0 : Math.sin(d * Math.PI) * 1.2;
       heroBox.rotation.y = d * Math.PI * 2;
-      const pop = seg(k, lidAt, lidAt + 0.04);
-      heroBox.scale.setScalar(1.25 * (0.4 + 0.6 * ease(pop)) * (d >= 1 ? 1 - ease(seg(k, 0.84, 0.9)) : 1));
+      heroBox.scale.setScalar(1.25 * (d >= 1 ? 1 - ease(seg(k, 0.84, 0.9)) : 1));
     }
     // the customer gets it: a happy hop, hearts, a cheer
     if (k >= deliverFrom + 0.16)
@@ -505,7 +601,8 @@ export function createPizzaScene(world: RenderWorld, ctx: StageCtx): StageScene<
         if (o.role === 'bake') {
           audio.play('pizza.puff', { delay: 0.05 });
           world.particles.emit('dust', MOUTH, 30);
-          world.particles.emit('dust', tmp.set(-2.25, 2.8, -2.1), 20);
+          // the chimney coughs a big grey cloud
+          for (let i = 0; i < 6; i++) puff(soot, 0.28 + i * 0.03, 1.8 + i * 0.25, 1.6 + i * 0.2);
           burntT = 0;
         } else {
           audio.play('wrong.pfft', { delay: 0.1 });
@@ -538,8 +635,14 @@ export function createPizzaScene(world: RenderWorld, ctx: StageCtx): StageScene<
       const flick = reduced ? 1 : 1 + Math.sin(t * 13) * 0.05 + Math.sin(t * 7.3) * 0.04;
       const fs = oven.fire.scale.x;
       oven.fire.scale.setScalar(Math.max(flick, fs + (flick - fs) * (1 - Math.exp(-vdt * 4))));
-      if (!reduced && Math.floor(t * 4) % 3 === 0)
-        world.particles.emit('dust', tmp.set(OVEN.x + 0.45, 2.75, OVEN.z - 0.2), 1);
+      // a lazy wisp now and then (busier while an order is being baked)
+      smokeEvery -= vdt;
+      if (smokeEvery <= 0) {
+        smokeEvery = state.phase === 'serve' ? 0.28 : reduced ? 1.4 : 0.55;
+        puff(smoke, 0.2 + Math.random() * 0.1, 1.5 + Math.random() * 0.5, 2.6 + Math.random() * 0.8);
+      }
+      smokeTick(smoke, vdt);
+      smokeTick(soot, vdt);
       const run = state.phase === 'serve' ? 1.2 : 0.35;
       for (let i = 0; i < SLATS; i++) {
         const x = -1.9 + (((i / SLATS) * 4.3 + (reduced ? 0 : t * run)) % 4.3);

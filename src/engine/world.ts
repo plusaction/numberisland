@@ -36,7 +36,14 @@ import {
   TIERS,
   type Tier,
 } from './quality/quality';
-import { invalidateSharedMaterials, lowVariant, waterTime } from './tsl/materials';
+import {
+  invalidateSharedMaterials,
+  lowVariant,
+  waterSkyBottom,
+  waterSkyTop,
+  waterSunDir,
+  waterTime,
+} from './tsl/materials';
 
 export interface WorldOptions {
   canvas: HTMLCanvasElement;
@@ -214,6 +221,10 @@ export class RenderWorld {
     const t = smoothstep(0.0, 1.0, screenUV.y.oneMinus());
     this.scene.backgroundNode = mix(color(new Color(sky.bottom)), color(new Color(sky.top)), t);
     (this.scene.fog as Fog).color.set(sky.bottom);
+    // the water mirrors this sky (every tier, environment map or not) and the sun's glare
+    waterSkyTop.value.set(sky.top);
+    waterSkyBottom.value.set(sky.bottom);
+    waterSunDir.value.copy(this.sun.position).normalize();
     if (this.handle) this.bakeEnvironment();
   }
 

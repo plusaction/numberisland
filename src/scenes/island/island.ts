@@ -2,9 +2,10 @@
  * Hub scene (SPEC §10): round toy island, 8 stage portals in 3 zones, growth tree, buildings.
  * Selection by tap/click (big hit proxies), arrow keys, or gamepad; camera dollies to the selection.
  */
+
+import { reflector } from 'three/tsl';
 import {
   Color,
-  ConeGeometry,
   CylinderGeometry,
   Group,
   InstancedMesh,
@@ -117,7 +118,15 @@ export function createIsland(world: RenderWorld, opts: IslandOptions): IslandCon
 
   // ground
   // sea: Gerstner swell + sky reflection + sun glints; shallow turquoise near the beach
-  const sea = new Mesh(waterPlane(22, 96), waterMaterial('#0b5f86', '#2fb4cc', 22, WAVES_SEA, true));
+  // high tiers: a live mirror of the island in the swell (renders the scene once more at low resolution)
+  const rich = world.governor.tier === 'high' || world.governor.tier === 'ultra';
+  const mirror = rich ? reflector({ resolutionScale: 0.4, bounces: false }) : undefined;
+  const sea = new Mesh(waterPlane(22, 96), waterMaterial('#0b5f86', '#2fb4cc', 22, WAVES_SEA, true, mirror));
+  if (mirror) {
+    // the mirror plane is the target's XY plane: lay it flat on the water
+    mirror.target.rotateX(-Math.PI / 2);
+    sea.add(mirror.target);
+  }
   sea.position.y = -0.55;
   sea.receiveShadow = true;
   root.add(sea);
@@ -259,19 +268,6 @@ export function createIsland(world: RenderWorld, opts: IslandOptions): IslandCon
     portals.get(id)?.spring.impulse(4);
   };
   applySelection(selected);
-  // star pennants beside each portal (up to three), hidden until earned
-  const pennants = new Map<StageId, Mesh[]>();
-  for (const [sid, p] of portals) {
-    const list: Mesh[] = [];
-    for (let i = 0; i < 3; i++) {
-      const f = new Mesh(new ConeGeometry(0.14, 0.3, 4), toyMaterial(PALETTE.sun, { rimStrength: 0.8 }));
-      f.position.set(-0.4 + i * 0.4, 1.95, -0.75);
-      f.visible = false;
-      p.group.add(f);
-      list.push(f);
-    }
-    pennants.set(sid, list);
-  }
   // decorations: built when first opened
   const decor = new Map<DecorId, Decor>();
   let decorShown = -1;
@@ -332,10 +328,6 @@ export function createIsland(world: RenderWorld, opts: IslandOptions): IslandCon
     select: (id) => applySelection(id),
     setFruits,
     setMeta(meta) {
-      for (const [sid, list] of pennants)
-        list.forEach((f, i) => {
-          f.visible = i < (meta.stars[sid] ?? 0);
-        });
       DECOR.slice(0, meta.decor).forEach((id, i) => {
         if (decor.has(id)) return;
         const d = decorModel(id);
@@ -476,6 +468,7 @@ export function createIsland(world: RenderWorld, opts: IslandOptions): IslandCon
     },
     dispose() {
       releaseTree(root);
+      mirror?.dispose();
     },
   };
 }

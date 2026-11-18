@@ -141,8 +141,10 @@ function fishing(g: Group) {
     at: [0, 0.06, 0],
     mat: toyMaterial('#e7d6b0', { finish: 'matte' }),
   });
-  const pond = new Mesh(waterPlane(0.62, 24), waterMaterial(undefined, undefined, 0.62));
-  pond.position.y = 0.135;
+  // the big pond's water scaled down: its waves shrink with it, so they never dip under the stone rim
+  const pond = new Mesh(waterPlane(4.6, 32), waterMaterial());
+  pond.scale.setScalar(0.62 / 4.6);
+  pond.position.y = 0.15;
   g.add(pond);
   for (let i = 0; i < 7; i++) {
     const a = (i / 7) * Math.PI * 2 + 0.3;
