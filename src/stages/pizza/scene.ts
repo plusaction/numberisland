@@ -12,12 +12,12 @@
  *   피자랑 boxes it; pack → 피자랑 bakes, the missing slices hop one by one into the box (counting up), the lid
  *   shuts. Then the box slides to the customer (a happy bite, hearts) and 피자랑 and a big glove HIGH-FIVE.
  */
-import { Group, InstancedMesh, Mesh, Object3D, Vector3 } from 'three/webgpu';
+import { CylinderGeometry, Group, InstancedMesh, Mesh, Object3D, Vector3 } from 'three/webgpu';
 import { HitStop, Shake, Spring } from '../../engine/fx/juice';
 import { ball, capsule, disc, roundedBox } from '../../engine/geo/shapes';
 import { NumberLabel } from '../../engine/numbers/number-label';
 import { PALETTE } from '../../engine/palette';
-import { toyMaterial, woodMaterial } from '../../engine/tsl/materials';
+import { metalMaterial, toyMaterial, woodMaterial } from '../../engine/tsl/materials';
 import type { RenderWorld } from '../../engine/world';
 import { audio } from '../../infra/audio/audio';
 import type { PointerInfo } from '../../scenes/common/controller';
@@ -136,7 +136,27 @@ export function createPizzaScene(world: RenderWorld, ctx: StageCtx): StageScene<
   }
   const lintel = new Mesh(roundedBox(0.36, 0.34, 2.3, 0.08), doorWood);
   lintel.position.set(-5.5, 3.3, 1.0);
-  root.add(lintel);
+  // the wall the door sits in (so the frame is not two posts standing alone), the door leaf swung open
+  // with a round window, a welcome mat and a little bell over the door
+  const sideWall = toyMaterial('#fff1d9', { finish: 'matte' });
+  const wallA = new Mesh(roundedBox(0.24, 3.6, 1.6, 0.06), sideWall);
+  wallA.position.set(-5.56, 2.05, -0.95);
+  const wallTop = new Mesh(roundedBox(0.24, 0.55, 2.2, 0.06), sideWall);
+  wallTop.position.set(-5.56, 3.72, 1.0);
+  const leaf = new Mesh(roundedBox(1.7, 2.75, 0.12, 0.06), woodMaterial('#c98a5c'));
+  leaf.position.set(-5.5 - 0.85 * Math.cos(1.2), 1.72, 1.95 + 0.85 * Math.sin(1.2));
+  leaf.rotation.y = -1.2;
+  leaf.castShadow = true;
+  const porthole = new Mesh(disc(0.28, 0.14, 20), toyMaterial('#bfe9ff', { rimStrength: 0.6 }));
+  porthole.rotation.x = Math.PI / 2;
+  porthole.position.set(0, 0.6, 0.02);
+  leaf.add(porthole);
+  const mat = new Mesh(roundedBox(1.1, 0.04, 1.7, 0.03), toyMaterial('#e2492f', { finish: 'matte' }));
+  mat.position.set(-4.75, 0.32, 1.0);
+  mat.receiveShadow = true;
+  const bell = new Mesh(new CylinderGeometry(0.06, 0.16, 0.2, 14), metalMaterial('#f2b632'));
+  bell.position.set(-5.3, 3.0, 1.0);
+  root.add(lintel, wallA, wallTop, leaf, mat, bell);
   const carpet = new Mesh(roundedBox(3.6, 0.04, 1.1, 0.03), toyMaterial('#d8304a', { finish: 'matte' }));
   carpet.position.set(-5.4, 0.32, 1.0);
   carpet.visible = false;

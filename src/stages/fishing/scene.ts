@@ -7,6 +7,7 @@ import {
   Mesh,
   Quaternion,
   RingGeometry,
+  TorusGeometry,
   Vector3,
 } from 'three/webgpu';
 import { BALANCE } from '../../domain/balance';
@@ -17,6 +18,7 @@ import { ball, blob, capsule, disc, waterPlane } from '../../engine/geo/shapes';
 import { NumberLabel } from '../../engine/numbers/number-label';
 import { PALETTE } from '../../engine/palette';
 import {
+  metalMaterial,
   sandMaterial,
   toyMaterial,
   waterMaterial,
@@ -162,8 +164,30 @@ export function createFishingScene(
       .multiplyScalar((1 - u) * (1 - u))
       .addScaledVector(c, 2 * u * (1 - u))
       .addScaledVector(b, u * u);
-  const bucket = new Mesh(disc(0.55, 0.7, 24), toyMaterial('#7cc8e0'));
+  // the catch bucket: a tapered toy pail with a rolled rim, a metal handle and water inside
+  const bucket = new Group();
   bucket.position.set(-4.6, 0.35, 4.6);
+  const pail = new Mesh(
+    new CylinderGeometry(0.58, 0.44, 0.72, 28),
+    toyMaterial('#4aa8d6', { finish: 'satin' }),
+  );
+  pail.castShadow = true;
+  const rim = new Mesh(
+    new TorusGeometry(0.58, 0.05, 10, 32),
+    toyMaterial(PALETTE.white, { finish: 'satin' }),
+  );
+  rim.rotation.x = Math.PI / 2;
+  rim.position.y = 0.36;
+  const stripe = new Mesh(new TorusGeometry(0.52, 0.025, 8, 32), toyMaterial(PALETTE.sun));
+  stripe.rotation.x = Math.PI / 2;
+  stripe.position.y = 0.05;
+  const water = new Mesh(disc(0.55, 0.02, 28), waterMaterial());
+  water.position.y = 0.36; // sits on the pail's top: the bucket looks full
+  const handle = new Mesh(new TorusGeometry(0.6, 0.025, 8, 24, Math.PI), metalMaterial('#cfd6e4'));
+  handle.position.y = 0.36;
+  handle.rotation.y = 0.5;
+  handle.rotation.x = -0.35;
+  bucket.add(pail, rim, stripe, water, handle);
   root.add(bucket);
 
   const fishViews = new Map<number, FishView>();

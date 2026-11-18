@@ -236,7 +236,59 @@ export function createIsland(world: RenderWorld, opts: IslandOptions): IslandCon
     roof.position.set(house.position.x, house.position.y + size * 0.75, house.position.z);
     roof.rotation.y = Math.PI / 4;
     roof.castShadow = true;
-    root.add(markStatic(house), markStatic(roof));
+    // a toy house, not a box: a door with a knob, two windows, a chimney and a doorstep, all facing the
+    // centre of the island (where the paths meet)
+    const front = new Group();
+    front.position.copy(house.position);
+    front.lookAt(0, house.position.y, 0);
+    const half = size / 2;
+    const add = (
+      geo: ConstructorParameters<typeof Mesh>[0],
+      mat: ConstructorParameters<typeof Mesh>[1],
+      x: number,
+      y: number,
+      z: number,
+    ) => {
+      const m = new Mesh(geo, mat);
+      m.position.set(x, y, z);
+      m.castShadow = true;
+      front.add(markStatic(m));
+      return m;
+    };
+    const wood = woodMaterial('#9a6a48');
+    add(roundedBox(size * 0.3, size * 0.48, 0.05, 0.03), wood, 0, -size * 0.2, half + 0.02);
+    add(ball(0.025, 8), toyMaterial(PALETTE.sun), size * 0.09, -size * 0.2, half + 0.06);
+    for (const x of [-size * 0.3, size * 0.3]) {
+      add(
+        roundedBox(size * 0.2, size * 0.2, 0.04, 0.02),
+        toyMaterial('#bfe9ff', { rimStrength: 0.6 }),
+        x,
+        size * 0.12,
+        half + 0.02,
+      );
+      add(
+        roundedBox(size * 0.24, 0.025, 0.06, 0.01),
+        toyMaterial(PALETTE.white),
+        x,
+        size * 0.12 - size * 0.11,
+        half + 0.04,
+      );
+    }
+    add(
+      roundedBox(size * 0.42, 0.06, 0.18, 0.02),
+      toyMaterial('#d8cfc4', { finish: 'matte' }),
+      0,
+      -half + 0.03,
+      half + 0.1,
+    );
+    add(
+      roundedBox(size * 0.14, size * 0.38, size * 0.14, 0.03),
+      toyMaterial('#c8553d'),
+      -size * 0.22,
+      size * 0.85,
+      -size * 0.12,
+    );
+    root.add(markStatic(house), markStatic(roof), front);
   }
   // bushes: one shared lumpy geometry, instanced with seeded scale/rotation/tint (1 draw call)
   const bushGeo = blob(0.42, rng, 0.2);

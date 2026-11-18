@@ -7,9 +7,9 @@
  * - Room cut: the camera swoops in at the start of each room; when the door opens, light pours out and the
  *   camera glides into the doorway (the HUD closes an iris over it). The treasure room frees the friend.
  */
-import { CylinderGeometry, Group, Mesh, Vector3 } from 'three/webgpu';
+import { Color, CylinderGeometry, Group, Mesh, Vector3 } from 'three/webgpu';
 import { HitStop, Shake, Spring } from '../../engine/fx/juice';
-import { roundedBox } from '../../engine/geo/shapes';
+import { ball, disc, roundedBox } from '../../engine/geo/shapes';
 import { NumberLabel } from '../../engine/numbers/number-label';
 import { PALETTE } from '../../engine/palette';
 import { metalMaterial, toyMaterial, woodMaterial } from '../../engine/tsl/materials';
@@ -75,6 +75,58 @@ export function createEscapeScene(world: RenderWorld, ctx: StageCtx): StageScene
   const trim = new Mesh(roundedBox(9.6, 0.22, 0.36, 0.06), toyMaterial(PALETTE.berry));
   trim.position.set(0, 0.42, WALL_Z - 0.1);
   root.add(floor, back, side, trim);
+  // a lived-in room, not bare boards: wallpaper stripes (tinted per room), a window with a sky in the side
+  // wall, a framed picture and a hanging lamp
+  const stripeMat = () => toyMaterial('#ffffff', { finish: 'matte' });
+  const stripes: Mesh[] = [];
+  for (let i = 0; i < 10; i++) {
+    const x = -4.3 + i * 0.95;
+    if (Math.abs(x) < 1.7) continue; // the door
+    const st = new Mesh(roundedBox(0.28, 3.4, 0.04, 0.02), stripeMat());
+    st.position.set(x, 2.55, WALL_Z + 0.02);
+    stripes.push(st);
+  }
+  for (let i = 0; i < 6; i++) {
+    const st = new Mesh(roundedBox(0.04, 3.4, 0.28, 0.02), stripeMat());
+    st.position.set(-4.78, 2.55, -2.2 + i * 1.0);
+    if (Math.abs(-2.2 + i * 1.0 - 0.4) < 1.1) continue; // the window
+    stripes.push(st);
+  }
+  const winFrame = new Mesh(roundedBox(0.14, 1.5, 1.7, 0.05), woodMaterial('#f4f1ec'));
+  winFrame.position.set(-4.76, 2.5, 0.4);
+  const winSky = new Mesh(roundedBox(0.06, 1.24, 1.44, 0.03), toyMaterial('#5fb8f0', { rimStrength: 0.5 }));
+  winSky.position.set(-4.72, 2.5, 0.4);
+  const winBars = [
+    new Mesh(roundedBox(0.08, 1.24, 0.07, 0.02), woodMaterial('#f4f1ec')),
+    new Mesh(roundedBox(0.08, 0.07, 1.44, 0.02), woodMaterial('#f4f1ec')),
+  ];
+  for (const b of winBars) b.position.set(-4.7, 2.5, 0.4);
+  const cloud = new Mesh(ball(0.16, 12), toyMaterial('#ffffff', { finish: 'matte' }));
+  cloud.scale.set(0.3, 0.6, 1.4);
+  cloud.position.set(-4.7, 2.75, 0.1);
+  const picture = new Group();
+  const pFrame = new Mesh(roundedBox(1.1, 0.85, 0.08, 0.04), woodMaterial('#c98a5c'));
+  const pArt = new Mesh(roundedBox(0.9, 0.65, 0.05, 0.02), toyMaterial('#fff6dc', { finish: 'matte' }));
+  pArt.position.z = 0.03;
+  const sun = new Mesh(disc(0.13, 0.03, 18), toyMaterial(PALETTE.sun));
+  sun.rotation.x = Math.PI / 2;
+  sun.position.set(0.22, 0.13, 0.06);
+  const hill = new Mesh(ball(0.32, 16), toyMaterial('#7ee08a', { finish: 'matte' }));
+  hill.scale.set(1.3, 0.45, 0.1);
+  hill.position.set(-0.1, -0.2, 0.06);
+  picture.add(pFrame, pArt, sun, hill);
+  picture.position.set(3.1, 2.9, WALL_Z + 0.06);
+  picture.rotation.z = -0.04;
+  const lampCord = new Mesh(new CylinderGeometry(0.02, 0.02, 1.2, 6), toyMaterial('#3b3355'));
+  lampCord.position.set(-2.4, 4.55, -0.9);
+  const lampShade = new Mesh(
+    new CylinderGeometry(0.22, 0.48, 0.42, 20, 1, true),
+    toyMaterial(PALETTE.sun, { finish: 'satin' }),
+  );
+  lampShade.position.set(-2.4, 3.8, -0.9);
+  const lampBulb = new Mesh(ball(0.14, 12), toyMaterial('#fff6c8', { rimStrength: 1 }));
+  lampBulb.position.set(-2.4, 3.62, -0.9);
+  root.add(...stripes, winFrame, winSky, ...winBars, cloud, picture, lampCord, lampShade, lampBulb);
 
   // door: frame + panel hinged on its left edge, glowing doorway behind it
   const frame = new Mesh(roundedBox(DOOR_W + 0.4, DOOR_H + 0.25, 0.35, 0.08), woodMaterial('#8a5a3c'));
@@ -146,6 +198,9 @@ export function createEscapeScene(world: RenderWorld, ctx: StageCtx): StageScene
     const c = ROOM_COLORS[th];
     floor.material = toyMaterial(c.floor, { finish: 'satin' });
     back.material = side.material = toyMaterial(c.wall, { finish: 'matte' });
+    // stripes: the wall colour a shade deeper, so each room has its own wallpaper
+    const deeper = new Color(c.wall).offsetHSL(0, 0.08, -0.06).getStyle();
+    for (const st of stripes) st.material = toyMaterial(deeper, { finish: 'matte' });
     trim.material = toyMaterial(c.trim);
   };
 

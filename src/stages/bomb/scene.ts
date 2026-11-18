@@ -21,7 +21,7 @@ import { createSmoke } from '../../engine/fx/smoke';
 import { ball, capsule, roundedBox } from '../../engine/geo/shapes';
 import { NumberLabel } from '../../engine/numbers/number-label';
 import { PALETTE, PLACE_COLORS } from '../../engine/palette';
-import { metalMaterial, toyMaterial } from '../../engine/tsl/materials';
+import { metalMaterial, toyMaterial, woodMaterial } from '../../engine/tsl/materials';
 import type { RenderWorld } from '../../engine/world';
 import { audio } from '../../infra/audio/audio';
 import type { PointerInfo } from '../../scenes/common/controller';
@@ -274,11 +274,28 @@ export function createBombScene(world: RenderWorld, ctx: StageCtx): StageScene<B
   const SHELF_SCALE = 1.3;
   const SHELF_Y = 0.95;
   const SHELF_Z = -3.0;
+  // two little wooden shelf units (legs, a back board, a top rail) — not planks floating in the air
+  const shelfWood = woodMaterial('#c98a5c');
+  const shelfDark = woodMaterial('#a86f45');
   for (const side of [-1, 1]) {
-    const plank = new Mesh(roundedBox(4.4, 0.12, 0.8, 0.05), toyMaterial('#c98a5c', { finish: 'satin' }));
-    plank.position.set(side * 3.7, SHELF_Y - 0.06, SHELF_Z);
+    const cx = side * 3.7;
+    const plank = new Mesh(roundedBox(4.4, 0.12, 0.8, 0.05), shelfWood);
+    plank.position.set(cx, SHELF_Y - 0.06, SHELF_Z);
     plank.receiveShadow = true;
-    root.add(plank);
+    plank.castShadow = true;
+    const backBoard = new Mesh(roundedBox(4.4, 1.5, 0.1, 0.04), toyMaterial('#f3e2c7', { finish: 'matte' }));
+    backBoard.position.set(cx, SHELF_Y + 0.62, SHELF_Z - 0.42);
+    backBoard.receiveShadow = true;
+    const rail = new Mesh(roundedBox(4.5, 0.12, 0.5, 0.04), shelfDark);
+    rail.position.set(cx, SHELF_Y + 1.4, SHELF_Z - 0.2);
+    rail.castShadow = true;
+    root.add(plank, backBoard, rail);
+    for (const dx of [-2.1, 2.1]) {
+      const leg = new Mesh(roundedBox(0.16, SHELF_Y + 1.45, 0.7, 0.05), shelfDark);
+      leg.position.set(cx + dx, (SHELF_Y + 1.45) / 2 - 0.05, SHELF_Z - 0.05);
+      leg.castShadow = true;
+      root.add(leg);
+    }
   }
   owned.forEach((id) => {
     const m = toyModel(id);
