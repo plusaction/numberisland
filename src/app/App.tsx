@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { lazy, Suspense, useEffect, useState } from 'react';
 import { useStore } from 'zustand';
 import { createAdaptiveState, DEFAULT_SETTINGS } from '../domain/edu/adaptive';
 import { ko } from '../i18n/ko';
@@ -6,14 +6,29 @@ import { ErrorBoundary } from '../ui/components/ErrorBoundary';
 import { HubScreen } from '../ui/screens/HubScreen';
 import { IntroScreen } from '../ui/screens/IntroScreen';
 import { PlacementScreen } from '../ui/screens/PlacementScreen';
-import { ResultScreen } from '../ui/screens/ResultScreen';
-import { StageScreen } from '../ui/screens/StageScreen';
 import { WelcomeScreen } from '../ui/screens/WelcomeScreen';
 import { type App as AppHandle, bootApp, newProfile } from './bootstrap';
-import { EngineDemo } from './EngineDemo';
 import { WorldHost } from './WorldHost';
 
 const params = new URLSearchParams(location.search);
+
+// Not needed for the first screen: fetched later (and warmed up in idle time once the island is up),
+// so the title screen's own download stays small
+const loadStage = () => import('../ui/screens/StageScreen');
+const loadResult = () => import('../ui/screens/ResultScreen');
+const StageScreen = lazy(() => loadStage().then((m) => ({ default: m.StageScreen })));
+const ResultScreen = lazy(() => loadResult().then((m) => ({ default: m.ResultScreen })));
+const EngineDemo = lazy(() => import('./EngineDemo').then((m) => ({ default: m.EngineDemo })));
+/** Fetch the play screens in the background while the child looks at the island. */
+export function prefetchPlay() {
+  const idle = (globalThis as { requestIdleCallback?: (f: () => void) => void }).requestIdleCallback;
+  const go = () => {
+    void loadStage();
+    void loadResult();
+  };
+  if (idle) idle(go);
+  else globalThis.setTimeout(go, 1500);
+}
 
 function usePrefersReducedMotion(): boolean {
   const [r, setR] = useState(() => matchMedia('(prefers-reduced-motion: reduce)').matches);
@@ -69,6 +84,7 @@ function Screens({ app }: { app: AppHandle }) {
       ) : null;
     case 'hub':
     case 'intro':
+      prefetchPlay();
       // the intro card floats over the living island (same HubScreen instance: the 3D scene stays up)
       return (
         <>
@@ -77,9 +93,17 @@ function Screens({ app }: { app: AppHandle }) {
         </>
       );
     case 'stage':
-      return <StageScreen store={store} reducedMotion={reduced} />;
+      return (
+        <Suspense fallback={null}>
+          <StageScreen store={store} reducedMotion={reduced} />
+        </Suspense>
+      );
     case 'result':
-      return <ResultScreen store={store} />;
+      return (
+        <Suspense fallback={null}>
+          <ResultScreen store={store} />
+        </Suspense>
+      );
   }
 }
 
@@ -88,7 +112,12 @@ export function App() {
   useEffect(() => {
     void bootApp().then(setApp);
   }, []);
-  if (params.get('demo') === 'engine') return <EngineDemo />;
+  if (params.get('demo') === 'engine')
+    return (
+      <Suspense fallback={null}>
+        <EngineDemo />
+      </Suspense>
+    );
   return (
     <WorldHost>
       <main className="ui-layer" aria-label={ko.app.title}>

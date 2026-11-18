@@ -4,7 +4,7 @@
  * mark (● ▬ ★ ◆) sits under it, so colour is never the only cue.
  */
 
-import { color, texture, uv, vec2 } from 'three/tsl';
+import { texture, uniform, uv, vec2 } from 'three/tsl';
 import {
   CanvasTexture,
   Color,
@@ -60,13 +60,15 @@ function glyphMaterial(g: Glyph, tint: string): SpriteNodeMaterial {
   const n = GLYPHS.length;
   // Numbers keep their exact palette colours: no tone mapping on glyphs (readability first).
   const m = new SpriteNodeMaterial({ transparent: true, depthWrite: false, toneMapped: false });
+  // which cell of the atlas and which tint are uniforms, so every glyph in every colour shares one shader
+  // (as constants they made a separate shader per glyph × colour — dozens to compile on the first frame)
   const t = texture(
     atlas,
     uv()
       .mul(vec2(1 / n, 1))
-      .add(vec2(idx / n, 0)),
+      .add(vec2(uniform(idx / n), 0)),
   );
-  m.colorNode = t.rgb.mul(color(new Color(tint)));
+  m.colorNode = t.rgb.mul(uniform(new Color(tint)));
   m.opacityNode = t.a;
   m.sizeAttenuation = true;
   m.userData.shared = true; // cached per glyph+tint: scene teardown must not dispose it

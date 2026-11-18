@@ -13,6 +13,7 @@ import {
   color,
   cos,
   float,
+  materialColor,
   mix,
   normalLocal,
   normalView,
@@ -135,7 +136,9 @@ export function toyMaterial(
     const rough = opts.roughness ?? (finish === 'plastic' ? 0.3 : finish === 'satin' ? 0.5 : 0.8);
     const m = new MeshStandardNodeMaterial({ roughness: rough, metalness: 0 });
     m.userData.lowColor = new Color(hex).getHex();
-    const base = color(new Color(hex));
+    // the colour is a material uniform, not a shader constant: one compiled shader serves every colour
+    m.color.set(hex);
+    const base = materialColor;
     m.colorNode = base;
     if (opts.rimStrength) m.emissiveNode = base.mul(rim(2.5).mul(opts.rimStrength).add(0.05));
     return m;
@@ -155,7 +158,9 @@ export function woodMaterial(
     const rings = sin(p.x.mul(7).add(p.z.mul(3)).add(n.mul(9)))
       .mul(0.5)
       .add(0.5);
-    const base = color(new Color(hex));
+    // the colour is a material uniform, not a shader constant: one compiled shader serves every colour
+    m.color.set(hex);
+    const base = materialColor;
     m.colorNode = base.mul(mix(float(0.78), float(1.08), rings.mul(rings)));
     m.roughnessNode = mix(float(roughness * 0.75), float(roughness * 1.25), rings);
     return m;
@@ -177,7 +182,9 @@ export function tableMaterial(hex: ColorRepresentation = '#c89a6e'): MeshStandar
     const tintN = texture(noiseTexture(), vec2(plank.mul(0.137), 0.31)).b;
     const grain = texture(noiseTexture(), vec2(across.mul(0.05).add(plank.mul(0.21)), p.z.mul(0.03))).r;
     const seam = smoothstep(0.0, 0.025, across).mul(smoothstep(1.0, 0.975, across));
-    const base = color(new Color(hex));
+    // the colour is a material uniform, not a shader constant: one compiled shader serves every colour
+    m.color.set(hex);
+    const base = materialColor;
     m.colorNode = base
       .mul(mix(float(0.82), float(1.08), tintN))
       .mul(mix(float(0.9), float(1.05), grain))
@@ -194,7 +201,9 @@ export function sandMaterial(hex: ColorRepresentation, caustics = false): MeshSt
     m.userData.lowColor = new Color(hex).getHex();
     const fine = noiseAt(2.2);
     const big = noiseAt(0.18);
-    const base = color(new Color(hex));
+    // the colour is a material uniform, not a shader constant: one compiled shader serves every colour
+    m.color.set(hex);
+    const base = materialColor;
     m.colorNode = base.mul(mix(float(0.86), float(1.06), big.b)).mul(mix(float(0.93), float(1.04), fine.r));
     m.roughnessNode = mix(float(0.8), float(0.97), fine.r);
     if (caustics) {
@@ -218,7 +227,9 @@ export function grassMaterial(hex: ColorRepresentation): MeshStandardNodeMateria
     const m = new MeshStandardNodeMaterial({ roughness: 0.85, metalness: 0 });
     m.userData.lowColor = new Color(hex).getHex();
     const n = noiseAt(0.6);
-    const base = color(new Color(hex));
+    // the colour is a material uniform, not a shader constant: one compiled shader serves every colour
+    m.color.set(hex);
+    const base = materialColor;
     m.colorNode = base
       .mul(mix(float(0.78), float(1.1), n.g))
       .mul(mix(float(0.92), float(1.05), noiseAt(3).r));
@@ -233,7 +244,7 @@ export function metalMaterial(hex: ColorRepresentation, roughness = 0.32): MeshS
     m.userData.lowColor = new Color(hex).getHex();
     const p = positionLocal;
     const brush = texture(noiseTexture(), vec2(p.x.add(p.z).mul(4), p.y.mul(0.05))).r;
-    m.colorNode = color(new Color(hex));
+    m.color.set(hex); // a uniform: every metal colour shares one shader
     m.roughnessNode = float(roughness).add(brush.mul(0.14));
     return m;
   });
@@ -259,7 +270,9 @@ export function jellyMaterial(hex: ColorRepresentation, displace?: Node<'vec3'>)
     opacity: 0.94,
   });
   const wobble = uniform(0);
-  const base = color(new Color(hex));
+  // the colour is a material uniform, not a shader constant: one compiled shader serves every colour
+  m.color.set(hex);
+  const base = materialColor;
   m.colorNode = base;
   m.emissiveNode = base.mul(float(0.16).add(rim(1.6).mul(0.4)));
   // gooey wobble: slower, deeper ripples running up the body

@@ -51,7 +51,9 @@ describe('[S1] 네트워크 0 검사기', () => {
 
 describe('[S4] Vercel hosting keeps the same security headers', () => {
   it('vercel.json sends every header from public/_headers on all paths', () => {
-    const lines = readFileSync('public/_headers', 'utf8')
+    // the first block ("/*", up to the first blank line) is the site-wide one; later blocks are per path
+    const block = readFileSync('public/_headers', 'utf8').split(/\n\s*\n/)[0] ?? '';
+    const lines = block
       .split('\n')
       .slice(1)
       .filter((l) => l.trim());

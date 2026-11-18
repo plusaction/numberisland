@@ -1,8 +1,8 @@
 [
   {
-    "name": "initial JS (gzip)",
-    "path": "dist/assets/index-*.js",
-    "limit": "440 kB",
+    "name": "initial JS (gzip): app + react + three",
+    "path": ["dist/assets/index-*.js", "dist/assets/react-*.js", "dist/assets/three.webgpu-*.js"],
+    "limit": "420 kB",
     "gzip": true
   },
   {
@@ -10,6 +10,12 @@
     "path": "dist/assets/index-*.css",
     "limit": "25 kB",
     "gzip": true
+  },
+  {
+    "name": "fonts: all woff2 incl. Fredoka (D52)",
+    "path": "dist/assets/*.woff2",
+    "limit": "220 kB",
+    "gzip": false
   },
   {
     "name": "stage fishing (gzip)",

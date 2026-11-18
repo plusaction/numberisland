@@ -1,0 +1,27 @@
+/*
+ * Korean fonts cut down to the characters the game actually shows (`pnpm fonts:subset`, D52):
+ * a few dozen KB instead of the full sets (Jua 366 KB, Pretendard 2 MB). Served from our own files (P1).
+ */
+@font-face {
+  font-family: "Jua";
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url("../assets/fonts/jua-latin.woff2") format("woff2");
+  unicode-range: U+0000-00FF, U+2000-206F, U+20AC, U+2122;
+}
+@font-face {
+  font-family: "Jua";
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url("../assets/fonts/jua.woff2") format("woff2");
+  unicode-range: U+0100-1FFF, U+2070-20AB, U+20AD-2121, U+2123-FFFF;
+}
+@font-face {
+  font-family: "Pretendard Variable";
+  font-style: normal;
+  font-weight: 100 900;
+  font-display: swap;
+  src: url("../assets/fonts/pretendard.woff2") format("woff2");
+}

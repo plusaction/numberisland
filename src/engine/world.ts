@@ -154,7 +154,9 @@ export class RenderWorld {
       isMobile(),
     );
     this.applyTier();
+    performance.mark('ni:backend-ready');
     this.bakeEnvironment();
+    performance.mark('ni:env-baked');
     // warm the physics chunk in the background so the first celebration already has bodies
     globalThis.setTimeout?.(() => this.loadPhysics(), 1500);
     this.resize();
@@ -371,14 +373,36 @@ export class RenderWorld {
   }
 
   /** Per-frame: particles + render + quality sampling. */
+  private warming: Promise<void> | null = null;
+  /**
+   * Compile every shader the scene needs *before* it is first drawn (`compileAsync`: parallel / async on
+   * both backends). Without it the first frame of a new scene freezes while dozens of materials compile;
+   * meanwhile the canvas simply keeps its last picture. Never waits longer than `maxMs`.
+   */
+  warm(maxMs = 4000): Promise<void> {
+    const job = Promise.race([
+      this.renderer.compileAsync(this.scene, this.camera).catch(() => {}),
+      new Promise<void>((done) => globalThis.setTimeout(done, maxMs)),
+    ]).then(() => {
+      if (this.warming === job) this.warming = null;
+      performance.mark('ni:warm-done');
+    });
+    this.warming = job;
+    return job;
+  }
+
   frame(dt: number, frameMs: number) {
     if (this.recovering || this.fatal) return;
+    // shaders still compiling in the background: keep the last picture (the scene still updates)
+    if (this.warming) return;
     // new objects appear during play (fish, slimes): keep the low-tier material swap current
     if (++this.frameNo % 20 === 0) this.applyMaterialTier();
     waterTime.value += Math.min(dt, 1 / 20);
     this.physics?.step(Math.min(dt, 1 / 20));
     this.particles.update(Math.min(dt, 1 / 20), this.renderer);
     this.post.render();
+    // the first few frames are where shaders compile: mark them for load measurements
+    if (this.frameNo <= 3) performance.mark(`ni:frame-${this.frameNo}`);
     const info = this.renderer.info as {
       render?: { drawCalls?: number; calls?: number; triangles?: number };
       memory?: { geometries?: number; textures?: number };

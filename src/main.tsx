@@ -3,9 +3,7 @@ import { createRoot } from 'react-dom/client';
 import { App } from './app/App';
 import '@fontsource/fredoka/latin-600.css';
 import '@fontsource/fredoka/latin-700.css';
-import '@fontsource/jua/korean-400.css';
-import '@fontsource/jua/latin-400.css';
-import 'pretendard/dist/web/variable/pretendardvariable-dynamic-subset.css';
+import './styles/fonts.css';
 import './styles/index.css';
 
 const root = document.getElementById('root');
@@ -15,4 +13,17 @@ if (root) {
       <App />
     </StrictMode>,
   );
+}
+
+// offline cache (production builds only; `?nosw` turns it off for debugging)
+if (
+  import.meta.env.PROD &&
+  'serviceWorker' in navigator &&
+  !new URLSearchParams(location.search).has('nosw')
+) {
+  addEventListener('load', () => {
+    navigator.serviceWorker.register('./sw.js').catch(() => {
+      // no offline cache (private mode, blocked): the game still works online
+    });
+  });
 }

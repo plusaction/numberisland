@@ -77,6 +77,10 @@ export function WorldHost({ children }: { children: ReactNode }) {
       };
       attach(canvas);
       const tier = tierFromUrl();
+      // startup timing marks (DevTools Performance panel, load measurements)
+      performance.mark('ni:world-start');
+      // the digit atlas (waits for the number font) is made while the renderer starts, not after it
+      const atlasReady = initDigitAtlas();
       world = await RenderWorld.create({
         canvas,
         ...(tier ? { tier, lockTier: true } : {}),
@@ -93,7 +97,9 @@ export function WorldHost({ children }: { children: ReactNode }) {
         return;
       }
       const w = world;
-      await initDigitAtlas();
+      performance.mark('ni:renderer-ready');
+      await atlasReady;
+      performance.mark('ni:atlas-ready');
       const loop = createFixedLoop({
         update: (dt) => controller?.update(dt, input.snapshot()),
         render: (_a, dt) => w.frame(dt, loop.frameMs),
@@ -108,6 +114,8 @@ export function WorldHost({ children }: { children: ReactNode }) {
           controller?.dispose();
           w.clearFx();
           controller = c;
+          // a new scene: compile its shaders off the main path before its first frame
+          if (c) void w.warm();
         },
       });
       cleanup = () => {
