@@ -101,10 +101,10 @@ export function WorldHost({ children }: { children: ReactNode }) {
       await atlasReady;
       performance.mark('ni:atlas-ready');
       const loop = createFixedLoop({
-        // the scene's clock (race fuel, rivals, timers) only runs while its picture is on screen
+        // a stage's clock (race fuel, rivals, timers) only runs while its picture is on screen
         update: (dt) => {
           const snap = input.snapshot();
-          if (w.ready) controller?.update(dt, snap);
+          if (w.ready || !controller?.waitsForPicture) controller?.update(dt, snap);
         },
         render: (_a, dt) => w.frame(dt, loop.frameMs),
       });

@@ -56,6 +56,7 @@ export function createStageRuntime<S extends { phase: string; core: RoundCore },
     for (const fn of subs) fn(state);
   };
   const rt: StageRuntime<S, A> = {
+    waitsForPicture: true,
     get state() {
       return state;
     },

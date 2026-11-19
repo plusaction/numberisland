@@ -12,6 +12,8 @@ export interface PointerInfo {
 
 export interface SceneController {
   update(dt: number, input: ActionSnapshot): void;
+  /** Hold this scene's clock until its picture is on screen (stages: timers, rivals, fuel). */
+  waitsForPicture?: boolean;
   pointer?(p: PointerInfo): void;
   dispose(): void;
 }
