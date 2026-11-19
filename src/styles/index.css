@@ -1613,6 +1613,43 @@
     animation: none;
   }
 }
+:root {
+  color-scheme: only light;
+}
 .world-sky {
   background: linear-gradient(#9fd8ff, #cdeefa 45%, #7fd0e6 75%, #3fb3d1);
+}
+.world-sky > canvas {
+  transition: opacity 0.3s ease-out;
+}
+/* a new scene's shaders are compiling: the sky shows with three soft bubbles instead of an old picture */
+.world-sky[data-warming]::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 42%;
+  width: 0.9rem;
+  height: 0.9rem;
+  border-radius: 50%;
+  background: #fff;
+  opacity: 0.85;
+  box-shadow:
+    -1.6rem 0 0 #fff,
+    1.6rem 0 0 #fff;
+  translate: -50% 0;
+  animation: sky-wait 0.9s ease-in-out infinite alternate;
+}
+@keyframes sky-wait {
+  to {
+    opacity: 0.35;
+    scale: 0.8;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .world-sky > canvas {
+    transition: none;
+  }
+  .world-sky[data-warming]::after {
+    animation: none;
+  }
 }

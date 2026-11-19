@@ -141,6 +141,14 @@ export class RenderWorld {
         console.warn('[render] lost', info);
         void this.recover(info.backend === 'webgpu');
       },
+      onGpuError: (msg) => {
+        // validation errors while drawing usually mean a black or broken picture: one move to WebGL2
+        console.warn('[render] gpu error', msg);
+        if (++this.gpuErrors >= 3 && !this.triedWebGL) {
+          this.triedWebGL = true;
+          void this.recover(true);
+        }
+      },
     });
     this.opts.onBackendChange?.(this.handle.backend);
     // Governor is per backend: after a WebGPU → WebGL2 fallback the tier is clamped to what WebGL2 can do.
@@ -206,6 +214,7 @@ export class RenderWorld {
           mat.needsUpdate = true;
         }
       });
+      this.setCanvasShown(!this.warming);
       this.opts.onRecovered?.();
       this.recoveries++;
     } finally {
@@ -380,15 +389,81 @@ export class RenderWorld {
    * meanwhile the canvas simply keeps its last picture. Never waits longer than `maxMs`.
    */
   warm(maxMs = 4000): Promise<void> {
+    // hide the stale picture (the previous scene, or black on some GPUs) and show the CSS sky meanwhile
+    this.setCanvasShown(false);
+    this.blankChecks = 0;
+    this.blankRun = 0;
     const job = Promise.race([
       this.renderer.compileAsync(this.scene, this.camera).catch(() => {}),
       new Promise<void>((done) => globalThis.setTimeout(done, maxMs)),
     ]).then(() => {
-      if (this.warming === job) this.warming = null;
+      if (this.warming === job) {
+        this.warming = null;
+        this.setCanvasShown(true);
+      }
       performance.mark('ni:warm-done');
     });
     this.warming = job;
     return job;
+  }
+
+  /** True when what the player sees is the current scene: stage clocks only run then (WorldHost). */
+  get ready(): boolean {
+    return !this.warming && !this.recovering && !this.fatal;
+  }
+
+  private setCanvasShown(on: boolean) {
+    const c = this.opts.canvas;
+    c.style.opacity = on ? '' : '0';
+    const holder = c.parentElement;
+    if (holder) {
+      if (on) delete holder.dataset.warming;
+      else holder.dataset.warming = '1';
+    }
+  }
+
+  private blankChecks = 0;
+  private blankRun = 0;
+  private probe: CanvasRenderingContext2D | null = null;
+  /** Times a fully black picture was caught (debug HUD / tests). */
+  blankFrames = 0;
+  /**
+   * Safety net for drivers that render nothing (a black screen) without reporting an error: for the first
+   * seconds of each scene, now and then copy the just-drawn picture into an 8×8 canvas. Every scene has a
+   * sky, so an all-black picture means the GPU path is broken → move once to WebGL2 (same scene).
+   */
+  private checkBlank() {
+    if (this.blankChecks >= 12 || this.frameNo % 20 !== 0) return;
+    this.blankChecks++;
+    try {
+      if (!this.probe) {
+        const c = document.createElement('canvas');
+        c.width = 8;
+        c.height = 8;
+        this.probe = c.getContext('2d', { willReadFrequently: true });
+      }
+      const p = this.probe;
+      if (!p) return;
+      p.clearRect(0, 0, 8, 8);
+      p.drawImage(this.opts.canvas, 0, 0, 8, 8);
+      const d = p.getImageData(0, 0, 8, 8).data;
+      let lit = 0;
+      for (let i = 0; i < d.length; i += 4) lit += (d[i] ?? 0) + (d[i + 1] ?? 0) + (d[i + 2] ?? 0);
+      if (lit > 64 * 6) {
+        this.blankRun = 0;
+        return;
+      }
+    } catch {
+      return;
+    }
+    this.blankFrames++;
+    if (++this.blankRun < 3) return;
+    console.warn('[render] the picture stays black');
+    this.blankRun = 0;
+    if (this.backend === 'webgpu' && !this.triedWebGL) {
+      this.triedWebGL = true;
+      void this.recover(true);
+    }
   }
 
   frame(dt: number, frameMs: number) {
@@ -401,6 +476,7 @@ export class RenderWorld {
     this.physics?.step(Math.min(dt, 1 / 20));
     this.particles.update(Math.min(dt, 1 / 20), this.renderer);
     this.post.render();
+    this.checkBlank();
     // the first few frames are where shaders compile: mark them for load measurements
     if (this.frameNo <= 3) performance.mark(`ni:frame-${this.frameNo}`);
     const info = this.renderer.info as {
@@ -421,6 +497,7 @@ export class RenderWorld {
   private emaMs = 16.7;
   private slowAtLowMs = 0;
   private triedWebGL = false;
+  private gpuErrors = 0;
   /**
    * Measured backend choice: if WebGPU is still too slow at the lowest tier (some mobile drivers), switch
    * once to WebGL2 through the recovery path (same scene, fresh canvas) and let the governor re-tier there.

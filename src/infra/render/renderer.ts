@@ -26,6 +26,8 @@ export interface RendererOptions {
   forceWebGL?: boolean;
   dprCap?: number;
   onLost?: (info: { backend: Backend; reason: string }) => void;
+  /** WebGPU validation errors (uncaptured): shader/pipeline failures that would otherwise draw nothing. */
+  onGpuError?: (message: string) => void;
 }
 
 export function wantsForcedWebGL(search: string = globalThis.location?.search ?? ''): boolean {
@@ -83,6 +85,17 @@ export async function createRenderer(opts: RendererOptions): Promise<RendererHan
     fireLost('webglcontextlost');
   };
   opts.canvas.addEventListener('webglcontextlost', onCtxLost);
+  // WebGPU reports shader/pipeline validation failures here (otherwise they only show as a black canvas)
+  type ErrTarget = {
+    addEventListener(t: string, f: (e: Event) => void): void;
+    removeEventListener(t: string, f: (e: Event) => void): void;
+  };
+  const device = (renderer.backend as { device?: ErrTarget }).device;
+  const onGpuError = (e: Event) => {
+    const err = (e as Event & { error?: { message?: string } }).error;
+    opts.onGpuError?.(err?.message ?? 'gpu error');
+  };
+  if (backend === 'webgpu') device?.addEventListener('uncapturederror', onGpuError);
 
   return {
     renderer,
@@ -90,6 +103,7 @@ export async function createRenderer(opts: RendererOptions): Promise<RendererHan
     canvas: opts.canvas,
     dispose() {
       opts.canvas.removeEventListener('webglcontextlost', onCtxLost);
+      device?.removeEventListener('uncapturederror', onGpuError);
       renderer.setAnimationLoop(null);
       renderer.dispose();
     },
