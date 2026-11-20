@@ -13,12 +13,20 @@ function offlineCache(): Plugin {
   return {
     name: 'numberisland-offline-cache',
     apply: 'build',
+    // after Vite has emitted index.html, so the page's own content is part of the version
+    enforce: 'post',
     generateBundle(_opts, bundle) {
       const files = Object.keys(bundle)
         .filter((f) => !f.endsWith('.map') && !f.endsWith('.woff') && f !== 'sw.js')
         .sort();
       const precache = ['./', ...files.map((f) => `./${f}`)];
-      const version = createHash('sha256').update(precache.join('|')).digest('hex').slice(0, 12);
+      // version = the files' contents, not just their names (index.html keeps its name across deploys)
+      const h = createHash('sha256').update(precache.join('|'));
+      for (const f of files) {
+        const item = bundle[f];
+        if (item) h.update(item.type === 'chunk' ? item.code : item.source);
+      }
+      const version = h.digest('hex').slice(0, 12);
       this.emitFile({
         type: 'asset',
         fileName: 'sw.js',
@@ -33,12 +41,15 @@ function swSource(version: string, precache: string[]): string {
 const CACHE = 'numberisland-${version}';
 const PRECACHE = ${JSON.stringify(precache)};
 self.addEventListener('install', (event) => {
-  event.waitUntil(caches.open(CACHE).then((c) => c.addAll(PRECACHE)));
+  // take over as soon as this version is cached: the next reload shows it (no "close every tab first")
+  event.waitUntil(caches.open(CACHE).then((c) => c.addAll(PRECACHE)).then(() => self.skipWaiting()));
 });
 self.addEventListener('activate', (event) => {
   event.waitUntil(
+    // keep the version just before this one too: a page still open on it can finish loading its pieces
     caches.keys()
-      .then((keys) => Promise.all(keys.filter((k) => k.startsWith('numberisland-') && k !== CACHE).map((k) => caches.delete(k))))
+      .then((keys) => keys.filter((k) => k.startsWith('numberisland-') && k !== CACHE))
+      .then((old) => Promise.all(old.slice(0, -1).map((k) => caches.delete(k))))
       .then(() => self.clients.claim()),
   );
 });
@@ -46,9 +57,13 @@ self.addEventListener('fetch', (event) => {
   const req = event.request;
   if (req.method !== 'GET' || new URL(req.url).origin !== self.location.origin) return;
   // the page itself: this version's copy (it matches the files below); the network only if it is missing
-  const key = req.mode === 'navigate' ? new URL('./', self.registration.scope).href : req;
+  const nav = req.mode === 'navigate';
+  const key = nav ? new URL('./', self.registration.scope).href : req;
+  // the page comes from THIS version's cache (an older cache still kept would hold the old page);
+  // hashed files are unique per version, so any cache may answer them
+  const look = nav ? caches.open(CACHE).then((c) => c.match(key, { ignoreSearch: true })) : caches.match(key);
   event.respondWith(
-    caches.match(key, { ignoreSearch: req.mode === 'navigate' }).then(
+    look.then(
       (hit) =>
         hit ||
         fetch(req).then((res) => {
