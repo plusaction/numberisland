@@ -6,9 +6,11 @@ import {
   BufferGeometry,
   CapsuleGeometry,
   CylinderGeometry,
+  ExtrudeGeometry,
   Float32BufferAttribute,
   IcosahedronGeometry,
   RingGeometry,
+  Shape,
   SphereGeometry,
   TorusGeometry,
 } from 'three/webgpu';
@@ -104,3 +106,56 @@ export function blob(radius: number, rng: Rng, amount = 0.18, detail = 4) {
   g.computeVertexNormals();
   return g;
 }
+
+/**
+ * A cut gem (the game's currency): flat table on top, sloped crown, wide girdle, pointed pavilion below.
+ * Non-indexed so every facet gets its own flat normal — the sparkle comes from the facets catching light.
+ */
+export const gemGeo = (radius: number, sides = 8) =>
+  cached(`gem|${radius}|${sides}`, () => {
+    const table = { r: radius * 0.55, y: radius * 0.42 };
+    const girdle = { r: radius, y: radius * 0.1 };
+    const culet = -radius * 0.85;
+    const pts: number[] = [];
+    const at = (r: number, a: number, y: number) => [Math.cos(a) * r, y, Math.sin(a) * r];
+    for (let i = 0; i < sides; i++) {
+      const a0 = (i / sides) * Math.PI * 2;
+      const a1 = ((i + 1) / sides) * Math.PI * 2;
+      const t0 = at(table.r, a0, table.y);
+      const t1 = at(table.r, a1, table.y);
+      const g0 = at(girdle.r, a0, girdle.y);
+      const g1 = at(girdle.r, a1, girdle.y);
+      // table (fan), crown (two triangles), pavilion (to the point) — counter-clockwise seen from outside
+      pts.push(0, table.y, 0, ...t1, ...t0);
+      pts.push(...t0, ...t1, ...g1, ...t0, ...g1, ...g0);
+      pts.push(...g0, ...g1, 0, culet, 0);
+    }
+    const g = new BufferGeometry();
+    g.setAttribute('position', new Float32BufferAttribute(pts, 3));
+    g.computeVertexNormals();
+    return g;
+  });
+
+/** A chunky five-point star badge (front face toward +Z), for trophies and score marks. */
+export const starGeo = (radius: number, depth: number) =>
+  cached(`star|${radius}|${depth}`, () => {
+    const s = new Shape();
+    for (let i = 0; i < 10; i++) {
+      const r = i % 2 ? radius * 0.48 : radius;
+      const a = Math.PI / 2 + (i / 10) * Math.PI * 2;
+      const x = Math.cos(a) * r;
+      const y = Math.sin(a) * r;
+      if (i === 0) s.moveTo(x, y);
+      else s.lineTo(x, y);
+    }
+    s.closePath();
+    const g = new ExtrudeGeometry(s, {
+      depth,
+      bevelEnabled: true,
+      bevelThickness: depth * 0.35,
+      bevelSize: radius * 0.08,
+      bevelSegments: 2,
+    });
+    g.translate(0, 0, -depth / 2);
+    return g;
+  });

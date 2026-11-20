@@ -1,7 +1,7 @@
 /**
  * ⑧ 정답 달리기 레이스 diorama: a roller-coaster road in the sky, seen from a chase camera behind the
  * child's kart. The kart stays near the origin (so the sun's shadow box fits) and the world streams past:
- * striped planks over rolling hills, rails, numbered balloon arches every square, star coins, trees and
+ * striped planks over rolling hills, rails, numbered balloon arches every square, gems to collect, trees and
  * clouds, and the checkered finish gate.
  *
  * - right answer → BOOST: the kart surges a square (two on a TURBO), front wheels up, exhaust sparks, speed
@@ -19,13 +19,12 @@ import {
   Mesh,
   MeshBasicNodeMaterial,
   Object3D,
-  OctahedronGeometry,
   TorusGeometry,
   Vector3,
 } from 'three/webgpu';
 import { HitStop, Shake, Spring } from '../../engine/fx/juice';
 import { markStatic, mergeStatic } from '../../engine/geo/merge';
-import { ball, capsule, disc, ring, roundedBox } from '../../engine/geo/shapes';
+import { ball, capsule, disc, gemGeo, ring, roundedBox } from '../../engine/geo/shapes';
 import { NumberLabel } from '../../engine/numbers/number-label';
 import { PALETTE } from '../../engine/palette';
 import { grassMaterial, metalMaterial, toyMaterial, woodMaterial } from '../../engine/tsl/materials';
@@ -339,8 +338,8 @@ export function createRaceScene(world: RenderWorld, ctx: StageCtx): StageScene<R
     }
   root.add(gate);
   const stars = STAR_SQUARES.map((sq) => {
-    const m = new Mesh(new OctahedronGeometry(0.55), metalMaterial('#f2b632', 0.2));
-    m.scale.set(1, 1, 0.45);
+    // a big spinning gem (the currency) floating over the track
+    const m = new Mesh(gemGeo(0.5), toyMaterial('#ff5fa2', { roughness: 0.06, rimStrength: 0.6 }));
     root.add(m);
     return { sq, m };
   });

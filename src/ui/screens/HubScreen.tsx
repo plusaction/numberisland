@@ -23,8 +23,10 @@ import { STAGE_SKILLS } from '../../domain/stage/catalog';
 import { PLAYABLE, STAGE_GROUP, STAGE_IDS, STAGE_PLAYERS, type StageId } from '../../domain/stage/types';
 import { fmt, ko } from '../../i18n/ko';
 import { audio } from '../../infra/audio/audio';
+import type { Store } from '../../infra/storage/store';
 import { createIsland, type IslandController, type IslandMeta } from '../../scenes/island/island';
 import { Button } from '../components/Button';
+import { GemIcon } from '../components/GemIcon';
 import { ProgressBar } from '../components/ProgressBar';
 import { SettingsSheet } from '../components/SettingsSheet';
 import { SpeakButton } from '../components/SpeakButton';
@@ -44,10 +46,13 @@ const ORDER: StageId[] = ['bomb', 'zombie', 'fishing', 'slime', 'escape', 'pizza
 
 export function HubScreen({
   store,
+  db,
   reducedMotion,
   quiet = false,
 }: {
   store: GameStore;
+  /** Device storage, for the save-file buttons in the settings sheet. */
+  db?: Store;
   reducedMotion: boolean;
   /** Keep the 3D island alive but hide the hub's own UI and ignore input (the intro card is on top). */
   quiet?: boolean;
@@ -194,7 +199,7 @@ export function HubScreen({
     <div className="hub-overlay" data-testid="hub">
       <header className="hub-top">
         <div className="pill" data-testid="coins">
-          <span aria-hidden="true">🪙</span> {profile.economy.coins}
+          <GemIcon /> {profile.economy.coins}
           <span className="sr-only">{ko.hub.coins}</span>
         </div>
         <div className="pill" data-testid="trophies">
@@ -290,6 +295,7 @@ export function HubScreen({
       {settingsOpen && (
         <SettingsSheet
           store={store}
+          {...(db ? { db } : {})}
           onClose={() => {
             setSettingsOpen(false);
             // focus goes back to the key that opened the sheet

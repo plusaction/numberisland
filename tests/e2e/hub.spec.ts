@@ -190,3 +190,48 @@ test('[R2] long game on the island: badges, snack feeding (never below zero), to
   await page.reload();
   await expect(page.getByTestId('feed')).toHaveAttribute('data-fed', '2', { timeout: 30_000 });
 });
+
+test('[P7] save file: download, open it back after changes, and undo the swap (nothing is lost)', async ({
+  page,
+}, info) => {
+  const errors = await collectErrors(page);
+  await startFresh(page, url(info, '/'));
+  await throughPlacement(page);
+  type S = {
+    __store: { getState(): { profile: { economy: { coins: number } }; setProfile(p: unknown): void } };
+  };
+  const gems = () =>
+    page.evaluate(() => (globalThis as unknown as S).__store.getState().profile.economy.coins);
+  const setGems = (n: number) =>
+    page.evaluate((v) => {
+      const st = (globalThis as unknown as S).__store.getState();
+      st.setProfile({ ...st.profile, economy: { ...st.profile.economy, coins: v } });
+    }, n);
+  await setGems(12);
+  // the gem icon replaces the old coin emoji in the hub
+  await expect(page.getByTestId('coins').locator('svg.gem-icon')).toBeVisible();
+  await page.getByTestId('open-settings').click();
+  const [download] = await Promise.all([
+    page.waitForEvent('download'),
+    page.getByTestId('save-down').click(),
+  ]);
+  expect(download.suggestedFilename()).toMatch(/^numberisland-.+-\d{8}\.nisave$/);
+  const file = await download.path();
+  await expect(page.getByTestId('save-note')).toBeVisible();
+  // play on (more gems), then open the older file: a look first, then the swap
+  await setGems(40);
+  await page.getByTestId('save-file').setInputFiles(file);
+  await expect(page.getByTestId('save-ask')).toContainText('보석 12');
+  await page.getByTestId('save-yes').click();
+  await expect.poll(gems).toBe(12);
+  // the replaced record (40 gems) is kept: one tap brings it back
+  await page.getByTestId('save-undo').click();
+  await expect.poll(gems).toBe(40);
+  // a wrong file changes nothing
+  await page
+    .getByTestId('save-file')
+    .setInputFiles({ name: 'x.json', mimeType: 'application/json', buffer: Buffer.from('{}') });
+  await expect(page.getByTestId('save-note')).toHaveText('열 수 없는 파일이야');
+  await expect.poll(gems).toBe(40);
+  expect(errors).toEqual([]);
+});

@@ -7,7 +7,7 @@
  */
 import { color, cos, float, mix, normalView, sin, smoothstep, texture, time, uv, vec3 } from 'three/tsl';
 import { ConeGeometry, Group, Mesh, MeshStandardNodeMaterial, OctahedronGeometry } from 'three/webgpu';
-import { ball, capsule, disc, roundedBox } from '../../engine/geo/shapes';
+import { ball, capsule, disc, roundedBox, starGeo } from '../../engine/geo/shapes';
 import { NumberLabel } from '../../engine/numbers/number-label';
 import { PALETTE } from '../../engine/palette';
 import { jellyMaterial, metalMaterial, toyMaterial } from '../../engine/tsl/materials';
@@ -81,9 +81,9 @@ export function gem(won: boolean, hex: string): Group {
   socket.position.y = -0.35;
   g.add(base, socket);
   if (won) {
-    const stone = new Mesh(new OctahedronGeometry(0.24), toyMaterial(hex, { rimStrength: 0.9 }));
-    stone.scale.y = 1.3;
-    stone.position.y = -0.05;
+    // a won round = a gold star in the socket (not a gem: gems are the currency now)
+    const stone = new Mesh(starGeo(0.28, 0.1), toyMaterial('#ffc83d', { rimStrength: 0.9 }));
+    stone.position.y = -0.02;
     stone.castShadow = true;
     g.add(stone);
   }

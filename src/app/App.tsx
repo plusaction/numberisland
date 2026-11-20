@@ -94,7 +94,7 @@ function Screens({ app }: { app: AppHandle }) {
       // the intro card floats over the living island (same HubScreen instance: the 3D scene stays up)
       return (
         <>
-          <HubScreen store={store} reducedMotion={reduced} quiet={screen === 'intro'} />
+          <HubScreen store={store} db={db} reducedMotion={reduced} quiet={screen === 'intro'} />
           {screen === 'intro' && <IntroScreen store={store} />}
         </>
       );

@@ -2,12 +2,15 @@
  * Settings sheet (hub ⚙): the few switches a child or parent needs — music, sound effects, read-aloud,
  * screen shake, reduced motion. Every change applies at once and is saved with the profile (P7: local only).
  */
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useStore } from 'zustand';
 import type { GameStore } from '../../application/stores/game';
-import type { Settings } from '../../domain/profile';
-import { ko } from '../../i18n/ko';
+import { saveFileName, saveSummary } from '../../application/usecases/savefile';
+import type { Profile, Settings } from '../../domain/profile';
+import { fmt, ko } from '../../i18n/ko';
 import { audio } from '../../infra/audio/audio';
+import { blobToProfile, profileToBlob } from '../../infra/storage/savefile';
+import type { Store } from '../../infra/storage/store';
 import { Button } from './Button';
 
 function Seg<T extends string | number | boolean>({
@@ -50,7 +53,132 @@ function Seg<T extends string | number | boolean>({
 const nearest = (v: number, steps: readonly number[]) =>
   steps.reduce((a, b) => (Math.abs(b - v) < Math.abs(a - v) ? b : a));
 
-export function SettingsSheet({ store, onClose }: { store: GameStore; onClose(): void }) {
+const BACKUP = 'backupBeforeImport';
+
+/**
+ * 💾 저장: download the profile as a file, open a file to continue from it (after a look at what is in it),
+ * and undo the last swap — the record that was replaced is kept on the device, so nothing is ever lost (P2).
+ */
+function SaveRow({ store, db }: { store: GameStore; db: Store }) {
+  const s = ko.settings;
+  const [pending, setPending] = useState<Profile | null>(null);
+  const [note, setNote] = useState('');
+  const [backup, setBackup] = useState<Profile | null>(null);
+  const picker = useRef<HTMLInputElement | null>(null);
+  useEffect(() => {
+    void db.getMeta<Profile>(BACKUP).then((b) => setBackup(b ?? null));
+  }, [db]);
+  const swapTo = async (next: Profile, msg: string) => {
+    const cur = store.getState().profile;
+    if (cur) {
+      await db.setMeta(BACKUP, cur);
+      setBackup(cur);
+    }
+    await db.putProfile(next);
+    await db.setMeta('lastProfile', next.id);
+    store.getState().setProfile(next);
+    if (!next.placementDone) store.getState().go('placement');
+    setNote(msg);
+    audio.play('star');
+  };
+  const download = async () => {
+    const p = store.getState().profile;
+    if (!p) return;
+    const url = URL.createObjectURL(await profileToBlob(p));
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = saveFileName(p, new Date());
+    document.body.append(a);
+    a.click();
+    a.remove();
+    globalThis.setTimeout(() => URL.revokeObjectURL(url), 1000);
+    setNote(s.saveDone);
+    audio.play('ui.tap');
+  };
+  const open = async (file: File | undefined) => {
+    if (!file) return;
+    try {
+      setPending(await blobToProfile(file));
+      setNote('');
+    } catch {
+      setPending(null);
+      setNote(s.saveBad);
+      audio.play('ui.tap');
+    }
+  };
+  const sum = pending && saveSummary(pending);
+  return (
+    <div className="save-row" data-testid="save">
+      <span>{s.save}</span>
+      <div className="save-keys">
+        <button type="button" className="seg-btn" onClick={() => void download()} data-testid="save-down">
+          {s.saveDown}
+        </button>
+        <button
+          type="button"
+          className="seg-btn"
+          onClick={() => picker.current?.click()}
+          data-testid="save-load"
+        >
+          {s.saveLoad}
+        </button>
+        {backup && (
+          <button
+            type="button"
+            className="seg-btn"
+            onClick={() => void swapTo(backup, s.saveUndone)}
+            data-testid="save-undo"
+          >
+            {s.saveUndo}
+          </button>
+        )}
+      </div>
+      <input
+        ref={picker}
+        type="file"
+        accept=".nisave,.json,application/json,application/gzip"
+        hidden
+        data-testid="save-file"
+        onChange={(e) => {
+          void open(e.target.files?.[0]);
+          e.target.value = '';
+        }}
+      />
+      {sum && pending && (
+        <div className="save-ask" data-testid="save-ask">
+          <p>{s.saveAsk}</p>
+          <p className="save-sum">
+            {fmt(s.saveSummary, { name: sum.nickname, gems: sum.gems, stars: sum.stars })}
+          </p>
+          <div className="save-keys">
+            <button
+              type="button"
+              className="seg-btn seg-on"
+              data-testid="save-yes"
+              onClick={() => {
+                const next = pending;
+                setPending(null);
+                void swapTo(next, s.saveLoaded);
+              }}
+            >
+              {s.saveYes}
+            </button>
+            <button type="button" className="seg-btn" data-testid="save-no" onClick={() => setPending(null)}>
+              {s.saveNo}
+            </button>
+          </div>
+        </div>
+      )}
+      {note && (
+        <p className="save-note" role="status" data-testid="save-note">
+          {note}
+        </p>
+      )}
+    </div>
+  );
+}
+
+export function SettingsSheet({ store, db, onClose }: { store: GameStore; db?: Store; onClose(): void }) {
   const settings = useStore(store, (s) => s.profile?.settings);
   const closeRef = useRef(onClose);
   closeRef.current = onClose;
@@ -171,6 +299,7 @@ export function SettingsSheet({ store, onClose }: { store: GameStore; onClose():
           ]}
           onPick={(restMinutes) => set({ restMinutes })}
         />
+        {db && <SaveRow store={store} db={db} />}
         <div className="mt-5 flex justify-end">
           <Button tone="primary" ref={closeKey} onClick={onClose} data-testid="settings-close">
             {s.close}

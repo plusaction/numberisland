@@ -4,7 +4,7 @@
  * that says "tap me for a coin". Paths are decorative and derived deterministically from the rules' data.
  */
 import { CylinderGeometry, Group, Mesh, TorusGeometry } from 'three/webgpu';
-import { ball, capsule, disc, roundedBox } from '../../engine/geo/shapes';
+import { ball, capsule, gemGeo, roundedBox } from '../../engine/geo/shapes';
 import { PALETTE } from '../../engine/palette';
 import { metalMaterial, toyMaterial } from '../../engine/tsl/materials';
 
@@ -74,7 +74,7 @@ function key(): Group {
 
 export interface OddItems {
   group: Group;
-  /** Show item `kind` (0 boot, 1 duck, 2 key) and animate the "coin to collect" hint above it. */
+  /** Show item `kind` (0 boot, 1 duck, 2 key) and animate the "gem to collect" hint above it. */
   update(kind: number, t: number): void;
 }
 
@@ -87,10 +87,8 @@ export function createOddItems(): OddItems {
     });
     group.add(it);
   }
-  // spinning coin above = "tap it for a coin" (the same gold as the coins that fall when it is caught)
-  // bright, self-lit gold (a metal shader would mirror the dark pond and read brown at this size)
-  const coin = new Mesh(disc(0.26, 0.06, 28), toyMaterial('#ffc83d', { rimStrength: 0.9 }));
-  coin.rotation.x = Math.PI / 2;
+  // spinning gem above = "tap it for a gem" (the same gems that fall when it is caught), bright and self-lit
+  const coin = new Mesh(gemGeo(0.24), toyMaterial('#ff5fa2', { roughness: 0.06, rimStrength: 0.9 }));
   coin.position.y = 1.25;
   group.add(coin);
   return {
@@ -99,7 +97,7 @@ export function createOddItems(): OddItems {
       items.forEach((it, i) => {
         it.visible = i === kind;
       });
-      coin.rotation.z = t * 4;
+      coin.rotation.y = t * 3;
       coin.position.y = 1.2 + Math.sin(t * 3) * 0.08;
     },
   };

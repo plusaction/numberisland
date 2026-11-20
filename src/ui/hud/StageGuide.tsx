@@ -8,6 +8,7 @@ import { useEffect, useState } from 'react';
 import { fmt, ko } from '../../i18n/ko';
 import { speak } from '../../infra/tts/tts';
 import type { HudView } from '../../stages/_shared/module';
+import { GemIcon } from '../components/GemIcon';
 
 export function SayBubble({ say, voice }: { say: NonNullable<HudView['say']>; voice: boolean }) {
   const [small, setSmall] = useState(false);
@@ -68,7 +69,7 @@ export function StepGuide({ steps }: { steps: NonNullable<HudView['steps']> }) {
   );
 }
 
-/** Mini race track under the goal: my kart, the rivals, the star coins and the flag. */
+/** Mini race track under the goal: my kart, the rivals, the gems to collect and the flag. */
 export function RaceBar({ race }: { race: NonNullable<HudView['race']> }) {
   const at = (pos: number) => `${Math.min(100, (pos / race.length) * 100)}%`;
   return (
@@ -82,7 +83,7 @@ export function RaceBar({ race }: { race: NonNullable<HudView['race']> }) {
       <span className="race-track">
         {race.stars.map((sq) => (
           <span key={sq} className="race-star" style={{ left: at(sq) }}>
-            ⭐
+            <GemIcon />
           </span>
         ))}
         {race.rivals.map((pos, i) => (

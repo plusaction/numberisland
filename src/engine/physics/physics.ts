@@ -3,7 +3,7 @@
  * D16: a general engine (Rapier, 1.7 MB gzipped) was measured and rejected for what is only eye candy.
  *
  * P5: physics never decides anything — answers are judged by the pure stage rules. Bodies are spheres for
- * collision (coins are rendered as discs that settle flat), bounce with restitution, slide with friction, roll
+ * collision (the 'coin' kind — the currency, shown as cut gems — settles upright on its point), bounce with restitution, slide with friction, roll
  * (angular velocity follows contact velocity), collide with each other (bounded O(n²), n ≤ 200), fall off the
  * diorama edge onto the play table, sleep when at rest and despawn after a few seconds. Each kind is one
  * InstancedMesh (one draw call); storage is preallocated typed arrays (no per-frame allocation).
@@ -19,8 +19,8 @@ import {
   Vector3,
   type Vector3Like,
 } from 'three/webgpu';
-import { ball, disc } from '../geo/shapes';
-import { metalMaterial, toyMaterial } from '../tsl/materials';
+import { ball, gemGeo } from '../geo/shapes';
+import { toyMaterial } from '../tsl/materials';
 
 export type BurstKind = 'coin' | 'candy' | 'pebble' | 'drop';
 const KINDS: readonly BurstKind[] = ['coin', 'candy', 'pebble', 'drop'];
@@ -37,6 +37,9 @@ export interface PhysicsFx {
   readonly live: number;
 }
 
+/** Gem colours (pink, sky, mint, lemon) — the same family as the HUD gem icon. */
+export const GEM_COLORS: readonly string[] = ['#ff5fa2', '#4fc3ff', '#3ddc97', '#ffd23f'];
+
 const MAX = 200;
 const LIFE = 5;
 const G = -9.81;
@@ -51,7 +54,12 @@ export function createPhysicsFx(): PhysicsFx {
   const root = new Group();
   root.name = 'physics-fx';
   const meshes: Record<BurstKind, InstancedMesh> = {
-    coin: new InstancedMesh(disc(0.15, 0.035, 20), metalMaterial('#ffc83d', 0.22), SPEC.coin.cap),
+    // the currency is called 보석 on screen: little cut gems in four candy colours (tinted per instance)
+    coin: new InstancedMesh(
+      gemGeo(0.13),
+      toyMaterial('#ffffff', { roughness: 0.06, rimStrength: 0.35 }),
+      SPEC.coin.cap,
+    ),
     candy: new InstancedMesh(ball(0.12, 14), toyMaterial('#ffffff'), SPEC.candy.cap),
     pebble: new InstancedMesh(ball(0.1, 8), toyMaterial('#cfc4b6', { finish: 'matte' }), SPEC.pebble.cap),
     drop: new InstancedMesh(ball(0.07, 10), toyMaterial('#7fdcf0', { roughness: 0.05 }), SPEC.drop.cap),
@@ -144,9 +152,8 @@ export function createPhysicsFx(): PhysicsFx {
         spin.set([rand() * 10 - 5, rand() * 10 - 5, rand() * 10 - 5], i * 3);
         age[i] = 0;
         asleep[i] = 0;
-        (colorOf[i] as Color).set(
-          colors?.length ? (colors[c % colors.length] as ColorRepresentation) : '#ffffff',
-        );
+        const pal = colors?.length ? colors : k === 'coin' ? GEM_COLORS : undefined;
+        (colorOf[i] as Color).set(pal ? (pal[(c + n) % pal.length] as ColorRepresentation) : '#ffffff');
       }
     },
     step(dt) {
@@ -193,7 +200,7 @@ export function createPhysicsFx(): PhysicsFx {
           );
           q.premultiply(dq);
         }
-        // coins settle flat once they are rolling slowly on the ground
+        // gems settle upright (table up) once they are rolling slowly on the ground
         if (kind[i] === 0 && (vel[o + 1] ?? 0) === 0) q.slerp(flat, Math.min(1, h * 6));
         rot.set([q.x, q.y, q.z, q.w], r4);
       }

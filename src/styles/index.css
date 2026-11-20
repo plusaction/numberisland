@@ -734,6 +734,45 @@
   .sheet-row .seg-btn {
     min-width: 4.2rem;
   }
+  /* 💾 저장: label, then the file keys as soft chips; a small confirm card when a file is opened */
+  .save-row {
+    margin-top: 1rem;
+    padding-top: 0.8rem;
+    border-top: 2px dashed color-mix(in oklab, var(--color-ink) 18%, transparent);
+    font-size: 1.35rem;
+    font-family: var(--font-display);
+  }
+  .save-keys {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    margin-top: 0.5rem;
+  }
+  .save-keys .seg-btn {
+    background: color-mix(in oklab, var(--color-sea) 16%, white);
+    padding: 0 1rem;
+    font-size: 1.15rem;
+  }
+  .save-keys .seg-on {
+    background: var(--color-sun);
+  }
+  .save-ask {
+    margin-top: 0.6rem;
+    padding: 0.7rem 0.9rem;
+    border-radius: var(--radius-key);
+    background: #fff;
+    font-size: 1.2rem;
+  }
+  .save-sum {
+    margin-top: 0.2rem;
+    font-family: var(--font-sans);
+    font-size: 1.05rem;
+  }
+  .save-note {
+    margin-top: 0.5rem;
+    font-size: 1.1rem;
+    color: color-mix(in oklab, var(--color-ink) 80%, transparent);
+  }
   .hub-gear {
     margin-left: auto;
   }

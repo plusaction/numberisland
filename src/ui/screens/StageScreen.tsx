@@ -17,6 +17,7 @@ import type { HudView } from '../../stages/_shared/module';
 import { createStageRuntime, type StageRuntime } from '../../stages/_shared/runtime';
 import { type AnyStageModule, STAGE_LOADERS } from '../../stages/registry';
 import { Button } from '../components/Button';
+import { GemIcon } from '../components/GemIcon';
 import { FeedbackOverlay } from '../hints/FeedbackOverlay';
 import { HintBody, HintPanel, PairHint } from '../hints/HintPanel';
 import { RaceBar, RoomCut, SayBubble, StepGuide } from '../hud/StageGuide';
@@ -304,7 +305,7 @@ export function StageScreen({ store, reducedMotion }: { store: GameStore; reduce
           ))}
         </div>
         <div className="pill" data-testid="stage-coins">
-          <span aria-hidden="true">🪙</span> {core.coins}
+          <GemIcon /> {core.coins}
         </div>
       </header>
 

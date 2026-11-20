@@ -8,6 +8,7 @@ import type { Achievement, NextGoal } from '../../domain/progression/progression
 import { fmt, ko } from '../../i18n/ko';
 import { audio } from '../../infra/audio/audio';
 import { Button } from '../components/Button';
+import { GemIcon } from '../components/GemIcon';
 import { SpeakButton } from '../components/SpeakButton';
 
 export function achievementText(a: Achievement): string {
@@ -151,7 +152,8 @@ export function ResultScreen({ store }: { store: GameStore }) {
           </motion.p>
         )}
         <p className="mt-3 text-xl">
-          {fmt(ko.result.coins, { n: outcome.coins })} · {fmt(ko.result.trophies, { n: outcome.trophies })}
+          <GemIcon /> {fmt(ko.result.coins, { n: outcome.coins })} ·{' '}
+          {fmt(ko.result.trophies, { n: outcome.trophies })}
         </p>
         <SpeakButton text={`${newThing}. ${ko.result.nextGoal}: ${goal}`} className="mx-auto mt-2" />
         <div className="mt-6 flex flex-wrap justify-center gap-3">
