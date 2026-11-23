@@ -15,7 +15,8 @@ export async function bootApp(): Promise<App> {
   const store = createGameStore();
   const db = await openStore();
   store.getState().setStorageWarning(!db.persistent);
-  const saver = createSaver(db);
+  // short debounce: a child may close the tab right after an action (pagehide flushes are not guaranteed)
+  const saver = createSaver(db, 200);
   const profiles = await db.listProfiles();
   const lastId = await db.getMeta<string>('lastProfile');
   const found = profiles.find((p) => p.id === lastId) ?? profiles[0];

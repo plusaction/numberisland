@@ -431,7 +431,14 @@ export function StageScreen({ store, reducedMotion }: { store: GameStore; reduce
           }
         />
       )}
-      {tutorial && rtRef.current && <Tutorial runtime={rtRef.current} mod={mod} onDone={finishTutorial} />}
+      {tutorial && rtRef.current && (
+        <Tutorial
+          runtime={rtRef.current}
+          mod={mod}
+          ready={() => api?.world.ready ?? false}
+          onDone={finishTutorial}
+        />
+      )}
     </div>
   );
 }

@@ -185,8 +185,25 @@ test('[R2] long game on the island: badges, snack feeding (never below zero), to
       .select('bomb'),
   );
   await expect(page.locator('[data-testid=badges] > li[data-owned=true]')).toHaveCount(1);
-  // fed count survives a reload
-  await page.waitForTimeout(1200);
+  // fed count survives a reload (wait for the write itself, not a guessed delay: software GL is slow here)
+  await expect
+    .poll(
+      () =>
+        page.evaluate(async () => {
+          const db: IDBDatabase = await new Promise((r) => {
+            const q = indexedDB.open('numberisland');
+            q.onsuccess = () => r(q.result);
+          });
+          const all: { friendFed: number }[] = await new Promise((r) => {
+            const t = db.transaction('profiles').objectStore('profiles').getAll();
+            t.onsuccess = () => r(t.result);
+          });
+          db.close();
+          return all[0]?.friendFed;
+        }),
+      { timeout: 30_000 },
+    )
+    .toBe(2);
   await page.reload();
   await expect(page.getByTestId('feed')).toHaveAttribute('data-fed', '2', { timeout: 30_000 });
 });

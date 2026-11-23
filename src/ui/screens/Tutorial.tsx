@@ -11,16 +11,21 @@ import { Button } from '../components/Button';
 export function Tutorial({
   runtime,
   mod,
+  ready,
   onDone,
 }: {
   runtime: StageRuntime<unknown, unknown>;
   mod: AnyStageModule;
+  /** Whether the scene is on screen yet (shaders compiled): the demo waits for it, or the child misses it. */
+  ready(): boolean;
   onDone(): void;
 }) {
   const [pos, setPos] = useState<{ x: number; y: number; press: boolean } | null>(null);
   // keep the latest callback without restarting the demo when the parent re-renders
   const doneRef = useRef(onDone);
   doneRef.current = onDone;
+  const readyRef = useRef(ready);
+  readyRef.current = ready;
   useEffect(() => {
     runtime.locked = true;
     const plan = mod.solution(runtime.state) as { id?: number; from?: number; to?: number }[];
@@ -38,6 +43,8 @@ export function Tutorial({
       return;
     }
     const timer = window.setInterval(() => {
+      // still showing the sky while the scene gets ready: hold the demo (no hand, no step counted)
+      if (!readyRef.current()) return;
       const id = targets[i % targets.length] as number;
       const p = runtime.screenPos(id);
       if (p) setPos({ x: (p.x + 1) / 2, y: (1 - p.y) / 2, press: false });

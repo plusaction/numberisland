@@ -428,12 +428,14 @@ export class RenderWorld {
   /** Times a fully black picture was caught (debug HUD / tests). */
   blankFrames = 0;
   /**
-   * Safety net for drivers that render nothing (a black screen) without reporting an error: for the first
-   * seconds of each scene, now and then copy the just-drawn picture into an 8×8 canvas. Every scene has a
+   * Safety net for drivers that render nothing (a black screen) without reporting an error: on WebGPU, right
+   * after a scene appears, copy the just-drawn picture into an 8×8 canvas (stops at the first lit picture). Every scene has a
    * sky, so an all-black picture means the GPU path is broken → move once to WebGL2 (same scene).
    */
   private checkBlank() {
-    if (this.blankChecks >= 12 || this.frameNo % 20 !== 0) return;
+    // a readback stalls the GPU queue: only on WebGPU (where silent black screens were reported), a few
+    // samples per scene, and none once one real picture was seen
+    if (this.backend !== 'webgpu' || this.blankChecks >= 4 || this.frameNo % 30 !== 0) return;
     this.blankChecks++;
     try {
       if (!this.probe) {
@@ -451,6 +453,7 @@ export class RenderWorld {
       for (let i = 0; i < d.length; i += 4) lit += (d[i] ?? 0) + (d[i + 1] ?? 0) + (d[i + 2] ?? 0);
       if (lit > 64 * 6) {
         this.blankRun = 0;
+        this.blankChecks = 4; // the picture is fine: stop looking for this scene
         return;
       }
     } catch {
