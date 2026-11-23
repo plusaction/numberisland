@@ -436,7 +436,7 @@ export const ko = {
     empty: '여긴 비었네!',
     allFound: '다 찾았어! 맞는 수를 골라!',
     jam: '앗, 다시 생각해 볼까?',
-    opened: '문이 열렸다!',
+    opened: '친구 발자국이야! 따라가자!',
     thanks: '구해 줘서 고마워!',
   },
   errors: {

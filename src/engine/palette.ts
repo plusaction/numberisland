@@ -18,3 +18,6 @@ export const PALETTE = {
 /** Place-value colors + shapes (global rule, SPEC §7.3): ones/tens/hundreds/thousands. */
 export const PLACE_COLORS = ['#22a654', '#2f6fe8', '#8a46dc', '#d99a00'] as const;
 export const PLACE_MARKS = ['●', '▬', '★', '◆'] as const;
+
+/** Gem colours (pink, sky, mint, lemon) — the currency, same family as the HUD gem icon. */
+export const GEM_COLORS: readonly string[] = ['#ff5fa2', '#4fc3ff', '#3ddc97', '#ffd23f'];

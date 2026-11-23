@@ -20,6 +20,7 @@ import {
   type Vector3Like,
 } from 'three/webgpu';
 import { ball, gemGeo } from '../geo/shapes';
+import { GEM_COLORS } from '../palette';
 import { toyMaterial } from '../tsl/materials';
 
 export type BurstKind = 'coin' | 'candy' | 'pebble' | 'drop';
@@ -36,9 +37,6 @@ export interface PhysicsFx {
   /** Live bodies (perf HUD / tests). */
   readonly live: number;
 }
-
-/** Gem colours (pink, sky, mint, lemon) — the same family as the HUD gem icon. */
-export const GEM_COLORS: readonly string[] = ['#ff5fa2', '#4fc3ff', '#3ddc97', '#ffd23f'];
 
 const MAX = 200;
 const LIFE = 5;
