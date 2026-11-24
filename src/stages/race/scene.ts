@@ -34,6 +34,8 @@ import { createFriend } from '../../scenes/island/friend';
 import { disposeTree } from '../_shared/diorama';
 import { celebrate } from '../_shared/fx';
 import type { StageCtx, StageScene } from '../_shared/module';
+import { startStageMap } from '../_shared/stagemap';
+import { dressRace, RACE_LOOKS, RACE_MOODS } from './maps';
 import {
   BOOST_TICKS,
   CROSS_ID,
@@ -206,21 +208,25 @@ export function createRaceScene(world: RenderWorld, ctx: StageCtx): StageScene<R
   world.camera.lookAt(0, -0.6, -5);
   world.setGround(-40, 1); // no table here: decorative bodies just fall away
   const reduced = ctx.reducedMotion;
+  // the track (D62): land, road and kerb colours, trees, sky, backdrop and life — the race itself is the same
+  const env = startStageMap(world, root, ctx, RACE_MOODS);
+  const look = RACE_LOOKS[env.map] as (typeof RACE_LOOKS)[number];
+  dressRace(env.map, root, env.life);
 
   // far ground under the sky road
-  const land = new Mesh(disc(90, 0.4, 48), grassMaterial('#8fd17a'));
+  const land = new Mesh(disc(90, 0.4, 48), grassMaterial(look.land));
   land.position.y = -7;
   land.receiveShadow = true;
   root.add(land);
 
   // road planks (two colours alternate → the stripes make speed readable), rails, trees, clouds
   const plankGeo = roundedBox(LANE * 3 + 0.6, 0.22, STEP * 0.96, 0.06);
-  const planksA = new InstancedMesh(plankGeo, toyMaterial('#5b6178', { finish: 'satin' }), PLANKS / 2);
-  const planksB = new InstancedMesh(plankGeo, toyMaterial('#6f7691', { finish: 'satin' }), PLANKS / 2);
+  const planksA = new InstancedMesh(plankGeo, toyMaterial(look.planks[0], { finish: 'satin' }), PLANKS / 2);
+  const planksB = new InstancedMesh(plankGeo, toyMaterial(look.planks[1], { finish: 'satin' }), PLANKS / 2);
   planksA.receiveShadow = planksB.receiveShadow = true;
   const kerbGeo = roundedBox(0.34, 0.3, STEP * 0.96, 0.08);
-  const kerbA = new InstancedMesh(kerbGeo, toyMaterial(PALETTE.berry, { finish: 'satin' }), PLANKS);
-  const kerbB = new InstancedMesh(kerbGeo, toyMaterial(PALETTE.white, { finish: 'satin' }), PLANKS);
+  const kerbA = new InstancedMesh(kerbGeo, toyMaterial(look.kerbs[0], { finish: 'satin' }), PLANKS);
+  const kerbB = new InstancedMesh(kerbGeo, toyMaterial(look.kerbs[1], { finish: 'satin' }), PLANKS);
   const dashes = new InstancedMesh(
     roundedBox(0.12, 0.04, STEP * 0.5, 0.02),
     toyMaterial(PALETTE.white, { finish: 'satin' }),
@@ -229,16 +235,16 @@ export function createRaceScene(world: RenderWorld, ctx: StageCtx): StageScene<R
   const TREES = 20;
   const trees = new InstancedMesh(
     new ConeGeometry(0.9, 2.6, 10),
-    toyMaterial('#3fae6a', { finish: 'matte' }),
+    toyMaterial(look.tree[0], { finish: 'matte' }),
     TREES,
   );
   // a second, smaller cone on top and a trunk under each tree (same matrices, offset)
   const treeTops = new InstancedMesh(
     new ConeGeometry(0.65, 1.8, 10),
-    toyMaterial('#5cc77e', { finish: 'matte' }),
+    toyMaterial(look.tree[1], { finish: 'matte' }),
     TREES,
   );
-  const trunks = new InstancedMesh(new CylinderGeometry(0.2, 0.26, 1.1, 8), woodMaterial('#8a5a3c'), TREES);
+  const trunks = new InstancedMesh(new CylinderGeometry(0.2, 0.26, 1.1, 8), woodMaterial(look.trunk), TREES);
   // grandstands: a stepped stand of three tiers and a crowd of round toy fans (four shirt colours)
   const STANDS = 4;
   const STAND_GAP = 26;
@@ -251,7 +257,7 @@ export function createRaceScene(world: RenderWorld, ctx: StageCtx): StageScene<R
   );
   const roofMesh = new InstancedMesh(
     roundedBox(7.8, 0.18, 3.8, 0.08),
-    toyMaterial('#ff6f91', { finish: 'satin' }),
+    toyMaterial(look.roof, { finish: 'satin' }),
     STANDS,
   );
   const FAN_COLORS = ['#ff8fab', '#6fd0e3', '#ffd166', '#b9a6f2'];
@@ -282,11 +288,7 @@ export function createRaceScene(world: RenderWorld, ctx: StageCtx): StageScene<R
     BOARDS,
   );
   const CLOUDS = 10;
-  const clouds = new InstancedMesh(
-    ball(1.4, 12),
-    toyMaterial(PALETTE.white, { finish: 'matte' }),
-    CLOUDS * 2,
-  );
+  const clouds = new InstancedMesh(ball(1.4, 12), toyMaterial(look.cloud, { finish: 'matte' }), CLOUDS * 2);
   const LINES = 22;
   const lines = new InstancedMesh(
     roundedBox(0.05, 0.05, 3.2, 0.02),
@@ -418,6 +420,7 @@ export function createRaceScene(world: RenderWorld, ctx: StageCtx): StageScene<R
 
   return {
     sync(state, prev, dt) {
+      env.update(dt);
       const vdt = hitStop.filter(dt);
       t += vdt;
       const length = state.core.puzzles;
@@ -793,6 +796,7 @@ export function createRaceScene(world: RenderWorld, ctx: StageCtx): StageScene<R
     setCursor() {},
     setGlow() {},
     dispose() {
+      env.dispose();
       // the next stage sets its own camera; put the field of view back for safety
       world.camera.fov = FOV;
       world.camera.updateProjectionMatrix();
