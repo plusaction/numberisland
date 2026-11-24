@@ -12,14 +12,29 @@ import {
 } from './rules';
 import { createFishingScene } from './scene';
 
+/**
+ * The goal sentence at the top, filled in as the child picks fish: each picked number drops into the next
+ * "?" (□) box. After a right answer it shows the whole sentence; after a miss, a TRUE sentence of what the
+ * picks really make (never a false "= target").
+ */
 function goal(s: FishingState): string {
   const p = s.puzzle;
   if (!p) return '';
-  if (p.mode === 'sum') return `🎣 ? + ? = ${p.target}`;
-  if (p.mode === 'diff') return `🎣 ? − ? = ${p.target}`;
-  const k = p.known ?? 0;
-  if (p.op === '+') return p.blank === 0 ? `🎣 □ + ${k} = ${p.target}` : `🎣 ${k} + □ = ${p.target}`;
-  return p.blank === 0 ? `🎣 □ − ${k} = ${p.target}` : `🎣 ${k} − □ = ${p.target}`;
+  const val = (id: number) => p.fish.find((f) => f.id === id)?.value;
+  const ids = s.phase === 'hook' || s.phase === 'reel' ? s.reeled : s.picked;
+  const vals = ids.map(val).filter((v): v is number => v !== undefined);
+  const miss = s.phase === 'bounce' && s.lastWrong ? s.lastWrong.made : null;
+  const rhs = miss ?? p.target;
+  if (p.mode === 'missing') {
+    const k = p.known ?? 0;
+    const box = vals[0] !== undefined ? String(vals[0]) : '□';
+    const op = p.op === '+' ? '+' : '−';
+    return p.blank === 0 ? `🎣 ${box} ${op} ${k} = ${rhs}` : `🎣 ${k} ${op} ${box} = ${rhs}`;
+  }
+  // a difference reads bigger − smaller once both are picked (like the bomb's wires)
+  const shown = p.mode === 'diff' && vals.length === 2 ? [...vals].sort((a, b) => b - a) : vals;
+  const slot = (i: number) => (shown[i] !== undefined ? String(shown[i]) : '?');
+  return `🎣 ${slot(0)} ${p.mode === 'diff' ? '−' : '+'} ${slot(1)} = ${rhs}`;
 }
 
 export const fishingModule: StageModule<FishingState, FishingAction> = {
@@ -37,6 +52,9 @@ export const fishingModule: StageModule<FishingState, FishingAction> = {
       action: s.phase === 'hook' ? { t: 'reel' } : id === 1000 ? { t: 'odd' } : { t: 'tap', id },
     }),
   },
+  // picked fish numbers fly up into the goal sentence (the same as the bomb's wires)
+  picks: (s) => s.picked,
+  pickValue: (s, id) => s.puzzle?.fish.find((f) => f.id === id)?.value,
   hud: (s) => ({
     canUndo: s.phase === 'play' && s.picked.length > 0,
     core: s.core,
