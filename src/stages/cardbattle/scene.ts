@@ -16,10 +16,12 @@ import { toyMaterial } from '../../engine/tsl/materials';
 import type { RenderWorld } from '../../engine/world';
 import { audio } from '../../infra/audio/audio';
 import type { PointerInfo } from '../../scenes/common/controller';
-import { baseDiorama, disposeTree, hitId, hitSphere, stageCamera } from '../_shared/diorama';
+import { disposeTree, hitId, hitSphere, mapDiorama, stageCamera } from '../_shared/diorama';
 import { celebrate } from '../_shared/fx';
 import type { StageCtx, StageScene } from '../_shared/module';
+import { startStageMap } from '../_shared/stagemap';
 import { type Bot, botModel, type Card, card, gem, holoMaterial } from './cards3d';
+import { CARD_LOOKS, CARD_MOODS, dressCards } from './maps';
 import { type CardAction, type CardState, DEAL_TICKS, HAND, REVEAL_TICKS, WINS_NEEDED } from './rules';
 
 const HAND_X = [-1.65, 0, 1.65];
@@ -49,16 +51,23 @@ export function createCardScene(world: RenderWorld, ctx: StageCtx): StageScene<C
   root.name = 'stage-cardbattle';
   world.scene.add(root);
   stageCamera(world, 10.5, 7.6, 42, 1.0);
-  root.add(baseDiorama('#2b2f6b', 7));
+  // the arena (D62): table and light colours, ground, sky, dressing and life — the duel is the same
+  const env = startStageMap(world, root, ctx, CARD_MOODS);
+  const look = CARD_LOOKS[env.map] as (typeof CARD_LOOKS)[number];
+  root.add(mapDiorama(look.shape, look.ground, 7));
+  dressCards(env.map, root, env.life);
 
   // neon arena: a dark felt table ringed by glowing light strips that breathe
-  const table = new Mesh(disc(5.4, 0.25, 96), toyMaterial('#33397a', { finish: 'satin' }));
+  const table = new Mesh(disc(5.4, 0.25, 96), toyMaterial(look.table, { finish: 'satin' }));
   table.position.y = 0.12;
   table.receiveShadow = true;
-  const neonA = new Mesh(new TorusGeometry(5.45, 0.07, 10, 120), toyMaterial('#6fe3ff', { rimStrength: 1 }));
+  const neonA = new Mesh(
+    new TorusGeometry(5.45, 0.07, 10, 120),
+    toyMaterial(look.neon[0], { rimStrength: 1 }),
+  );
   neonA.rotation.x = Math.PI / 2;
   neonA.position.y = 0.28;
-  const neonB = new Mesh(new TorusGeometry(2.4, 0.05, 10, 90), toyMaterial('#ff8fd0', { rimStrength: 1 }));
+  const neonB = new Mesh(new TorusGeometry(2.4, 0.05, 10, 90), toyMaterial(look.neon[1], { rimStrength: 1 }));
   neonB.rotation.x = Math.PI / 2;
   neonB.position.set(0, 0.26, 0.6);
   root.add(table, neonA, neonB);
@@ -154,6 +163,7 @@ export function createCardScene(world: RenderWorld, ctx: StageCtx): StageScene<C
 
   return {
     sync(state, prev, dt) {
+      env.update(dt);
       const vdt = hitStop.filter(dt);
       t += vdt;
       if (state.duel !== duelRef) {
@@ -343,6 +353,7 @@ export function createCardScene(world: RenderWorld, ctx: StageCtx): StageScene<C
       glowId = id;
     },
     dispose() {
+      env.dispose();
       disposeTree(root);
     },
   };
