@@ -25,9 +25,11 @@ import { type JellyMaterial, jellyMaterial, toyMaterial } from '../../engine/tsl
 import type { RenderWorld } from '../../engine/world';
 import { audio } from '../../infra/audio/audio';
 import type { PointerInfo } from '../../scenes/common/controller';
-import { baseDiorama, disposeTree, hitCylinder, stageCamera } from '../_shared/diorama';
+import { disposeTree, hitCylinder, mapDiorama, stageCamera } from '../_shared/diorama';
 import { celebrate } from '../_shared/fx';
 import type { StageCtx, StageScene } from '../_shared/module';
+import { startStageMap } from '../_shared/stagemap';
+import { dressSlime, SLIME_LOOKS, SLIME_MOODS } from './maps';
 import type { SlimeAction, SlimeState } from './rules';
 
 const COLORS = [
@@ -86,13 +88,17 @@ export function createSlimeScene(world: RenderWorld, ctx: StageCtx): StageScene<
   world.scene.add(root);
   // look a little above the tray: the board sits lower on screen, clear of the goal box
   stageCamera(world, 11, 10, 40, 1.4);
-  root.add(baseDiorama(PALETTE.mint, 7.2));
-  const tray = new Mesh(roundedBox(11, 0.5, 6.4, 0.4), toyMaterial(PALETTE.lavender));
+  // the place (D62): ground, tray and cushion colours, sky, surroundings and life — the board is the same
+  const env = startStageMap(world, root, ctx, SLIME_MOODS);
+  const look = SLIME_LOOKS[env.map] as (typeof SLIME_LOOKS)[number];
+  root.add(mapDiorama(look.shape, look.ground, 7.2));
+  dressSlime(env.map, root, env.life);
+  const tray = new Mesh(roundedBox(11, 0.5, 6.4, 0.4), toyMaterial(look.tray));
   tray.position.y = 0.25;
   tray.receiveShadow = true;
   root.add(tray);
   for (let s = 0; s < 8; s++) {
-    const pad = new Mesh(roundedBox(1.6, 0.06, 1.6, 0.3), toyMaterial('#d9cdfb'));
+    const pad = new Mesh(roundedBox(1.6, 0.06, 1.6, 0.3), toyMaterial(look.pad));
     pad.position.copy(SLOT_POS(s)).setY(0.52);
     pad.receiveShadow = true; // the sun shadow falls on the cushions too, not only on the tray
     root.add(pad);
@@ -345,6 +351,7 @@ export function createSlimeScene(world: RenderWorld, ctx: StageCtx): StageScene<
 
   return {
     sync(state, _prev, dt) {
+      env.update(dt);
       const vdt = hitStop.filter(dt);
       t += vdt;
       if (state.puzzle !== puzzleRef) {
@@ -519,6 +526,7 @@ export function createSlimeScene(world: RenderWorld, ctx: StageCtx): StageScene<
       glowId = id;
     },
     dispose() {
+      env.dispose();
       disposeTree(root);
     },
   };
