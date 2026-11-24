@@ -111,6 +111,7 @@ export const ko = {
     best: '최고 기록',
     bestValue: '{n}개 정답',
     step: '숫자 단계',
+    stepWord: '단계',
     stepNames: ['한 자리', '두 자리와 한 자리', '두 자리끼리'],
     stepExamples: ['3+4', '23+4', '23+14'],
     prev: '이전 지역',

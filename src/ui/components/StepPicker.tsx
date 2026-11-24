@@ -32,19 +32,18 @@ export function StepPicker({ store, compact = false }: { store: GameStore; compa
           type="button"
           className={`step-key step-${v} ${step === v ? 'step-on' : ''}`}
           aria-pressed={step === v}
-          aria-label={`${v}단계 ${ko.hub.stepNames[v - 1]}`}
           data-testid={`number-step-${v}`}
           onClick={() => pick(v)}
         >
           <span className="step-num">{v}</span>
+          {/* the spoken name starts with what is seen ("1", "3+4"), with the step's meaning in between */}
+          <span className="sr-only">
+            {ko.hub.stepWord} {ko.hub.stepNames[v - 1]}
+          </span>
           <span className="step-dots" aria-hidden="true">
             {'●'.repeat(v)}
           </span>
-          {!compact && (
-            <span className="step-eg" aria-hidden="true">
-              {ko.hub.stepExamples[v - 1]}
-            </span>
-          )}
+          {!compact && <span className="step-eg">{ko.hub.stepExamples[v - 1]}</span>}
         </button>
       ))}
     </fieldset>
