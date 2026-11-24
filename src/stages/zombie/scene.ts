@@ -19,9 +19,11 @@ import type { RenderWorld } from '../../engine/world';
 import { audio } from '../../infra/audio/audio';
 import type { PointerInfo } from '../../scenes/common/controller';
 import { createFriend } from '../../scenes/island/friend';
-import { baseDiorama, disposeTree, hitCylinder, hitId, stageCamera } from '../_shared/diorama';
+import { disposeTree, hitCylinder, hitId, mapDiorama, stageCamera } from '../_shared/diorama';
 import { celebrate } from '../_shared/fx';
 import type { StageCtx, StageScene } from '../_shared/module';
+import { startStageMap } from '../_shared/stagemap';
+import { dressZombie, ZOMBIE_LOOKS, ZOMBIE_MOODS } from './maps';
 import {
   AIM_ID,
   HAND,
@@ -172,16 +174,20 @@ export function createZombieScene(world: RenderWorld, ctx: StageCtx): StageScene
   const GATE_X = L.gate;
   const DOOR_X = L.door;
   const handAt = (i: number) => (L.hand[i] ?? L.hand[0]) as [number, number, number];
-  root.add(baseDiorama('#bfe6b0', 7.6));
+  // the yard (D62): lawn, paths, fence, ground, sky, dressing and life — the party works the same
+  const env = startStageMap(world, root, ctx, ZOMBIE_MOODS);
+  const look = ZOMBIE_LOOKS[env.map] as (typeof ZOMBIE_LOOKS)[number];
+  root.add(mapDiorama(look.shape, look.ground, 7.6));
+  dressZombie(env.map, root, env.life);
   const reduced = ctx.reducedMotion;
 
   // yard: lawn, three paths, back fence, garden gate
-  const lawn = new Mesh(roundedBox(13.4, 0.3, 8.6, 0.14), toyMaterial('#a9dc98', { finish: 'matte' }));
+  const lawn = new Mesh(roundedBox(13.4, 0.3, 8.6, 0.14), toyMaterial(look.lawn, { finish: 'matte' }));
   lawn.position.set(0.6, 0.15, 0.2);
   lawn.receiveShadow = true;
   root.add(lawn);
   for (const z of LANE_Z) {
-    const path = new Mesh(roundedBox(9.2, 0.06, 1.1, 0.03), toyMaterial('#f1e2c4', { finish: 'matte' }));
+    const path = new Mesh(roundedBox(9.2, 0.06, 1.1, 0.03), toyMaterial(look.path, { finish: 'matte' }));
     path.position.set(1.7, 0.32, z);
     path.receiveShadow = true;
     root.add(path);
@@ -189,7 +195,7 @@ export function createZombieScene(world: RenderWorld, ctx: StageCtx): StageScene
   const PICKETS = 26;
   const pickets = new InstancedMesh(
     roundedBox(0.3, 1.1, 0.12, 0.05),
-    toyMaterial(PALETTE.white, { finish: 'satin' }),
+    toyMaterial(look.fence, { finish: 'satin' }),
     PICKETS,
   );
   const dummy = new Object3D();
@@ -330,6 +336,7 @@ export function createZombieScene(world: RenderWorld, ctx: StageCtx): StageScene
 
   return {
     sync(state, prev, dt) {
+      env.update(dt);
       const vdt = hitStop.filter(dt);
       t += vdt;
       const z = state.zombie;
@@ -579,6 +586,7 @@ export function createZombieScene(world: RenderWorld, ctx: StageCtx): StageScene
       glowId = id;
     },
     dispose() {
+      env.dispose();
       disposeTree(root);
     },
   };
