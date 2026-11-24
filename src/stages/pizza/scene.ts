@@ -21,9 +21,11 @@ import { metalMaterial, toyMaterial, woodMaterial } from '../../engine/tsl/mater
 import type { RenderWorld } from '../../engine/world';
 import { audio } from '../../infra/audio/audio';
 import type { PointerInfo } from '../../scenes/common/controller';
-import { baseDiorama, disposeTree, hitCylinder, hitId, stageCamera } from '../_shared/diorama';
+import { disposeTree, hitCylinder, hitId, mapDiorama, stageCamera } from '../_shared/diorama';
 import { celebrate } from '../_shared/fx';
 import type { StageCtx, StageScene } from '../_shared/module';
+import { startStageMap } from '../_shared/stagemap';
+import { dressPizza, PIZZA_LOOKS, PIZZA_MOODS } from './maps';
 import {
   COLORS,
   crownModel,
@@ -78,23 +80,27 @@ export function createPizzaScene(world: RenderWorld, ctx: StageCtx): StageScene<
   root.name = 'stage-pizza';
   world.scene.add(root);
   stageCamera(world, CAM.z, CAM.y, 42, CAM.lookY);
-  root.add(baseDiorama(PALETTE.cream, 7.4));
+  // the place (D62): shop colours, ground, sky, outside dressing and life — the shop works the same
+  const env = startStageMap(world, root, ctx, PIZZA_MOODS);
+  const look = PIZZA_LOOKS[env.map] as (typeof PIZZA_LOOKS)[number];
+  root.add(mapDiorama(look.shape, look.ground, 7.4));
+  dressPizza(env.map, root, env.life);
   const reduced = ctx.reducedMotion;
 
   // ── shop shell: tiled floor, back wall, side wall with the door, awning, string lights, rating stars
-  const floor = new Mesh(roundedBox(11, 0.3, 7.2, 0.12), toyMaterial('#f7dcb4', { finish: 'satin' }));
+  const floor = new Mesh(roundedBox(11, 0.3, 7.2, 0.12), toyMaterial(look.floor, { finish: 'satin' }));
   floor.position.set(0, 0.15, -0.3);
   floor.receiveShadow = true;
-  const back = new Mesh(roundedBox(11, 4.4, 0.3, 0.1), toyMaterial('#fff1d9', { finish: 'matte' }));
+  const back = new Mesh(roundedBox(11, 4.4, 0.3, 0.1), toyMaterial(look.wall, { finish: 'matte' }));
   back.position.set(0, 2.35, WALL_Z - 0.15);
   back.receiveShadow = true;
-  const wainscot = new Mesh(roundedBox(11, 1.0, 0.36, 0.08), toyMaterial('#7cc6a4', { finish: 'satin' }));
+  const wainscot = new Mesh(roundedBox(11, 1.0, 0.36, 0.08), toyMaterial(look.wainscot, { finish: 'satin' }));
   wainscot.position.set(0, 0.8, WALL_Z - 0.05);
   root.add(floor, back, wainscot);
   for (let i = 0; i < 11; i++) {
     const stripe = new Mesh(
       roundedBox(0.98, 0.6, 0.5, 0.12),
-      toyMaterial(i % 2 ? PALETTE.white : COLORS.stripe, { finish: 'satin' }),
+      toyMaterial(i % 2 ? PALETTE.white : look.stripe, { finish: 'satin' }),
     );
     stripe.position.set(-5 + i, 4.3, WALL_Z + 0.25);
     stripe.rotation.x = 0.35;
@@ -564,6 +570,7 @@ export function createPizzaScene(world: RenderWorld, ctx: StageCtx): StageScene<
 
   return {
     sync(state, prev, dt) {
+      env.update(dt);
       const vdt = hitStop.filter(dt);
       t += vdt;
       const o = state.order;
@@ -742,6 +749,7 @@ export function createPizzaScene(world: RenderWorld, ctx: StageCtx): StageScene<
       glowId = id;
     },
     dispose() {
+      env.dispose();
       disposeTree(root);
     },
   };
