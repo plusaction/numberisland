@@ -325,3 +325,59 @@ test('[D61] one number step for all stages: pick ③ on the island, it is saved,
   for (const n of ops) expect(n).toBeGreaterThanOrEqual(10);
   expect(errors).toEqual([]);
 });
+
+test('[D62] five maps per stage: only the first is open, its mission opens the next, and the next can be picked', async ({
+  page,
+}, info) => {
+  test.setTimeout(300_000);
+  const errors = await collectErrors(page);
+  await startFresh(page, url(info, '/'));
+  await throughPlacement(page);
+  type St = {
+    __store: {
+      getState(): {
+        select(s: string): void;
+        go(s: string): void;
+        profile: { maps: Record<string, number> };
+      };
+    };
+  };
+  await page.evaluate(() => (globalThis as unknown as St).__store.getState().select('fishing'));
+  const maps = page.getByTestId('maps');
+  await expect(maps).toHaveAttribute('data-open', '1');
+  await expect(page.getByTestId('map-0')).toBeEnabled();
+  await expect(page.getByTestId('map-1')).toBeDisabled();
+  await expect(page.getByTestId('map-caption')).toContainText('해님 연못');
+  // play map 1 through (its mission: finish a round)
+  await page.evaluate(() => (globalThis as unknown as St).__store.getState().go('intro'));
+  await page.getByTestId('go').click();
+  await expect(page.getByTestId('stage')).toHaveAttribute('data-stage', 'fishing', { timeout: 60_000 });
+  await expect(page.getByTestId('map-chip')).toContainText('한 판 끝내기');
+  await page
+    .getByTestId('skip-tutorial')
+    .click({ timeout: 20_000 })
+    .catch(() => {});
+  for (let k = 0; k < 200; k++) {
+    if (await page.getByTestId('result').isVisible()) break;
+    await page.evaluate(() => {
+      const s = (
+        globalThis as unknown as { __stage?: { info(): { acceptsInput: boolean }; solveOne(): void } }
+      ).__stage;
+      if (s?.info().acceptsInput) s.solveOne();
+    });
+    await page.waitForTimeout(400);
+  }
+  await expect(page.getByTestId('result')).toBeVisible({ timeout: 120_000 });
+  await expect(page.getByTestId('map-mission')).toHaveAttribute('data-met', '1');
+  await expect(page.getByTestId('map-mission')).toContainText('굽이 강가');
+  await expect
+    .poll(() => page.evaluate(() => (globalThis as unknown as St).__store.getState().profile.maps.fishing))
+    .toBe(2);
+  // back on the island: map 2 is open and chosen by default
+  await page.getByTestId('to-hub').click();
+  await expect(page.getByTestId('maps')).toHaveAttribute('data-open', '2');
+  await expect(page.getByTestId('maps')).toHaveAttribute('data-map', '1');
+  await page.getByTestId('map-0').click();
+  await expect(page.getByTestId('maps')).toHaveAttribute('data-map', '0');
+  expect(errors).toEqual([]);
+});
