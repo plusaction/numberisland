@@ -18,9 +18,11 @@ import type { RenderWorld } from '../../engine/world';
 import { audio } from '../../infra/audio/audio';
 import type { PointerInfo } from '../../scenes/common/controller';
 import { createFriend } from '../../scenes/island/friend';
-import { baseDiorama, disposeTree, hitCylinder, hitId, hitSphere, stageCamera } from '../_shared/diorama';
+import { disposeTree, hitCylinder, hitId, hitSphere, mapDiorama, stageCamera } from '../_shared/diorama';
 import { celebrate } from '../_shared/fx';
 import type { StageCtx, StageScene } from '../_shared/module';
+import { startStageMap } from '../_shared/stagemap';
+import { dressEscape, ESCAPE_LOOKS, ESCAPE_MOODS, houseColor } from './maps';
 import { propModel, ROOM_COLORS } from './props';
 import {
   allFound,
@@ -61,7 +63,12 @@ export function createEscapeScene(world: RenderWorld, ctx: StageCtx): StageScene
   root.name = 'stage-escape';
   world.scene.add(root);
   stageCamera(world, CAM.z, CAM.y, 42, CAM.lookY);
-  root.add(baseDiorama(PALETTE.cream, 7));
+  // the house (D62): room tint, window, ground, sky, outside dressing and life — the rooms play the same
+  const env = startStageMap(world, root, ctx, ESCAPE_MOODS);
+  const house = ESCAPE_LOOKS[env.map] as (typeof ESCAPE_LOOKS)[number];
+  root.add(mapDiorama(house.shape, house.ground, 7));
+  dressEscape(env.map, root, env.life);
+  const hc = (hex: string) => houseColor(env.map, hex);
 
   // room shell (recoloured per theme)
   const floor = new Mesh(roundedBox(9.6, 0.3, 6.4, 0.12), toyMaterial('#f6c9a0', { finish: 'satin' }));
@@ -110,7 +117,10 @@ export function createEscapeScene(world: RenderWorld, ctx: StageCtx): StageScene
   }
   const winFrame = new Mesh(roundedBox(0.14, 1.5, 1.7, 0.05), woodMaterial('#f4f1ec'));
   winFrame.position.set(-4.76, 2.5, 0.4);
-  const winSky = new Mesh(roundedBox(0.06, 1.24, 1.44, 0.03), toyMaterial('#5fb8f0', { rimStrength: 0.5 }));
+  const winSky = new Mesh(
+    roundedBox(0.06, 1.24, 1.44, 0.03),
+    toyMaterial(house.window, { rimStrength: 0.5 }),
+  );
   winSky.position.set(-4.72, 2.5, 0.4);
   const winBars = [
     new Mesh(roundedBox(0.08, 1.24, 0.07, 0.02), woodMaterial('#f4f1ec')),
@@ -362,7 +372,8 @@ export function createEscapeScene(world: RenderWorld, ctx: StageCtx): StageScene
   const look = new Vector3();
 
   const paint = (th: RoomTheme) => {
-    const c = ROOM_COLORS[th];
+    const r = ROOM_COLORS[th];
+    const c = { floor: hc(r.floor), wall: hc(r.wall), trim: hc(r.trim) };
     floor.material = toyMaterial(c.floor, { finish: 'satin' });
     side.material = toyMaterial(c.wall, { finish: 'matte' });
     for (const b of backs) b.material = side.material;
@@ -434,6 +445,7 @@ export function createEscapeScene(world: RenderWorld, ctx: StageCtx): StageScene
 
   return {
     sync(state, prev, dt) {
+      env.update(dt);
       const vdt = hitStop.filter(dt);
       t += vdt;
       if (state.room !== roomRef) {
@@ -595,6 +607,7 @@ export function createEscapeScene(world: RenderWorld, ctx: StageCtx): StageScene
       glowId = id;
     },
     dispose() {
+      env.dispose();
       disposeTree(root);
     },
   };
