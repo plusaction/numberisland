@@ -252,3 +252,76 @@ test('[P7] save file: download, open it back after changes, and undo the swap (n
   await expect.poll(gems).toBe(40);
   expect(errors).toEqual([]);
 });
+
+test('[D61] one number step for all stages: pick ③ on the island, it is saved, and a stage asks two-digit pairs', async ({
+  page,
+}, info) => {
+  const errors = await collectErrors(page);
+  await startFresh(page, url(info, '/'));
+  await throughPlacement(page);
+  const picker = page.getByTestId('number-step');
+  // the default is ①
+  await expect(picker).toHaveAttribute('data-step', '1');
+  const three = page.getByTestId('number-step-3');
+  // press feel: the key goes down while it is held
+  const box = await three.boundingBox();
+  if (!box) throw new Error('no step key');
+  await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+  await page.mouse.down();
+  await expect(three).toHaveAttribute('data-pressed', '');
+  await page.mouse.up();
+  await expect(picker).toHaveAttribute('data-step', '3');
+  await expect(three).not.toHaveAttribute('data-pressed', '', { timeout: 2000 });
+  // saved: survives a reload, and the settings sheet shows the same step
+  await expect
+    .poll(
+      () =>
+        page.evaluate(async () => {
+          const db: IDBDatabase = await new Promise((r) => {
+            const q = indexedDB.open('numberisland');
+            q.onsuccess = () => r(q.result);
+          });
+          const all: { settings: { numberStep: number } }[] = await new Promise((r) => {
+            const t = db.transaction('profiles').objectStore('profiles').getAll();
+            t.onsuccess = () => r(t.result);
+          });
+          db.close();
+          return all[0]?.settings.numberStep;
+        }),
+      { timeout: 30_000 },
+    )
+    .toBe(3);
+  await page.reload();
+  await expect(page.getByTestId('number-step')).toHaveAttribute('data-step', '3', { timeout: 30_000 });
+  await page.getByTestId('open-settings').click();
+  await expect(page.getByTestId('settings').getByTestId('number-step')).toHaveAttribute('data-step', '3');
+  await page.keyboard.press('Escape');
+  // a stage now asks two-digit with two-digit
+  await page.evaluate(() => {
+    const st = (
+      globalThis as unknown as { __store: { getState(): { select(s: string): void; go(s: string): void } } }
+    ).__store.getState();
+    st.select('race');
+    st.go('intro');
+  });
+  await page.getByTestId('go').click();
+  await expect(page.getByTestId('stage')).toHaveAttribute('data-stage', 'race', { timeout: 60_000 });
+  await page.waitForFunction(
+    () =>
+      (globalThis as unknown as { __stage?: { runtime: { state: { core: { asked: unknown } } } } }).__stage
+        ?.runtime.state.core.asked,
+    null,
+    { timeout: 60_000 },
+  );
+  const ops = await page.evaluate(
+    () =>
+      (
+        globalThis as unknown as {
+          __stage: { runtime: { state: { core: { asked: { question: { operands: number[] } } } } } };
+        }
+      ).__stage.runtime.state.core.asked.question.operands,
+  );
+  expect(ops).toHaveLength(2);
+  for (const n of ops) expect(n).toBeGreaterThanOrEqual(10);
+  expect(errors).toEqual([]);
+});
