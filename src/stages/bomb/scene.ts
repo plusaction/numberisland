@@ -25,9 +25,11 @@ import { metalMaterial, toyMaterial, woodMaterial } from '../../engine/tsl/mater
 import type { RenderWorld } from '../../engine/world';
 import { audio } from '../../infra/audio/audio';
 import type { PointerInfo } from '../../scenes/common/controller';
-import { baseDiorama, disposeTree, hitCylinder, hitId, hitSphere, stageCamera } from '../_shared/diorama';
+import { disposeTree, hitCylinder, hitId, hitSphere, mapDiorama, stageCamera } from '../_shared/diorama';
 import { celebrate } from '../_shared/fx';
 import type { StageCtx, StageScene } from '../_shared/module';
+import { startStageMap } from '../_shared/stagemap';
+import { BOMB_LOOKS, BOMB_MOODS, dressBomb } from './maps';
 import { type BombAction, type BombState, DEFUSE_TICKS } from './rules';
 import { toyModel } from './toys3d';
 
@@ -102,8 +104,12 @@ export function createBombScene(world: RenderWorld, ctx: StageCtx): StageScene<B
   root.name = 'stage-bomb';
   world.scene.add(root);
   stageCamera(world, 13, 6.6, 42, 2.2);
-  root.add(baseDiorama(PALETTE.lavender, 7));
-  const bench = new Mesh(roundedBox(11, 0.6, 7, 0.25), toyMaterial('#e8c9a0'));
+  // the place (D62): ground, bench colour, sky, surroundings and life — defusing works the same
+  const env = startStageMap(world, root, ctx, BOMB_MOODS);
+  const look = BOMB_LOOKS[env.map] as (typeof BOMB_LOOKS)[number];
+  root.add(mapDiorama(look.shape, look.ground, 7));
+  dressBomb(env.map, root, env.life);
+  const bench = new Mesh(roundedBox(11, 0.6, 7, 0.25), toyMaterial(look.bench));
   bench.position.y = 0.3;
   bench.receiveShadow = true;
   root.add(bench);
@@ -379,6 +385,7 @@ export function createBombScene(world: RenderWorld, ctx: StageCtx): StageScene<B
 
   return {
     sync(state, prev, dt) {
+      env.update(dt);
       const vdt = hitStop.filter(dt) * (slowmo > 0 ? 0.25 : 1);
       slowmo = Math.max(0, slowmo - dt);
       t += vdt;
@@ -530,6 +537,7 @@ export function createBombScene(world: RenderWorld, ctx: StageCtx): StageScene<B
       glowId = id;
     },
     dispose() {
+      env.dispose();
       for (const w of wires.values()) w.label.removeFromParent();
       disposeTree(root);
     },
