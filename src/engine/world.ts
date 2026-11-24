@@ -63,6 +63,16 @@ export interface SkyPreset {
   bottom: string;
 }
 
+/** A stage map's light: sky gradient, and optionally sun colour/strength, sky-light strength and fog range. */
+export interface Mood {
+  sky: SkyPreset;
+  sun?: string;
+  sunI?: number;
+  hemi?: number;
+  fogNear?: number;
+  fogFar?: number;
+}
+
 export const SKIES = {
   day: { top: '#9fd8ff', bottom: '#fff1d6' },
   sunset: { top: '#ffb8a8', bottom: '#ffe9b8' },
@@ -225,6 +235,50 @@ export class RenderWorld {
   /** Test hook: simulate a context loss. */
   async simulateLoss() {
     await this.recover(this.backend === 'webgpu');
+  }
+
+  private baseMood: {
+    sky: SkyPreset;
+    sun: number;
+    sunI: number;
+    hemi: number;
+    near: number;
+    far: number;
+  } | null = null;
+  /**
+   * A stage map's mood (D62): its own sky, sun colour/strength and fog. The island's mood is kept and comes
+   * back with `clearMood()` when the stage ends.
+   */
+  setMood(m: Mood) {
+    const fog = this.scene.fog as Fog;
+    this.baseMood ??= {
+      sky: this.sky,
+      sun: this.sun.color.getHex(),
+      sunI: this.sun.intensity,
+      hemi: this.hemi.intensity,
+      near: fog.near,
+      far: fog.far,
+    };
+    const b = this.baseMood;
+    this.sun.color.set(m.sun ?? b.sun);
+    this.sun.intensity = m.sunI ?? b.sunI;
+    this.hemi.intensity = m.hemi ?? b.hemi;
+    fog.near = m.fogNear ?? b.near;
+    fog.far = m.fogFar ?? b.far;
+    this.setSky(m.sky);
+  }
+
+  clearMood() {
+    const b = this.baseMood;
+    if (!b) return;
+    this.baseMood = null;
+    const fog = this.scene.fog as Fog;
+    this.sun.color.setHex(b.sun);
+    this.sun.intensity = b.sunI;
+    this.hemi.intensity = b.hemi;
+    fog.near = b.near;
+    fog.far = b.far;
+    this.setSky(b.sky);
   }
 
   setSky(sky: SkyPreset) {

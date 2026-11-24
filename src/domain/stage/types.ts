@@ -83,6 +83,10 @@ export interface RoundResult {
   adaptiveAfter?: AdaptiveState;
   /** The hub "쉽게" step this round was played at (bomb ladder). */
   easyStep?: number;
+  /** Which of the stage's five maps this round was played on (0–4); its mission is judged on this result. */
+  map?: number;
+  /** Stage counters for map missions (race place, card wins, neat merges, pizzas served…). */
+  stats?: Record<string, number>;
 }
 
 /**

@@ -32,6 +32,7 @@ import { SettingsSheet } from '../components/SettingsSheet';
 import { SpeakButton } from '../components/SpeakButton';
 import { Stars } from '../components/Stars';
 import { StepPicker } from '../components/StepPicker';
+import { MapRow } from '../hud/MapRow';
 
 /** When play (or the last rest reminder) started in this visit — the reminder is per sitting, not saved. */
 let restSince = performance.now();
@@ -343,6 +344,7 @@ export function HubScreen({
             );
           })}
         </ul>
+        <MapRow store={store} stage={selected} />
         <p className="mt-1 text-lg max-sm:hidden">
           {fmt(ko.hub.rewardHint, { n: BALANCE.trophies.byStars[3] })}
         </p>

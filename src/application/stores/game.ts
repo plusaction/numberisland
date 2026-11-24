@@ -16,6 +16,8 @@ export interface GameState {
   screen: Screen;
   profile: Profile | null;
   selected: StageId;
+  /** Map picked on the island card per stage (unset = the newest open map). */
+  mapPick: Partial<Record<StageId, number>>;
   lastResult: RoundResult | null;
   lastOutcome: ApplyOutcome | null;
   storageWarning: boolean;
@@ -27,6 +29,7 @@ export interface GameActions {
   go(screen: Screen): void;
   setProfile(p: Profile): void;
   select(stage: StageId): void;
+  pickMap(stage: StageId, map: number): void;
   finishRound(result: RoundResult, outcome: ApplyOutcome): void;
   restart(): void;
   setStorageWarning(on: boolean): void;
@@ -40,6 +43,7 @@ export function createGameStore() {
       screen: 'boot',
       profile: null,
       selected: 'fishing',
+      mapPick: {},
       lastResult: null,
       lastOutcome: null,
       storageWarning: false,
@@ -54,6 +58,7 @@ export function createGameStore() {
         }),
       setProfile: (profile) => set({ profile }),
       select: (selected) => set({ selected }),
+      pickMap: (stage, map) => set((s) => ({ mapPick: { ...s.mapPick, [stage]: map } })),
       finishRound: (lastResult, lastOutcome) =>
         set((s) =>
           // only a running stage can hand over a result (a late timer after "나가기" changes nothing)
@@ -66,4 +71,11 @@ export function createGameStore() {
       setStorageWarning: (storageWarning) => set({ storageWarning }),
     })),
   );
+}
+
+/** The map a stage starts on: the one picked on the card if it is open, else the newest open map. */
+export function currentMap(s: Pick<GameState, 'mapPick' | 'profile'>, stage: StageId): number {
+  const open = Math.max(1, s.profile?.maps?.[stage] ?? 1);
+  const pick = s.mapPick[stage];
+  return pick !== undefined && pick >= 0 && pick < open ? pick : open - 1;
 }

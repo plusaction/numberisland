@@ -222,7 +222,7 @@ export const pizzaRules: StageRules<PizzaState, PizzaAction> = {
     const highlights = [...r.highlights];
     if (s.served >= s.core.puzzles) highlights.push('pizzaShop');
     if (s.vipServed) highlights.push('pizzaVip');
-    return { ...r, highlights };
+    return { ...r, highlights, stats: { served: s.served } };
   },
 };
 

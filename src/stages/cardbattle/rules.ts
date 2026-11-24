@@ -284,7 +284,7 @@ export const cardRules: StageRules<CardState, CardAction> = {
     const highlights = [...r.highlights];
     if (s.wins >= WINS_NEEDED) highlights.push('cardChampion');
     if (s.perfects) highlights.push('cardPerfect');
-    return { ...r, highlights };
+    return { ...r, highlights, stats: { wins: s.wins, perfects: s.perfects } };
   },
 };
 

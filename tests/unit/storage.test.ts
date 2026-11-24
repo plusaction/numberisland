@@ -57,7 +57,7 @@ describe('[P4] 데이터 안정성', () => {
     p.toys = ['top', 'robot'];
     p.bombEasyStep = 4;
     const { profile, repaired } = parseProfile(p, now);
-    expect(repaired).toEqual(['migrated to v4', 'migrated to v5']);
+    expect(repaired).toEqual(['migrated to v4', 'migrated to v5', 'migrated to v6']);
     expect(profile.economy).toEqual({ coins: 321, snacks: 17 });
     expect(profile.trophies.total).toBe(12);
     expect(profile.toys).toEqual(['top', 'robot']);
@@ -76,7 +76,7 @@ describe('[P4] 데이터 안정성', () => {
     p.version = 4;
     p.economy = { coins: 99, snacks: 3 };
     const { profile, repaired } = parseProfile(p, now);
-    expect(repaired).toEqual(['migrated to v5']);
+    expect(repaired).toEqual(['migrated to v5', 'migrated to v6']);
     expect(profile.settings.numberStep).toBe(1);
     expect(profile.settings.haptics).toBe(true);
     expect(profile.settings.tts).toBe(false);
@@ -84,12 +84,24 @@ describe('[P4] 데이터 안정성', () => {
     expect(profile.economy.coins).toBe(99);
   });
 
+  it('a v5 save gets five maps per stage with the first one open, keeping everything else (D62)', () => {
+    const p = defaultProfile('t', '해', now) as unknown as Record<string, unknown>;
+    delete p.maps;
+    p.version = 5;
+    p.economy = { coins: 50, snacks: 2 };
+    const { profile, repaired } = parseProfile(p, now);
+    expect(repaired).toEqual(['migrated to v6']);
+    expect(profile.maps.fishing).toBe(1);
+    expect(profile.maps.race).toBe(1);
+    expect(profile.economy.coins).toBe(50);
+  });
+
   it('migrates v0 drafts and refuses newer versions', () => {
     const p = defaultProfile('m', '바다', now) as unknown as Record<string, unknown>;
     delete p.firsts;
     p.version = 0;
     const { profile, repaired } = parseProfile(p, now);
-    expect(profile.version).toBe(5);
+    expect(profile.version).toBe(6);
     expect(profile.bombEasyStep).toBe(1);
     expect(repaired).toContain('migrated to v1');
     expect(repaired).toContain('migrated to v2');

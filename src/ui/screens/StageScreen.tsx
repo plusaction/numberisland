@@ -4,7 +4,7 @@ import { useCallback, useEffect, useReducer, useRef, useState } from 'react';
 import { useStore } from 'zustand';
 import { useWorld } from '../../app/WorldHost';
 import { SESSION, type SessionEvent, type SessionState, sessionFlags } from '../../application/machines';
-import type { GameStore } from '../../application/stores/game';
+import { currentMap, type GameStore } from '../../application/stores/game';
 import { next } from '../../domain/fsm';
 import { applyPartialRound, applyRoundResult } from '../../domain/progression/progression';
 import { createRng } from '../../domain/rng/rng';
@@ -34,6 +34,10 @@ export function StageScreen({ store, reducedMotion }: { store: GameStore; reduce
   const api = useWorld();
   const selected = useStore(store, (s) => s.selected);
   const runId = useStore(store, (s) => s.runId);
+  // the map being played (D62): its name opens the stage, its mission stays in the top bar
+  const mapNo = useStore(store, (s) => currentMap(s, selected));
+  const mapSpec = ko.maps.stages[selected]?.[mapNo];
+  const mapInfo = mapSpec ? { ...mapSpec, n: mapNo + 1 } : null;
   const voice = useStore(store, (s) => s.profile?.settings.tts ?? false);
   const [mod, setMod] = useState<AnyStageModule | null>(null);
   const [hud, setHud] = useState<HudView | null>(null);
@@ -91,6 +95,7 @@ export function StageScreen({ store, reducedMotion }: { store: GameStore; reduce
     const profile = st.profile;
     if (!profile) return;
     const seed = `${profile.id}-${runId}-${Date.now()}`;
+    const mapIdx = currentMap(st, selected);
     // the island's one number step decides the numbers in every stage (D61)
     const init = mod.rules.init(seed, profile.adaptive.level, {
       step: profile.settings.numberStep,
@@ -102,10 +107,10 @@ export function StageScreen({ store, reducedMotion }: { store: GameStore; reduce
       mod,
       api.world,
       init,
-      { reducedMotion, shakeIntensity: profile.settings.shakeIntensity, toys: profile.toys },
+      { reducedMotion, shakeIntensity: profile.settings.shakeIntensity, toys: profile.toys, map: mapIdx },
       (final) => {
         send('round.done');
-        const result = mod.rules.summary(final);
+        const result = { ...mod.rules.summary(final), map: mapIdx };
         const outcome = applyRoundResult(
           store.getState().profile ?? profile,
           result,
@@ -213,7 +218,7 @@ export function StageScreen({ store, reducedMotion }: { store: GameStore; reduce
     const p = store.getState().profile;
     // finished in the last moment: hand the full result over (the result screen shows it)
     if (rt && mod && p && rt.state.phase === 'done') {
-      const result = mod.rules.summary(rt.state);
+      const result = { ...mod.rules.summary(rt.state), map: currentMap(store.getState(), mod.id) };
       store
         .getState()
         .finishRound(
@@ -313,7 +318,23 @@ export function StageScreen({ store, reducedMotion }: { store: GameStore; reduce
         <div className="pill" data-testid="stage-coins">
           <GemIcon /> {core.coins}
         </div>
+        {mapInfo && (
+          <div className="pill map-chip" data-testid="map-chip">
+            <span aria-hidden="true">{mapInfo.icon}</span> {ko.maps.mission}: {mapInfo.mission}
+          </div>
+        )}
       </header>
+      {mapInfo && (
+        <p className="map-banner" data-testid="map-banner" key={`${selected}-${runId}`}>
+          <span className="map-banner-icon" aria-hidden="true">
+            {mapInfo.icon}
+          </span>
+          {fmt(ko.maps.cut, { n: mapInfo.n, name: mapInfo.name })}
+          <small>
+            {ko.maps.mission}: {mapInfo.mission}
+          </small>
+        </p>
+      )}
 
       <section className="hud-goal card" data-testid="goal" aria-live="polite">
         {finale && (

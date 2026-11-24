@@ -6,6 +6,7 @@
 import { newBadges } from '../badges';
 import { BALANCE } from '../balance';
 import type { SkillId } from '../edu/types';
+import { mapsOpenAfter, missionMet } from '../maps';
 import { dailyCourse, dailyDone, dayKey } from '../meta';
 import { type Profile, pushHistory } from '../profile';
 import { coinsForClear, type Stars, trophiesFor } from '../scoring/medals';
@@ -48,6 +49,10 @@ export interface ApplyOutcome {
   newBadges: string[];
   /** This round completed today's adventure (a new stamp). */
   stamped: boolean;
+  /** This round's map mission was met. */
+  missionMet: boolean;
+  /** The map (0–4) this round opened, if any. */
+  mapUnlocked?: number;
 }
 
 /**
@@ -133,6 +138,8 @@ export function applyRoundResult(
   const prev = before.stageStats[result.stage];
   const newToy = result.stage === 'bomb' && result.cleared ? nextToy(before.toys) : null;
   const earned = newBadges(before.badges, result);
+  const mapsBefore = before.maps?.[result.stage] ?? 1;
+  const mapsAfter = mapsOpenAfter(mapsBefore, result.stage, result);
   let profile: Profile = {
     ...before,
     badges: earned.length ? [...before.badges, ...earned] : before.badges,
@@ -153,6 +160,7 @@ export function applyRoundResult(
     history,
     firsts: [...firsts],
     toys: newToy ? [...before.toys, newToy] : before.toys,
+    maps: { ...before.maps, [result.stage]: mapsAfter },
     // a cleared bomb round on the "쉽게" ladder opens the next step (picking a lower step never lowers it)
     bombEasyStep:
       result.stage === 'bomb' && result.cleared && result.easyStep
@@ -182,6 +190,8 @@ export function applyRoundResult(
     ...(newToy ? { newToy } : {}),
     newBadges: earned,
     stamped,
+    missionMet: missionMet(result.stage, result.map ?? 0, result),
+    ...(mapsAfter > mapsBefore ? { mapUnlocked: mapsAfter - 1 } : {}),
   };
 }
 

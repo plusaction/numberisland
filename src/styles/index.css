@@ -462,6 +462,147 @@
     font-size: 1.1rem;
     box-shadow: 0 3px 0 var(--color-sun-deep);
   }
+  /* maps (D62): five round slots under the badges; the picked one pops, locked ones wear a padlock */
+  .map-row-wrap {
+    margin-top: 0.6rem;
+  }
+  .map-row {
+    display: flex;
+    gap: 0.4rem;
+    border: 0;
+    padding: 0;
+    margin: 0;
+  }
+  .map-slot {
+    position: relative;
+    display: grid;
+    place-items: center;
+    width: 3.4rem;
+    height: 3.4rem;
+    border: 0;
+    border-radius: 1rem;
+    background: color-mix(in oklab, var(--color-sea) 14%, white);
+    box-shadow: inset 0 -4px 0 color-mix(in oklab, var(--color-ink) 12%, transparent);
+    cursor: pointer;
+    transition:
+      transform 0.15s ease,
+      background 0.15s ease;
+  }
+  .map-icon {
+    font-size: 1.6rem;
+    line-height: 1;
+  }
+  .map-no {
+    position: absolute;
+    right: 0.25rem;
+    bottom: 0.1rem;
+    font-family: var(--font-num);
+    font-size: 0.85rem;
+    color: color-mix(in oklab, var(--color-ink) 70%, transparent);
+  }
+  .map-on {
+    background: var(--color-sun);
+    box-shadow:
+      inset 0 -4px 0 var(--color-sun-deep),
+      0 0 0 3px #fff;
+    transform: translateY(-3px) scale(1.06);
+  }
+  .map-locked {
+    cursor: default;
+    opacity: 0.55;
+    filter: saturate(0.4);
+  }
+  .map-caption {
+    margin-top: 0.35rem;
+    font-size: 1rem;
+    line-height: 1.3;
+  }
+  .map-next {
+    opacity: 0.7;
+  }
+  .map-prize {
+    background: color-mix(in oklab, var(--color-leaf) 55%, white);
+    box-shadow: 0 3px 0 var(--color-leaf-deep);
+    font-size: 1.3rem;
+  }
+  .map-again {
+    background: color-mix(in oklab, var(--color-sea) 25%, white);
+    box-shadow: 0 3px 0 color-mix(in oklab, var(--color-sea-deep) 60%, white);
+  }
+  .map-chip {
+    font-size: 1rem;
+  }
+  @media (max-width: 640px) {
+    .map-chip {
+      display: none;
+    }
+    .map-slot {
+      width: 3rem;
+      height: 3rem;
+    }
+  }
+  /* the map's name opens the stage like a title card, then floats away */
+  .map-banner {
+    position: absolute;
+    left: 50%;
+    top: 34%;
+    translate: -50% 0;
+    display: grid;
+    justify-items: center;
+    gap: 0.15rem;
+    padding: 0.7rem 1.6rem 0.8rem;
+    border-radius: var(--radius-panel);
+    background: color-mix(in oklab, var(--color-milk) 92%, transparent);
+    box-shadow: 0 14px 30px -14px color-mix(in oklab, var(--color-ink) 60%, transparent);
+    font-family: var(--font-display);
+    font-size: 2rem;
+    pointer-events: none;
+    animation: map-banner 3.4s ease forwards;
+    z-index: 15;
+  }
+  .map-banner small {
+    font-size: 1.15rem;
+    opacity: 0.8;
+  }
+  .map-banner-icon {
+    font-size: 2.6rem;
+    line-height: 1;
+  }
+  @keyframes map-banner {
+    0% {
+      opacity: 0;
+      scale: 0.7;
+    }
+    12% {
+      opacity: 1;
+      scale: 1.05;
+    }
+    20% {
+      scale: 1;
+    }
+    80% {
+      opacity: 1;
+      translate: -50% 0;
+    }
+    100% {
+      opacity: 0;
+      translate: -50% -2rem;
+    }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .map-banner {
+      animation-name: map-banner-still;
+    }
+    @keyframes map-banner-still {
+      0%,
+      85% {
+        opacity: 1;
+      }
+      100% {
+        opacity: 0;
+      }
+    }
+  }
   /* difficulty: three keys in a tray; the chosen one is pressed in */
   .seg {
     display: flex;

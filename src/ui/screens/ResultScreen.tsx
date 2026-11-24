@@ -52,7 +52,8 @@ export function ResultScreen({ store }: { store: GameStore }) {
     audio.playBgm('result', result.correct);
     for (let i = 0; i < result.stars; i++)
       audio.play('star', { delay: 0.35 + i * 0.45, pitch: 1 + i * 0.12 });
-  }, [result]);
+    if (store.getState().lastOutcome?.mapUnlocked !== undefined) audio.play('levelup', { delay: 2.2 });
+  }, [result, store]);
   if (!result || !outcome) return null;
   const newThing = achievementText(outcome.achievement);
   const badges = [...new Set(result.highlights)]
@@ -140,6 +141,29 @@ export function ResultScreen({ store }: { store: GameStore }) {
             {ko.daily.stamped}
           </p>
         )}
+        {/* the map mission (D62): a new map opened, met again, or what to try next time (never a penalty) */}
+        {(() => {
+          const maps = ko.maps.stages[result.stage];
+          const m = maps[result.map ?? 0];
+          const opened = outcome.mapUnlocked !== undefined ? maps[outcome.mapUnlocked] : undefined;
+          if (!m) return null;
+          return (
+            <motion.p
+              className={`ribbon mx-auto mt-4 ${opened ? 'map-prize' : outcome.missionMet ? '' : 'map-again'}`}
+              data-testid="map-mission"
+              data-met={outcome.missionMet ? '1' : '0'}
+              initial={reduce ? false : { scale: 0, rotate: 4 }}
+              animate={{ scale: 1, rotate: 0 }}
+              transition={{ type: 'spring', stiffness: 260, damping: 12, delay: delay(5.5) }}
+            >
+              {opened
+                ? `🗺️ ${ko.maps.success} ${fmt(ko.maps.opened, { icon: opened.icon, name: opened.name })}`
+                : outcome.missionMet
+                  ? `🗺️ ${ko.maps.success} · ${m.mission}`
+                  : `🗺️ ${fmt(ko.maps.again, { mission: m.mission })}`}
+            </motion.p>
+          );
+        })()}
         {outcome.newToy && (
           <motion.p
             className="ribbon toy-prize mx-auto mt-4"

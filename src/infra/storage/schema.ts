@@ -1,7 +1,7 @@
 /** Valibot schema + migrations for saved profiles (SPEC §8.3). */
 import * as v from 'valibot';
 import { LEVEL_IDS, SKILLS } from '../../domain/edu/types';
-import { defaultProfile, PROFILE_VERSION, type Profile } from '../../domain/profile';
+import { allMaps, defaultProfile, PROFILE_VERSION, type Profile } from '../../domain/profile';
 import { STAGE_IDS } from '../../domain/stage/types';
 
 const levelId = v.picklist(LEVEL_IDS);
@@ -85,6 +85,7 @@ export const ProfileSchema = v.object({
   firsts: v.array(skillId),
   toys: v.array(v.pipe(v.string(), v.maxLength(24))),
   bombEasyStep: v.pipe(v.number(), v.integer(), v.minValue(1), v.maxValue(5)),
+  maps: v.record(stageId, v.pipe(v.number(), v.integer(), v.minValue(1), v.maxValue(5))),
   badges: v.array(v.pipe(v.string(), v.maxLength(40))),
   friendFed: nonNeg,
   decorSeen: nonNeg,
@@ -107,6 +108,8 @@ const MIGRATIONS: ((p: Raw) => Raw)[] = [
     settings: { ...((p.settings as Raw | undefined) ?? {}), numberStep: 1, haptics: true },
     version: 5,
   }),
+  // v6: five maps per stage, the first one open everywhere (D62)
+  (p) => ({ ...p, maps: allMaps(), version: 6 }),
 ];
 
 export interface LoadResult {

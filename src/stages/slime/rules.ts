@@ -351,7 +351,8 @@ export const slimeRules: StageRules<SlimeState, SlimeAction> = {
   summary: (s): RoundResult => {
     const r = roundSummary(s.core);
     // "깔끔 합체": at least half of the puzzles in the fewest merges
-    return s.neat * 2 >= s.core.puzzles ? { ...r, highlights: [...r.highlights, 'slimeNeat'] } : r;
+    const out = { ...r, stats: { neat: s.neat } };
+    return s.neat * 2 >= s.core.puzzles ? { ...out, highlights: [...r.highlights, 'slimeNeat'] } : out;
   },
 };
 

@@ -12,6 +12,8 @@ export interface StageCtx {
   shakeIntensity: number;
   /** Gift toys the child already has (bomb shelf); the next one is the reward for finishing this round. */
   toys?: readonly string[];
+  /** Which of the stage's five maps to stage (0–4, D62); the rules are the same on every map. */
+  map?: number;
 }
 
 export interface StageScene<S, A> {

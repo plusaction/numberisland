@@ -331,7 +331,7 @@ export const raceRules: StageRules<RaceState, RaceAction> = {
     if (s.place === 1) highlights.push('raceWin');
     if (s.turbos > 0) highlights.push('raceTurbo');
     if (s.blocked > 0) highlights.push('raceShield');
-    return { ...r, highlights };
+    return { ...r, highlights, stats: { place: s.place ?? 9, turbos: s.turbos, gems: s.stars.length } };
   },
 };
 

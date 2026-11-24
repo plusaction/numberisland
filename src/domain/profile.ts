@@ -6,7 +6,7 @@ import type { LevelId, SkillId } from './edu/types';
 import type { Stars } from './scoring/medals';
 import { STAGE_IDS, type StageId } from './stage/types';
 
-export const PROFILE_VERSION = 5;
+export const PROFILE_VERSION = 6;
 export const MAX_PROFILES = 3;
 export const HISTORY_LIMIT = 500;
 
@@ -71,6 +71,8 @@ export interface Profile {
   toys: string[];
   /** Bomb "쉽게" ladder step reached (1–5): goes up one per cleared easy round, never down. */
   bombEasyStep: number;
+  /** Open maps per stage (1–5, D62): the next opens when the newest map's mission is met; never closes. */
+  maps: Record<StageId, number>;
   /** Challenge badges earned (`stage.kind`); only ever grows. */
   badges: string[];
   /** Snacks fed to the monster friend so far (it grows at set marks). */
@@ -121,6 +123,7 @@ export function defaultProfile(id: string, nickname: string, now: string): Profi
     firsts: [],
     toys: [],
     bombEasyStep: 1,
+    maps: allMaps(),
     badges: [],
     friendFed: 0,
     decorSeen: 0,
@@ -149,4 +152,11 @@ export function fitProfileToTerm(p: Profile): Profile {
   const best = clampLevel(p.adaptive.best, settings);
   if (level === p.adaptive.level && best === p.adaptive.best) return p;
   return { ...p, adaptive: { ...p.adaptive, level, best, recent: [], streak: 0, wrongStreak: 0 } };
+}
+
+/** Every stage starts with its first map open. */
+export function allMaps(): Record<StageId, number> {
+  const m = {} as Record<StageId, number>;
+  for (const s of STAGE_IDS) m[s] = 1;
+  return m;
 }
