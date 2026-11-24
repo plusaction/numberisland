@@ -8,7 +8,7 @@ import {
   SphereGeometry,
 } from 'three/webgpu';
 import { releaseTree } from '../../engine/geo/release';
-import { disc } from '../../engine/geo/shapes';
+import { disc, roundedBox } from '../../engine/geo/shapes';
 import { PALETTE } from '../../engine/palette';
 import { sandMaterial, tableMaterial, woodMaterial } from '../../engine/tsl/materials';
 import type { RenderWorld } from '../../engine/world';
@@ -33,6 +33,52 @@ export function baseDiorama(color: string = PALETTE.sand, radius = 7): Group {
   base.receiveShadow = true;
   g.add(base);
   const rim = new Mesh(disc(radius + 0.25, 0.4, 96), woodMaterial('#9a6a48'));
+  rim.position.y = -0.95;
+  rim.castShadow = true;
+  g.add(rim);
+  const table = new Mesh(disc(30, 0.3, 64), tableMaterial('#c4936a'));
+  table.position.y = -1.3;
+  table.receiveShadow = true;
+  g.add(table);
+  return g;
+}
+
+export type GroundShape = 'round' | 'square' | 'hex' | 'blob' | 'flower';
+
+/**
+ * A map's diorama (D62): the same play table, but the felt top takes the map's shape — round, rounded
+ * square, hexagon, a soft blob or a five-petal flower — with a matching wooden rim underneath.
+ */
+export function mapDiorama(shape: GroundShape, color: string, radius = 7, rimColor = '#9a6a48'): Group {
+  if (shape === 'round') return baseDiorama(color, radius);
+  const g = new Group();
+  const top = (r: number, h: number, mat: ReturnType<typeof sandMaterial>) => {
+    let m: Mesh;
+    if (shape === 'square') m = new Mesh(roundedBox(r * 1.8, h, r * 1.8, 0.6), mat);
+    else if (shape === 'hex') m = new Mesh(new CylinderGeometry(r * 1.06, r * 1.06, h, 6), mat);
+    else if (shape === 'blob') {
+      m = new Mesh(disc(r, h, 96), mat);
+      m.scale.set(1.14, 1, 0.9);
+    } else {
+      // flower: a round middle and five round petals around it
+      m = new Mesh(disc(r * 0.82, h, 64), mat);
+      for (let i = 0; i < 5; i++) {
+        const a = (i / 5) * Math.PI * 2 + Math.PI / 2;
+        const petal = new Mesh(disc(r * 0.42, h, 48), mat);
+        petal.position.set(Math.cos(a) * r * 0.62, 0, Math.sin(a) * r * 0.62);
+        m.add(petal);
+      }
+    }
+    return m;
+  };
+  const base = top(radius, 0.9, sandMaterial(color));
+  base.position.y = -0.45;
+  base.receiveShadow = true;
+  base.traverse((o) => {
+    (o as Mesh).receiveShadow = true;
+  });
+  g.add(base);
+  const rim = top(radius + 0.25, 0.4, woodMaterial(rimColor));
   rim.position.y = -0.95;
   rim.castShadow = true;
   g.add(rim);

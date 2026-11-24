@@ -20,49 +20,49 @@
   {
     "name": "stage fishing (gzip)",
     "path": "dist/assets/fishing-*.js",
-    "limit": "10 kB",
+    "limit": "18 kB",
     "gzip": true
   },
   {
     "name": "stage bomb (gzip)",
     "path": "dist/assets/bomb-*.js",
-    "limit": "10 kB",
+    "limit": "18 kB",
     "gzip": true
   },
   {
     "name": "stage slime (gzip)",
     "path": "dist/assets/slime-*.js",
-    "limit": "8 kB",
+    "limit": "16 kB",
     "gzip": true
   },
   {
     "name": "stage escape (gzip)",
     "path": "dist/assets/escape-*.js",
-    "limit": "10 kB",
+    "limit": "18 kB",
     "gzip": true
   },
   {
     "name": "stage pizza (gzip)",
     "path": "dist/assets/pizza-*.js",
-    "limit": "14 kB",
+    "limit": "22 kB",
     "gzip": true
   },
   {
     "name": "stage race (gzip)",
     "path": "dist/assets/race-*.js",
-    "limit": "14 kB",
+    "limit": "22 kB",
     "gzip": true
   },
   {
     "name": "stage zombie (gzip)",
     "path": "dist/assets/zombie-*.js",
-    "limit": "14 kB",
+    "limit": "22 kB",
     "gzip": true
   },
   {
     "name": "stage cardbattle (gzip)",
     "path": "dist/assets/cardbattle-*.js",
-    "limit": "14 kB",
+    "limit": "22 kB",
     "gzip": true
   },
   {

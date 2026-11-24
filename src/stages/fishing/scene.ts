@@ -21,7 +21,6 @@ import {
   metalMaterial,
   sandMaterial,
   toyMaterial,
-  waterMaterial,
   waterTime,
   woodMaterial,
 } from '../../engine/tsl/materials';
@@ -29,10 +28,12 @@ import { WAVES_POND, waveHeight } from '../../engine/water/waves';
 import type { RenderWorld } from '../../engine/world';
 import { audio } from '../../infra/audio/audio';
 import type { PointerInfo } from '../../scenes/common/controller';
-import { baseDiorama, disposeTree, hitCylinder, hitId, hitSphere, stageCamera } from '../_shared/diorama';
+import { disposeTree, hitCylinder, hitId, hitSphere, mapDiorama, stageCamera } from '../_shared/diorama';
 import { celebrate } from '../_shared/fx';
 import type { StageCtx, StageScene } from '../_shared/module';
+import { startStageMap } from '../_shared/stagemap';
 import { type FishModel, fishModel } from './fish-model';
+import { dressFishing, FISHING_LOOKS, FISHING_MOODS, fishingWater } from './maps';
 import { createOddItems, oddPath } from './odd-items';
 import { BOUNCE_TICKS, type FishingAction, type FishingState, REEL_TICKS } from './rules';
 
@@ -85,18 +86,21 @@ export function createFishingScene(
   root.name = 'stage-fishing';
   world.scene.add(root);
   stageCamera(world, 11.5, 10, 38);
-  root.add(baseDiorama(PALETTE.leaf, 7));
+  // the map (D62): ground shape and colours, water, sky, dressing and life — play stays identical
+  const env = startStageMap(world, root, ctx, FISHING_MOODS);
+  const look = FISHING_LOOKS[env.map] as (typeof FISHING_LOOKS)[number];
+  root.add(mapDiorama(look.shape, look.ground, 7));
   const rng = createRng('fishing-deco');
   // the pond bed sits a little lower than the bank, so even the deepest wave troughs stay above it
-  const sand = new Mesh(disc(5.2, 0.12, 64), sandMaterial(PALETTE.sand, true));
+  const sand = new Mesh(disc(5.2, 0.12, 64), sandMaterial(look.bank, true));
   sand.position.y = -0.12;
   root.add(sand);
   // the sandy bank round the edge (where the water meets the shore)
-  const bank = new Mesh(new RingGeometry(4.35, 5.25, 72).rotateX(-Math.PI / 2), sandMaterial(PALETTE.sand));
+  const bank = new Mesh(new RingGeometry(4.35, 5.25, 72).rotateX(-Math.PI / 2), sandMaterial(look.bank));
   bank.position.y = 0.075;
   bank.receiveShadow = true;
   root.add(bank);
-  const pond = new Mesh(waterPlane(4.6, 96), waterMaterial());
+  const pond = new Mesh(waterPlane(4.6, 96), fishingWater(env.map));
   pond.position.y = 0.16;
   pond.receiveShadow = true;
   root.add(pond);
@@ -104,12 +108,13 @@ export function createFishingScene(
     const a = (i / 10) * Math.PI * 2 + 0.3;
     const rock = new Mesh(
       blob(0.35 + rng.float() * 0.25, rng, 0.25),
-      toyMaterial(i % 3 ? '#d8cfc4' : PALETTE.mint),
+      toyMaterial(i % 3 ? (look.rock[0] as string) : (look.rock[1] as string)),
     );
     rock.position.set(Math.cos(a) * 5.4, 0.2, Math.sin(a) * 5.4);
     rock.castShadow = true;
     root.add(rock);
   }
+  dressFishing(env.map, root, env.life);
   // rod on the near-left shore
   const rod = new Group();
   const pole = new Mesh(new CylinderGeometry(0.06, 0.09, 4.2, 10), woodMaterial('#8a5a3c'));
@@ -308,6 +313,7 @@ export function createFishingScene(
 
   const scene: StageScene<FishingState, FishingAction> = {
     sync(state, prev, dt) {
+      env.update(dt);
       const vdt = hitStop.filter(dt) * (slowmo > 0 ? 0.3 : 1);
       wake.update(vdt);
       slowmo = Math.max(0, slowmo - dt);
@@ -665,6 +671,7 @@ export function createFishingScene(
       glowId = id;
     },
     dispose() {
+      env.dispose();
       for (const v of fishViews.values()) disposeTree(v.group);
       disposeTree(root);
       world.camera.position.set(0, 10, 11.5);
