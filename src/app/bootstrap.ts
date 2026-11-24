@@ -3,6 +3,7 @@ import { SCREENS } from '../application/machines';
 import { createGameStore, type GameStore } from '../application/stores/game';
 import { defaultProfile, fitProfileToTerm, type Profile } from '../domain/profile';
 import { audio } from '../infra/audio/audio';
+import { setHaptics } from '../infra/platform/haptics';
 import { createSaver, openStore, type Store } from '../infra/storage/store';
 
 export interface App {
@@ -32,6 +33,11 @@ export async function bootApp(): Promise<App> {
     (p) => {
       if (p) saver.save(p);
     },
+  );
+  store.subscribe(
+    (s) => s.profile?.settings.haptics,
+    (on) => setHaptics(on !== false),
+    { fireImmediately: true },
   );
   // saved volumes drive the audio buses (they used to stay at the engine defaults)
   store.subscribe(

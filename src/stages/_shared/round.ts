@@ -20,6 +20,13 @@ import {
   nextQuestion,
   type SessionState,
 } from '../../domain/edu/session';
+import {
+  CARRY_AFTER_STREAK,
+  fitsStep,
+  type NumberStep,
+  STEP_SOURCES,
+  stepShift,
+} from '../../domain/edu/steps';
 import type { LevelId, Question, SkillId } from '../../domain/edu/types';
 import { createRng, type Rng, type RngState } from '../../domain/rng/rng';
 import { coinsForAnswer, starsFor } from '../../domain/scoring/medals';
@@ -36,6 +43,12 @@ export interface RoundOptions {
   term?: TermSetting;
   /** Hub "쉽게" step (1–5) for stages that stage a fixed easy ladder (bomb); 0/undefined = adaptive. */
   easyStep?: number;
+  /**
+   * The island's number step (① one-digit, ② two-digit with one-digit, ③ two-digit with two-digit, D61):
+   * when set, every question has that shape and `shift` only tunes non-number feel. Unset = the older
+   * adaptive-level path (kept for replays and tests).
+   */
+  step?: NumberStep;
 }
 
 export interface RoundCore {
@@ -46,6 +59,8 @@ export interface RoundCore {
   shift: -1 | 0 | 1;
   term: TermSetting;
   easyStep: number;
+  /** Number step for this round (0 = adaptive-level path). */
+  step: NumberStep | 0;
   day: number;
   puzzles: number;
   index: number;
@@ -78,9 +93,10 @@ export function initRound(
     tick: 0,
     rng: rng.state(),
     session: createSession({ ...adaptive, level: adaptive.level ?? start }),
-    shift: opts.shift ?? 0,
+    shift: opts.step ? stepShift(opts.step) : (opts.shift ?? 0),
     term: opts.term ?? DEFAULT_SETTINGS.term,
-    easyStep: opts.shift === -1 ? (opts.easyStep ?? 0) : 0,
+    easyStep: !opts.step && opts.shift === -1 ? (opts.easyStep ?? 0) : 0,
+    step: opts.step ?? 0,
     day: opts.day ?? 0,
     puzzles: opts.puzzles ?? BALANCE.round.puzzles,
     index: 0,
@@ -151,6 +167,48 @@ export function stageLevel(
 }
 
 /**
+ * A question of the island's number step for a stage: no carrying until the child is on a roll (two right
+ * in a row; a miss resets the run), then carrying/borrowing half the time. The adaptive pick's skill is tried
+ * first so review and practice still follow the child. Falls back to the other half, then to any shape-fit.
+ */
+export function stepQuestion(
+  core: Pick<RoundCore, 'streak' | 'stage'>,
+  step: NumberStep,
+  rng: Rng,
+  avoid: readonly string[],
+  usable: readonly SkillId[],
+  wanted?: SkillId,
+  prefer?: (q: Question) => boolean,
+  keep?: (q: Question) => boolean,
+): Question {
+  const src = STEP_SOURCES[step];
+  const carryOn = core.streak >= CARRY_AFTER_STREAK && rng.chance(0.5);
+  const ok = (q: Question) =>
+    usable.includes(q.skill) && fitsStep(q, step) && (!prefer || prefer(q)) && (!keep || keep(q));
+  const tiers = carryOn ? [src.carry, src.easy] : [src.easy, src.carry];
+  for (const tier of tiers) {
+    const cands = tier.filter((x) => usable.includes(x.skill));
+    const ordered = [
+      ...cands.filter((x) => x.skill === wanted),
+      ...rng.shuffle(cands.filter((x) => x.skill !== wanted)),
+    ];
+    for (const c of ordered) {
+      for (let i = 0; i < 30; i++) {
+        const q = generateQuestion({
+          level: c.level,
+          skill: c.skill,
+          rng,
+          avoid,
+          forceSkill: c.force ?? false,
+        });
+        if (q.skill === c.skill && ok(q)) return q;
+      }
+    }
+  }
+  throw new Error(`no step-${step} question for ${core.stage}`);
+}
+
+/**
  * Pick the next question for a stage: the adaptive engine chooses level/skill, then the stage keeps only
  * skills it can stage (e.g. fishing needs + / − / □). Returns the question and the session bookkeeping.
  */
@@ -165,7 +223,21 @@ export function nextStageQuestion(
     const r = nextQuestion(core.session, rng, core.day);
     let { question } = r.asked;
     const pick = r.asked.pick;
-    const own = custom?.(rng, r.session.recentKeys);
+    const own0 = custom?.(rng, r.session.recentKeys) ?? null;
+    // a stage's own question still has to have the island step's shape
+    const own = own0 && core.step && !fitsStep(own0, core.step) ? null : own0;
+    if (!own && core.step) {
+      const q = stepQuestion(core, core.step, rng, r.session.recentKeys, usable, pick.skill, prefer);
+      return {
+        ...core,
+        session: r.session,
+        asked: { question: q, pick: { ...pick, skill: q.skill } },
+        puzzleHints: 0,
+        hintCarry: 0,
+        puzzleWrong: 0,
+        puzzleStart: core.tick,
+      };
+    }
     if (own) {
       return {
         ...core,
@@ -361,7 +433,9 @@ export function sameKindQuestion(
         skill: old.skill,
         rng,
         avoid: [...core.session.recentKeys, old.key],
+        forceSkill: true,
       });
+      if (core.step && !fitsStep(cand, core.step)) continue;
       const sameShape =
         cand.form === old.form &&
         cand.missingIndex === old.missingIndex &&

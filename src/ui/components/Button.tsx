@@ -34,7 +34,8 @@ export function Button({
       {...rest}
       onClick={(e) => {
         void audio.unlock();
-        audio.play('ui.tap');
+        // touch/mouse presses already ticked on pointerdown (ui/press.ts); keyboard presses tick here
+        if (e.detail === 0) audio.play('ui.tap');
         onClick?.(e);
       }}
       className={`toy-btn ${TONES[tone]} ${big ? 'min-h-20 px-10 text-[2rem]' : 'min-h-16 px-6 text-[1.6rem]'} ${className}`}

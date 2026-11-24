@@ -22,6 +22,8 @@ const settings = v.object({
   restMinutes: v.picklist([0, 10, 15, 20, 30]),
   dailyLimitMinutes: nonNeg,
   shakeIntensity: prob,
+  numberStep: v.picklist([1, 2, 3]),
+  haptics: v.boolean(),
 });
 
 const card = v.object({
@@ -99,6 +101,12 @@ const MIGRATIONS: ((p: Raw) => Raw)[] = [
   (p) => ({ ...p, bombEasyStep: 1, version: 3 }),
   // v4: badges, friend feeding, decorations, daily stamps — all start empty, nothing earned is touched
   (p) => ({ ...p, badges: [], friendFed: 0, decorSeen: 0, stamps: [], version: 4 }),
+  // v5: one number step for every stage (starts at ①, D61) and press vibration (on); other settings kept
+  (p) => ({
+    ...p,
+    settings: { ...((p.settings as Raw | undefined) ?? {}), numberStep: 1, haptics: true },
+    version: 5,
+  }),
 ];
 
 export interface LoadResult {

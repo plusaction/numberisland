@@ -31,6 +31,7 @@ import { ProgressBar } from '../components/ProgressBar';
 import { SettingsSheet } from '../components/SettingsSheet';
 import { SpeakButton } from '../components/SpeakButton';
 import { Stars } from '../components/Stars';
+import { StepPicker } from '../components/StepPicker';
 
 /** When play (or the last rest reminder) started in this visit — the reminder is per sitting, not saved. */
 let restSince = performance.now();
@@ -60,9 +61,6 @@ export function HubScreen({
   const api = useWorld();
   const profile = useStore(store, (s) => s.profile);
   const selected = useStore(store, (s) => s.selected);
-  const shift = useStore(store, (s) => s.shift);
-  const pickedStep = useStore(store, (s) => s.easyStep);
-  const easyStep = pickedStep ?? profile?.bombEasyStep ?? 1;
   const islandRef = useRef<IslandController | null>(null);
   const fruits = profile ? Object.values(profile.adaptive.mastery).filter((m) => m >= 0.85).length : 0;
 
@@ -198,6 +196,7 @@ export function HubScreen({
   return (
     <div className="hub-overlay" data-testid="hub">
       <header className="hub-top">
+        <StepPicker store={store} />
         <div className="pill" data-testid="coins">
           <GemIcon /> {profile.economy.coins}
           <span className="sr-only">{ko.hub.coins}</span>
@@ -349,48 +348,6 @@ export function HubScreen({
         </p>
         {playable ? (
           <>
-            <fieldset className="seg mt-3" aria-label="난이도">
-              {([-1, 0, 1] as const).map((v) => (
-                <button
-                  key={v}
-                  type="button"
-                  aria-pressed={shift === v}
-                  className={`seg-btn ${shift === v ? 'seg-on' : ''}`}
-                  onClick={() => store.getState().setShift(v)}
-                >
-                  {v === -1 ? ko.hub.easier : v === 0 ? ko.hub.auto : ko.hub.harder}
-                </button>
-              ))}
-            </fieldset>
-            {selected === 'bomb' && shift === -1 && (
-              <div className="mt-3" data-testid="easy-steps">
-                <fieldset className="seg" aria-label={ko.hub.easyStep}>
-                  {ko.hub.easySteps.map((name, i) => {
-                    const step = i + 1;
-                    return (
-                      <button
-                        key={name}
-                        type="button"
-                        aria-pressed={easyStep === step}
-                        aria-label={`${step}${ko.hub.easyStep} ${name}`}
-                        data-testid={`easy-step-${step}`}
-                        className={`seg-btn step-btn ${easyStep === step ? 'seg-on' : ''}`}
-                        onClick={() => store.getState().setEasyStep(step)}
-                      >
-                        {step}
-                        {profile && step <= profile.bombEasyStep && (
-                          <span className="step-done" aria-hidden="true" />
-                        )}
-                      </button>
-                    );
-                  })}
-                </fieldset>
-                <p className="mt-1 text-lg" data-testid="easy-step-name">
-                  {easyStep}
-                  {ko.hub.easyStep} · {ko.hub.easySteps[easyStep - 1]}
-                </p>
-              </div>
-            )}
             <div className="mt-4 flex gap-3">
               <Button
                 tone="primary"

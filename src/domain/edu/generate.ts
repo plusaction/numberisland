@@ -29,6 +29,11 @@ export interface GenerateArgs {
   /** Recent question keys that must not repeat (last 10 by default in sessions). */
   avoid?: readonly string[];
   constraints?: { form?: QuestionForm };
+  /**
+   * Use `skill` even if the level does not list it (its number ranges, that skill's carry rule): the number
+   * steps ask for two-digit ± one-digit *with* carrying (27 + 5), which no curriculum level lists.
+   */
+  forceSkill?: boolean;
 }
 
 function pickSkill(level: LevelSpec, rng: Rng, form?: QuestionForm): SkillId {
@@ -67,7 +72,10 @@ export function generateQuestion(args: GenerateArgs): Question {
   const rng = args.rng;
   const avoid = new Set(args.avoid ?? []);
   const form = args.constraints?.form;
-  let skill = args.skill && level.skills.includes(args.skill) ? args.skill : pickSkill(level, rng, form);
+  let skill =
+    args.skill && (args.forceSkill || level.skills.includes(args.skill))
+      ? args.skill
+      : pickSkill(level, rng, form);
   let core = generateCoreAvoiding(level.id, skill, rng, avoid);
   if (!core) {
     // Defensive: fall back to any skill of the level that can generate.

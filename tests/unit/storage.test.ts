@@ -57,7 +57,7 @@ describe('[P4] 데이터 안정성', () => {
     p.toys = ['top', 'robot'];
     p.bombEasyStep = 4;
     const { profile, repaired } = parseProfile(p, now);
-    expect(repaired).toEqual(['migrated to v4']);
+    expect(repaired).toEqual(['migrated to v4', 'migrated to v5']);
     expect(profile.economy).toEqual({ coins: 321, snacks: 17 });
     expect(profile.trophies.total).toBe(12);
     expect(profile.toys).toEqual(['top', 'robot']);
@@ -65,12 +65,31 @@ describe('[P4] 데이터 안정성', () => {
     expect(profile.badges).toEqual([]);
   });
 
+  it('a v4 save gets the number step ① and vibration on, keeping every other setting (D61)', () => {
+    const p = defaultProfile('s', '숲', now) as unknown as Record<string, unknown>;
+    const st = { ...(p.settings as Record<string, unknown>) };
+    delete st.numberStep;
+    delete st.haptics;
+    st.tts = false;
+    st.volumes = { bgm: 0.25, sfx: 0.4, voice: 0.4 };
+    p.settings = st;
+    p.version = 4;
+    p.economy = { coins: 99, snacks: 3 };
+    const { profile, repaired } = parseProfile(p, now);
+    expect(repaired).toEqual(['migrated to v5']);
+    expect(profile.settings.numberStep).toBe(1);
+    expect(profile.settings.haptics).toBe(true);
+    expect(profile.settings.tts).toBe(false);
+    expect(profile.settings.volumes.bgm).toBe(0.25);
+    expect(profile.economy.coins).toBe(99);
+  });
+
   it('migrates v0 drafts and refuses newer versions', () => {
     const p = defaultProfile('m', '바다', now) as unknown as Record<string, unknown>;
     delete p.firsts;
     p.version = 0;
     const { profile, repaired } = parseProfile(p, now);
-    expect(profile.version).toBe(4);
+    expect(profile.version).toBe(5);
     expect(profile.bombEasyStep).toBe(1);
     expect(repaired).toContain('migrated to v1');
     expect(repaired).toContain('migrated to v2');

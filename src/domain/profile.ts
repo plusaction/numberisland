@@ -1,11 +1,12 @@
 /** Saved profile shape (SPEC §15) — pure types + defaults. Validation lives in infra/storage. */
 import type { TermSetting } from './curriculum/curriculum';
 import { type AdaptiveState, clampLevel, createAdaptiveState, DEFAULT_SETTINGS } from './edu/adaptive';
+import { DEFAULT_STEP, type NumberStep } from './edu/steps';
 import type { LevelId, SkillId } from './edu/types';
 import type { Stars } from './scoring/medals';
 import { STAGE_IDS, type StageId } from './stage/types';
 
-export const PROFILE_VERSION = 4;
+export const PROFILE_VERSION = 5;
 export const MAX_PROFILES = 3;
 export const HISTORY_LIMIT = 500;
 
@@ -24,6 +25,10 @@ export interface Settings {
   restMinutes: 0 | 10 | 15 | 20 | 30;
   dailyLimitMinutes: number; // 0 = off
   shakeIntensity: number; // 0..1
+  /** The island's number step for every stage (① one-digit, ② with a two-digit, ③ two-digit pairs, D61). */
+  numberStep: NumberStep;
+  /** A short buzz on presses / answers where the device can (Android). */
+  haptics: boolean;
 }
 
 export interface AnswerLog {
@@ -90,6 +95,8 @@ export function defaultSettings(): Settings {
     restMinutes: 15,
     dailyLimitMinutes: 40,
     shakeIntensity: 0.5,
+    numberStep: DEFAULT_STEP,
+    haptics: true,
   };
 }
 

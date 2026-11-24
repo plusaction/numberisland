@@ -12,6 +12,7 @@ import { pickPraise, praiseCategory } from '../../domain/scoring/praise';
 import { PLAYABLE } from '../../domain/stage/types';
 import { fmt, ko, PRAISE_POOL_SIZES, praiseText } from '../../i18n/ko';
 import { audio } from '../../infra/audio/audio';
+import { buzz } from '../../infra/platform/haptics';
 import { stopSpeaking } from '../../infra/tts/tts';
 import type { HudView } from '../../stages/_shared/module';
 import { createStageRuntime, type StageRuntime } from '../../stages/_shared/runtime';
@@ -90,9 +91,9 @@ export function StageScreen({ store, reducedMotion }: { store: GameStore; reduce
     const profile = st.profile;
     if (!profile) return;
     const seed = `${profile.id}-${runId}-${Date.now()}`;
+    // the island's one number step decides the numbers in every stage (D61)
     const init = mod.rules.init(seed, profile.adaptive.level, {
-      shift: st.shift,
-      ...(st.shift === -1 && selected === 'bomb' ? { easyStep: st.easyStep ?? profile.bombEasyStep } : {}),
+      step: profile.settings.numberStep,
       term: profile.settings.term,
       day: today(),
       adaptive: profile.adaptive,
@@ -138,6 +139,7 @@ export function StageScreen({ store, reducedMotion }: { store: GameStore; reduce
     audio.playBgm(mod.bgm, seed);
     audio.duck(true);
     let lastCorrect = init.core.correct;
+    let lastWrong = init.core.wrong;
     let lastHints = init.core.puzzleHints;
     let lastSig = '';
     let praiseTimer = 0;
@@ -164,8 +166,12 @@ export function StageScreen({ store, reducedMotion }: { store: GameStore; reduce
       lastPicks = picks?.length ?? 0;
       if (c.puzzleHints > lastHints) send('hint.open'); // keyboard H / pad X opens the panel too
       lastHints = c.puzzleHints;
+      // a little buzz for a miss (two soft taps) — never a punishment, just the "boing" felt in the hand
+      if (s.core.wrong > lastWrong) buzz('oops');
+      lastWrong = s.core.wrong;
       if (s.core.correct > lastCorrect) {
         lastCorrect = s.core.correct;
+        buzz('good');
         const cat = praiseCategory({
           correct: true,
           afterWrong: s.core.puzzleWrong > 0,

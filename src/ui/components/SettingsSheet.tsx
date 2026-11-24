@@ -12,6 +12,7 @@ import { audio } from '../../infra/audio/audio';
 import { blobToProfile, profileToBlob } from '../../infra/storage/savefile';
 import type { Store } from '../../infra/storage/store';
 import { Button } from './Button';
+import { StepPicker } from './StepPicker';
 
 function Seg<T extends string | number | boolean>({
   label,
@@ -247,6 +248,10 @@ export function SettingsSheet({ store, db, onClose }: { store: GameStore; db?: S
         data-testid="settings"
       >
         <h2 className="stage-name">{s.title}</h2>
+        <div className="sheet-row">
+          <span>{s.step}</span>
+          <StepPicker store={store} compact />
+        </div>
         <Seg
           label={s.music}
           testid="set-music"
@@ -298,6 +303,16 @@ export function SettingsSheet({ store, db, onClose }: { store: GameStore; db?: S
             { v: 30, name: s.min30 },
           ]}
           onPick={(restMinutes) => set({ restMinutes })}
+        />
+        <Seg
+          label={s.haptics}
+          testid="set-haptics"
+          value={settings.haptics}
+          options={[
+            { v: false, name: s.off },
+            { v: true, name: s.on },
+          ]}
+          onPick={(haptics) => set({ haptics })}
         />
         {db && <SaveRow store={store} db={db} />}
         <div className="mt-5 flex justify-end">

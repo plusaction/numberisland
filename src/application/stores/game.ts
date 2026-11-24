@@ -11,15 +11,11 @@ import type { RoundResult, StageId } from '../../domain/stage/types';
 import { SCREENS, type Screen } from '../machines';
 
 export type { Screen } from '../machines';
-export type DifficultyShift = -1 | 0 | 1;
 
 export interface GameState {
   screen: Screen;
   profile: Profile | null;
   selected: StageId;
-  shift: DifficultyShift;
-  /** Bomb "쉽게" step picked on the hub card (null = the saved step). */
-  easyStep: number | null;
   lastResult: RoundResult | null;
   lastOutcome: ApplyOutcome | null;
   storageWarning: boolean;
@@ -31,8 +27,6 @@ export interface GameActions {
   go(screen: Screen): void;
   setProfile(p: Profile): void;
   select(stage: StageId): void;
-  setShift(shift: DifficultyShift): void;
-  setEasyStep(step: number | null): void;
   finishRound(result: RoundResult, outcome: ApplyOutcome): void;
   restart(): void;
   setStorageWarning(on: boolean): void;
@@ -46,8 +40,6 @@ export function createGameStore() {
       screen: 'boot',
       profile: null,
       selected: 'fishing',
-      shift: 0,
-      easyStep: null,
       lastResult: null,
       lastOutcome: null,
       storageWarning: false,
@@ -62,8 +54,6 @@ export function createGameStore() {
         }),
       setProfile: (profile) => set({ profile }),
       select: (selected) => set({ selected }),
-      setShift: (shift) => set({ shift }),
-      setEasyStep: (easyStep) => set({ easyStep }),
       finishRound: (lastResult, lastOutcome) =>
         set((s) =>
           // only a running stage can hand over a result (a late timer after "나가기" changes nothing)
