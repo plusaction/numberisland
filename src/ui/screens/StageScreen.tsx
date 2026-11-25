@@ -41,6 +41,8 @@ export function StageScreen({ store, reducedMotion }: { store: GameStore; reduce
   const voice = useStore(store, (s) => s.profile?.settings.tts ?? false);
   const [mod, setMod] = useState<AnyStageModule | null>(null);
   const [hud, setHud] = useState<HudView | null>(null);
+  // a picked number is on its way up to the sentence: its box waits hidden until the flying copy lands
+  const [flyHold, setFlyHold] = useState(false);
   const [praise, setPraise] = useState<string | null>(null);
   const [finale, setFinale] = useState(false);
   const sessionRef = useRef<SessionState>(SESSION.initial);
@@ -154,8 +156,11 @@ export function StageScreen({ store, reducedMotion }: { store: GameStore; reduce
       // re-render the HUD only when something it shows changed (state changes every tick)
       const c = s.core;
       const sig = `${s.phase}|${c.asked?.question.key ?? ''}|${c.index}|${c.coins}|${c.correct}|${c.wrong}|${c.puzzleHints}|${mod.hudKey(s)}`;
+      const pickedNow = mod.picks?.(s)?.length ?? 0;
+      const flying = pickedNow > lastPicks && !reducedMotion;
       if (sig !== lastSig) {
         lastSig = sig;
+        setFlyHold(flying);
         setHud(mod.hud(s));
         setFinale(!!mod.finale?.(s));
       }
@@ -167,6 +172,7 @@ export function StageScreen({ store, reducedMotion }: { store: GameStore; reduce
         const value = mod.pickValue?.(s, id);
         if (from && value !== undefined)
           requestAnimationFrame(() => requestAnimationFrame(() => flyToGoal(from, String(value))));
+        else setFlyHold(false); // nothing will fly: show the number in place right away
       }
       lastPicks = picks?.length ?? 0;
       if (c.puzzleHints > lastHints) send('hint.open'); // keyboard H / pad X opens the panel too
@@ -342,7 +348,7 @@ export function StageScreen({ store, reducedMotion }: { store: GameStore; reduce
             {selected === 'cardbattle' ? ko.stageHud.matchPoint : ko.stageHud.finale}
           </p>
         )}
-        <GoalTiles goal={hud.goal} />
+        <GoalTiles goal={hud.goal} hideNew={flyHold} />
         {hud.steps && <StepGuide steps={hud.steps} />}
         {hud.race && <RaceBar race={hud.race} />}
         {/* two misses on one puzzle: the picture comes by itself (no hint is spent) */}

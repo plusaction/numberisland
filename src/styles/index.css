@@ -687,11 +687,11 @@
       0 10px 14px -8px color-mix(in oklab, var(--color-ink) 55%, transparent);
   }
   .gt-new {
-    animation: tile-drop 0.28s cubic-bezier(0.3, 1.6, 0.5, 1);
+    animation: tile-drop 0.22s cubic-bezier(0.3, 1.3, 0.5, 1);
   }
   @keyframes tile-drop {
     0% {
-      transform: translateY(-14px) scale(1.12);
+      transform: translateY(-5px) scale(1.06);
     }
     100% {
       transform: none;

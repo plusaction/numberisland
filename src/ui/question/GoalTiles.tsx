@@ -42,7 +42,11 @@ function Digits({ text }: { text: string }) {
   );
 }
 
-export function GoalTiles({ goal }: { goal: string }) {
+/**
+ * `hideNew`: a number is about to fly here from the scene (flyToGoal) — keep its box hidden until it lands,
+ * so it appears once (no flash-and-pop in place before the flying copy arrives).
+ */
+export function GoalTiles({ goal, hideNew = false }: { goal: string; hideNew?: boolean }) {
   const tokens = tokenize(goal);
   // remember which positions were slots last render: a number appearing there "drops in"
   const prevSlots = useRef<Set<number>>(new Set());
@@ -79,6 +83,7 @@ export function GoalTiles({ goal }: { goal: string }) {
             key={`${key}-${t.text}`}
             className={`gt-num ${was.has(i) ? 'gt-new' : ''}`}
             aria-hidden="true"
+            {...(hideNew && was.has(i) ? { style: { visibility: 'hidden' as const } } : {})}
           >
             <Digits text={t.text} />
           </span>
