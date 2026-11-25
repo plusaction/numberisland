@@ -18,7 +18,15 @@ import type { RenderWorld } from '../../engine/world';
 import { audio } from '../../infra/audio/audio';
 import type { PointerInfo } from '../../scenes/common/controller';
 import { createFriend } from '../../scenes/island/friend';
-import { disposeTree, hitCylinder, hitId, hitSphere, mapDiorama, stageCamera } from '../_shared/diorama';
+import {
+  disposeTree,
+  hitCylinder,
+  hitId,
+  hitSphere,
+  mapDiorama,
+  nearestOnScreen,
+  stageCamera,
+} from '../_shared/diorama';
 import { celebrate } from '../_shared/fx';
 import type { StageCtx, StageScene } from '../_shared/module';
 import { startStageMap } from '../_shared/stagemap';
@@ -358,6 +366,7 @@ export function createEscapeScene(world: RenderWorld, ctx: StageCtx): StageScene
 
   const things = new Map<number, ThingView>();
   const proxies: Mesh[] = [];
+  const pickV = new Vector3();
   let roomRef: EscapeState['room'] = null;
   const hitStop = new HitStop();
   const shake = new Shake(!ctx.reducedMotion && ctx.shakeIntensity > 0);
@@ -585,10 +594,31 @@ export function createEscapeScene(world: RenderWorld, ctx: StageCtx): StageScene
     },
     pointer(p: PointerInfo, state, emit) {
       if (p.type !== 'down' || state.phase !== 'play') return;
-      const id = hitId([...proxies, ...keyProxies], p.raycaster);
-      if (id === null) return;
-      if (id >= KEY(0)) emit({ t: 'pick', id });
-      else emit({ t: 'tap', id });
+      // the lock's number keys only count once every clue is found (before that a tap goes to the things)
+      const key = state.room && allFound(state.room, state.found) ? hitId(keyProxies, p.raycaster) : null;
+      if (key !== null) {
+        emit({ t: 'pick', id: key });
+        return;
+      }
+      // things still closed, picked by what is nearest the finger on screen (body or ? badge) — a closed
+      // thing in front must not swallow a tap meant for the one behind it, nor an opened one any tap at all
+      const closed = new Set(
+        (state.room?.things ?? []).filter((t) => !state.found.includes(t.id)).map((t) => t.id),
+      );
+      const cands: { id: number; points: { x: number; y: number }[] }[] = [];
+      for (const id of closed) {
+        const v = things.get(id);
+        if (!v) continue;
+        const pts = [0.8, 1.4, 1.85].map((y) => {
+          const q = pickV.copy(v.group.position).setY(y).project(world.camera);
+          return { x: q.x, y: q.y };
+        });
+        cands.push({ id, points: pts });
+      }
+      const id =
+        nearestOnScreen(p.x, p.y, world.camera.aspect, cands) ??
+        hitId(proxies, p.raycaster, (x) => closed.has(x));
+      if (id !== null) emit({ t: 'tap', id });
     },
     screenPos(_s, id) {
       let obj: { getWorldPosition(v: Vector3): Vector3 } | undefined;
