@@ -1442,6 +1442,10 @@
   .stage-hud > * {
     pointer-events: auto;
   }
+  /* the map title card is only to look at: taps go straight through to the scene */
+  .stage-hud > .map-banner {
+    pointer-events: none;
+  }
   .hud-top {
     position: absolute;
     top: 1rem;

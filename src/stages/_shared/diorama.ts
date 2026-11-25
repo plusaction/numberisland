@@ -110,13 +110,53 @@ export function hitCylinder(radius: number, height: number, id: number): Mesh {
   return m;
 }
 
+/** Is this object (and every parent) shown? Hidden things must not catch taps meant for others. */
+export function shown(o: Object3D | null): boolean {
+  for (let x = o; x; x = x.parent) if (!x.visible) return false;
+  return true;
+}
+
+/**
+ * The id under the pointer: nearest hit first, but hidden proxies (a caught fish, a cut wire, an opened
+ * thing) are skipped, and so are ids `accept` refuses — those must never swallow a tap meant for something
+ * behind them (user report: "one number per round can't be tapped").
+ */
 export function hitId(
   objects: Object3D[],
   raycaster: { intersectObjects(o: Object3D[], r: boolean): { object: Object3D }[] },
+  accept?: (id: number) => boolean,
 ): number | null {
-  const h = raycaster.intersectObjects(objects, false)[0];
-  const id = h?.object.userData.hit;
-  return typeof id === 'number' ? id : null;
+  for (const h of raycaster.intersectObjects(objects, false)) {
+    const id = h.object.userData.hit;
+    if (typeof id !== 'number' || !shown(h.object)) continue;
+    if (accept && !accept(id)) continue;
+    return id;
+  }
+  return null;
+}
+
+/**
+ * Screen-space pick (for small things that move and crowd together, like fish): the candidate whose
+ * on-screen points (body, number badge) are nearest the finger, within `reach` (fraction of screen height).
+ */
+export function nearestOnScreen(
+  px: number,
+  py: number,
+  aspect: number,
+  candidates: { id: number; points: { x: number; y: number }[] }[],
+  reach = 0.17,
+): number | null {
+  let best: number | null = null;
+  let bestD = reach * 2; // NDC spans 2 units of height
+  for (const c of candidates)
+    for (const p of c.points) {
+      const d = Math.hypot((p.x - px) * aspect, p.y - py);
+      if (d < bestD) {
+        bestD = d;
+        best = c.id;
+      }
+    }
+  return best;
 }
 
 export function disposeTree(root: Object3D) {

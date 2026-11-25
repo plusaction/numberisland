@@ -28,7 +28,16 @@ import { WAVES_POND, waveHeight } from '../../engine/water/waves';
 import type { RenderWorld } from '../../engine/world';
 import { audio } from '../../infra/audio/audio';
 import type { PointerInfo } from '../../scenes/common/controller';
-import { disposeTree, hitCylinder, hitId, hitSphere, mapDiorama, stageCamera } from '../_shared/diorama';
+import {
+  disposeTree,
+  hitCylinder,
+  hitId,
+  hitSphere,
+  mapDiorama,
+  nearestOnScreen,
+  shown,
+  stageCamera,
+} from '../_shared/diorama';
 import { celebrate } from '../_shared/fx';
 import type { StageCtx, StageScene } from '../_shared/module';
 import { startStageMap } from '../_shared/stagemap';
@@ -160,6 +169,7 @@ export function createFishingScene(
   const pA = new Vector3();
   const pB = new Vector3();
   const pC = new Vector3();
+  const pickV = new Vector3(); // pointer picking (screen projection)
   const pD = new Vector3();
   const mouth = new Vector3();
   const tgt = new Vector3();
@@ -649,11 +659,28 @@ export function createFishingScene(
         emit({ t: 'reel' }); // anywhere on the pond winds the reel
         return;
       }
-      const objs = [...proxies, ...(state.odd ? [oddProxy] : [])];
-      const id = hitId(objs, p.raycaster);
+      // the odd thing first (it floats on its own); then the fish nearest the finger on screen — its body or
+      // its number badge — so crowded or overlapping fish never swallow each other's taps; caught fish are out
+      if (state.odd && hitId([oddProxy], p.raycaster) === ODD_ID) {
+        emit({ t: 'odd' });
+        return;
+      }
+      const free = new Set(state.puzzle?.fish.filter((f) => !f.caught).map((f) => f.id) ?? []);
+      const cands: { id: number; points: { x: number; y: number }[] }[] = [];
+      for (const [id, v] of fishViews) {
+        if (!free.has(id) || !shown(v.group)) continue;
+        const body = pickV
+          .copy(v.group.position)
+          .setY(v.group.position.y + 0.3)
+          .project(world.camera);
+        const b = { x: body.x, y: body.y };
+        const badge = pickV.copy(v.label.position).project(world.camera);
+        cands.push({ id, points: [b, { x: badge.x, y: badge.y }] });
+      }
+      const near = nearestOnScreen(p.x, p.y, world.camera.aspect, cands);
+      const id = near ?? hitId(proxies, p.raycaster, (x) => free.has(x));
       if (id === null) return;
-      if (id === ODD_ID) emit({ t: 'odd' });
-      else emit({ t: 'tap', id });
+      emit({ t: 'tap', id });
     },
     screenPos(_state, id) {
       const v = fishViews.get(id);

@@ -38,6 +38,8 @@ export function StageScreen({ store, reducedMotion }: { store: GameStore; reduce
   const mapNo = useStore(store, (s) => currentMap(s, selected));
   const mapSpec = ko.maps.stages[selected]?.[mapNo];
   const mapInfo = mapSpec ? { ...mapSpec, n: mapNo + 1 } : null;
+  // the run whose title card has finished (it is gone from the screen)
+  const [bannerRun, setBannerRun] = useState(-1);
   const voice = useStore(store, (s) => s.profile?.settings.tts ?? false);
   const [mod, setMod] = useState<AnyStageModule | null>(null);
   const [hud, setHud] = useState<HudView | null>(null);
@@ -132,6 +134,11 @@ export function StageScreen({ store, reducedMotion }: { store: GameStore; reduce
       runtime: rt,
       solveOne: () => {
         for (const a of mod.solution(rt.state)) rt.dispatch(a);
+      },
+      // for the tap check: what can be tapped right now (scene ids) and how to take a pick back
+      targets: () => mod.keyboard?.targets(rt.state) ?? [],
+      undo: () => {
+        if (mod.undoAction) rt.dispatch(mod.undoAction);
       },
       // for coding agents and tests: where the stage is and whether it takes input right now
       info: () => ({
@@ -330,8 +337,14 @@ export function StageScreen({ store, reducedMotion }: { store: GameStore; reduce
           </div>
         )}
       </header>
-      {mapInfo && (
-        <p className="map-banner" data-testid="map-banner" key={`${selected}-${runId}`}>
+      {mapInfo && bannerRun !== runId && (
+        // the map's title card: removed once it has faded (an invisible card must never catch taps)
+        <p
+          className="map-banner"
+          data-testid="map-banner"
+          key={`${selected}-${runId}`}
+          onAnimationEnd={() => setBannerRun(runId)}
+        >
           <span className="map-banner-icon" aria-hidden="true">
             {mapInfo.icon}
           </span>
