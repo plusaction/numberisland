@@ -149,6 +149,8 @@ export function createSlimeScene(world: RenderWorld, ctx: StageCtx): StageScene<
   const shake = new Shake(!ctx.reducedMotion && ctx.shakeIntensity > 0);
   let cursorId: number | null = null;
   let heldId: number | null = null;
+  /** Tap-tap merging: the slime picked by a plain tap waits here for the next tap on another slime. */
+  let tapped: number | null = null;
   let glowId: number | null = null;
   let lastEventTick = -1;
   let t = 0;
@@ -440,7 +442,10 @@ export function createSlimeScene(world: RenderWorld, ctx: StageCtx): StageScene<
         v.body.rotation.z += (Math.max(-0.45, Math.min(0.45, -vx * 0.06)) * lean - v.body.rotation.z) * ease;
         v.body.rotation.x += (Math.max(-0.45, Math.min(0.45, vz * 0.06)) * lean - v.body.rotation.x) * ease;
         v.group.position.y =
-          0.55 + r + v.lift * (0.55 + r * 0.3) + (cursorId === id || heldId === id ? 0.25 : 0);
+          0.55 +
+          r +
+          v.lift * (0.55 + r * 0.3) +
+          (cursorId === id || heldId === id || tapped === id ? 0.25 : 0);
         // the one about to be merged into perks up under the carried slime
         if (dropId === id) v.group.position.y += 0.12 + Math.abs(Math.sin(t * 6)) * 0.08;
         v.label.scale.setScalar(1 + v.punch * 0.9);
@@ -473,8 +478,10 @@ export function createSlimeScene(world: RenderWorld, ctx: StageCtx): StageScene<
       world.camera.position.y = 10 + sh.y;
     },
     pointer(p: PointerInfo, state, emit) {
+      if (tapped !== null && !state.slimes.some((x) => x.id === tapped)) tapped = null;
       if (p.type === 'down') {
         const id = pick(p.raycaster.ray, null);
+        if (id === null) tapped = null;
         if (id !== null && state.phase === 'play') {
           dragging = id;
           holdPlane(id);
@@ -509,7 +516,16 @@ export function createSlimeScene(world: RenderWorld, ctx: StageCtx): StageScene<
           v.spring.impulse(-4); // lands with a soft plop
           v.jelly.wobble.value = 0.6;
         }
-        if (best !== null) emit({ t: 'merge', from, to: best });
+        if (best !== null) {
+          tapped = null;
+          emit({ t: 'merge', from, to: best });
+        } else if (pick(p.raycaster.ray, null) === from) {
+          // a plain tap (no drag): first tap picks this slime up, a tap on another one merges them
+          if (tapped !== null && tapped !== from) {
+            emit({ t: 'merge', from: tapped, to: from });
+            tapped = null;
+          } else tapped = tapped === from ? null : from;
+        }
       }
     },
     screenPos(_s, id) {
