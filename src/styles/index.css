@@ -1037,6 +1037,13 @@
   .sheet-row .seg-btn {
     min-width: 4.2rem;
   }
+  .sheet-build {
+    margin-top: 0.8rem;
+    font-family: var(--font-sans);
+    font-size: 0.85rem;
+    color: color-mix(in oklab, var(--color-ink) 55%, transparent);
+    text-align: right;
+  }
   /* 💾 저장: label, then the file keys as soft chips; a small confirm card when a file is opened */
   .save-row {
     margin-top: 1rem;

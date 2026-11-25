@@ -34,7 +34,19 @@ export function flyToGoal(from: { x: number; y: number }, value: string) {
     ],
     { duration: 560, easing: 'cubic-bezier(0.3, 0.7, 0.4, 1)' },
   );
+  // never leave the box hidden: if the animation is cut short (tab hidden, element re-rendered), a timer
+  // shows the number anyway
+  let landed = false;
+  const safety = window.setTimeout(() => {
+    if (landed) return;
+    landed = true;
+    chip.remove();
+    target.style.visibility = '';
+  }, 900);
   anim.onfinish = anim.oncancel = () => {
+    if (landed) return;
+    landed = true;
+    window.clearTimeout(safety);
     chip.remove();
     target.style.visibility = '';
     // replay the landing "click" now that it has arrived

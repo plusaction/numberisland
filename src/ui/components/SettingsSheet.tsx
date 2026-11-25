@@ -315,6 +315,10 @@ export function SettingsSheet({ store, db, onClose }: { store: GameStore; db?: S
           onPick={(haptics) => set({ haptics })}
         />
         {db && <SaveRow store={store} db={db} />}
+        {/* which build this device runs: tells at a glance whether the newest version has arrived */}
+        <p className="sheet-build" data-testid="build">
+          {s.build} {__APP_BUILD__}
+        </p>
         <div className="mt-5 flex justify-end">
           <Button tone="primary" ref={closeKey} onClick={onClose} data-testid="settings-close">
             {s.close}

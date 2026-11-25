@@ -186,6 +186,7 @@ export const ko = {
     min30: '30분',
     step: '🔢 숫자 단계',
     haptics: '📳 진동',
+    build: '판',
     save: '💾 저장',
     saveDown: '저장 파일 받기',
     saveLoad: '불러오기',

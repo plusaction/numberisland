@@ -258,3 +258,57 @@ test("[G7] tapping a wire's number badge selects that wire; undo puts it back", 
       .toEqual([]);
   }
 });
+
+test('[fishing] tapping a fish puts its number into the goal sentence (user report)', async ({
+  page,
+}, info) => {
+  test.setTimeout(300_000);
+  await startFresh(page, url(info, STAGE_PATH));
+  await throughPlacement(page);
+  await page.evaluate(() => {
+    const st = (
+      globalThis as { __store?: { getState(): { select(s: string): void; go(s: string): void } } }
+    ).__store?.getState();
+    st?.select('fishing');
+    st?.go('intro');
+  });
+  await page.getByTestId('go').click();
+  await page
+    .getByTestId('skip-tutorial')
+    .click({ timeout: 20_000 })
+    .catch(() => {});
+  type Rt = {
+    __stage: {
+      info(): { acceptsInput: boolean };
+      runtime: {
+        state: { puzzle: { mode: string; fish: { id: number; value: number; caught?: boolean }[] } };
+        screenPos(id: number): { x: number; y: number };
+      };
+    };
+  };
+  await page.waitForFunction(() => (globalThis as unknown as Rt).__stage?.info().acceptsInput, null, {
+    timeout: 120_000,
+  });
+  const t = await page.evaluate(() => {
+    const st = (globalThis as unknown as Rt).__stage;
+    const state = st.runtime.state as unknown as {
+      puzzle: { mode: string; fish: { id: number; value: number; caught?: boolean }[] };
+      core: { asked: { question: { answer: number } } };
+    };
+    // a □ puzzle judges a single tap at once (a wrong one splashes back to □): tap its right fish there
+    const free = state.puzzle.fish.filter((x) => !x.caught);
+    const f = (
+      state.puzzle.mode === 'missing'
+        ? free.find((x) => x.value === state.core.asked.question.answer)
+        : free[0]
+    ) as { id: number; value: number };
+    const p = st.runtime.screenPos(f.id);
+    return { value: f.value, x: ((p.x + 1) / 2) * innerWidth, y: ((1 - p.y) / 2) * innerHeight };
+  });
+  const same = page.getByTestId('goal').locator('.gt-num', { hasText: new RegExp(`^${t.value}$`) });
+  const before = await same.count();
+  await page.mouse.click(t.x, t.y);
+  // one more box now shows that number (the ? / □ it filled), and it is visible once it has landed
+  await expect.poll(() => same.count(), { timeout: 10_000 }).toBeGreaterThan(before);
+  await expect(same.last()).toBeVisible({ timeout: 3_000 });
+});

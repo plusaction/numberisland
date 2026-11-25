@@ -1,3 +1,4 @@
+import { execSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import babel from '@rolldown/plugin-babel';
 import tailwindcss from '@tailwindcss/vite';
@@ -79,7 +80,23 @@ self.addEventListener('fetch', (event) => {
 `;
 }
 
+/** Which build a device is running (settings sheet): commit + build date. Vercel gives the commit. */
+function buildId(): string {
+  let sha = process.env.VERCEL_GIT_COMMIT_SHA ?? '';
+  if (!sha) {
+    try {
+      sha = execSync('git rev-parse --short HEAD', { stdio: ['ignore', 'pipe', 'ignore'] })
+        .toString()
+        .trim();
+    } catch {
+      sha = 'dev';
+    }
+  }
+  return `${sha.slice(0, 7)} · ${new Date().toISOString().slice(0, 10)}`;
+}
+
 export default defineConfig({
+  define: { __APP_BUILD__: JSON.stringify(buildId()) },
   base: './',
   plugins: [react(), babel({ presets: [reactCompilerPreset()] }), tailwindcss(), offlineCache()],
   resolve: {
