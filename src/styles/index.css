@@ -1363,6 +1363,10 @@
     font-size: 1.7rem;
     padding: 0.3rem 1.1rem;
   }
+  /* a box waiting for its flying number: no drop-in animation of its own */
+  .gt-await {
+    animation: none;
+  }
   .goal-tiles.gt-fly {
     display: block;
     position: fixed;

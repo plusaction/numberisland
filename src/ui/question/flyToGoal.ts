@@ -9,6 +9,10 @@ export function flyToGoal(from: { x: number; y: number }, value: string) {
   const fresh = [...goal.querySelectorAll<HTMLElement>('.gt-new')];
   const target = fresh.find((el) => el.textContent === value) ?? fresh[fresh.length - 1];
   if (!target) return;
+  // measure the box at rest: stop its own drop-in animation first (measuring mid-animation made the copy
+  // fly to a bigger, higher box and then visibly hop when the real box showed)
+  target.classList.remove('gt-new');
+  for (const a of target.getAnimations?.() ?? []) a.cancel();
   const r = target.getBoundingClientRect();
   const sx = ((from.x + 1) / 2) * window.innerWidth;
   const sy = ((1 - from.y) / 2) * window.innerHeight;
@@ -49,9 +53,10 @@ export function flyToGoal(from: { x: number; y: number }, value: string) {
     window.clearTimeout(safety);
     chip.remove();
     target.style.visibility = '';
-    // replay the landing "click" now that it has arrived
-    target.classList.remove('gt-new');
-    void target.offsetWidth;
-    target.classList.add('gt-new');
+    // a tiny "click" in place as it lands: a squash, no up-and-down hop
+    target.animate([{ transform: 'scale(0.94)' }, { transform: 'none' }], {
+      duration: 120,
+      easing: 'ease-out',
+    });
   };
 }

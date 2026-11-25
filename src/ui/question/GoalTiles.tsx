@@ -81,7 +81,7 @@ export function GoalTiles({ goal, hideNew = false }: { goal: string; hideNew?: b
         return (
           <span
             key={`${key}-${t.text}`}
-            className={`gt-num ${was.has(i) ? 'gt-new' : ''}`}
+            className={`gt-num ${was.has(i) && !hideNew ? 'gt-new' : ''} ${was.has(i) && hideNew ? 'gt-new gt-await' : ''}`}
             aria-hidden="true"
             {...(hideNew && was.has(i) ? { style: { visibility: 'hidden' as const } } : {})}
           >
