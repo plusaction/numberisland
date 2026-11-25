@@ -279,7 +279,8 @@ export function createZombieScene(world: RenderWorld, ctx: StageCtx): StageScene
     const paper = new Mesh(cardGeo, toyMaterial(PALETTE.white, { finish: 'matte' }));
     // the sign and the number are separate labels: the number keeps its place-value colours and both
     // are sized to fit inside the card (no plate spilling over the edge)
-    const sign = new NumberLabel('-', { size: 0.7, tint: PALETTE.ink, badge: false });
+    // the sign takes its card's bright colour (blue −, pink +) — no dark ink on the cards
+    const sign = new NumberLabel('-', { size: 0.7, tint: MINUS, badge: false });
     sign.position.set(-0.47, -0.02, 0.45);
     const label = new NumberLabel(1, { size: 0.78, placeColors: true, badge: false });
     label.position.set(0.14, -0.02, 0.45);
@@ -325,6 +326,7 @@ export function createZombieScene(world: RenderWorld, ctx: StageCtx): StageScene
   let glowId: number | null = null;
   let t = 0;
   const tmp = new Vector3();
+  const badgeV = new Vector3();
   const from = new Vector3();
   const fired = new Set<string>();
   const once = (id: string, fn: () => void) => {
@@ -368,6 +370,7 @@ export function createZombieScene(world: RenderWorld, ctx: StageCtx): StageScene
           c.shown = delta;
           const mag = Math.abs(delta);
           c.sign.set(delta < 0 ? '-' : '+');
+          c.sign.setTint(delta < 0 ? MINUS : PLUS);
           c.label.set(mag);
           // two digits are a little smaller so they stay inside the card
           c.label.scale.setScalar(mag >= 10 ? 0.86 : 1);
@@ -482,6 +485,11 @@ export function createZombieScene(world: RenderWorld, ctx: StageCtx): StageScene
         });
         v.balloon.position.y = 3.1 + (reduced ? 0 : Math.sin(t * 2.2) * 0.08);
         v.balloon.rotation.z = reduced ? 0 : Math.sin(t * 1.7) * 0.08;
+        // the number badge always sits on the camera side of the balloon, so the balloon never covers it
+        // (a fixed local offset slid round the side as the zombie turned and toddled)
+        v.balloon.updateWorldMatrix(true, false);
+        v.balloon.worldToLocal(badgeV.copy(world.camera.position));
+        if (badgeV.lengthSq() > 1e-6) v.label.position.copy(badgeV.normalize().multiplyScalar(0.95));
         // a played card flies to the balloon; the number changes when it lands
         if (state.phase === 'hit') {
           const k = 1 - state.phaseLeft / HIT_TICKS;

@@ -107,6 +107,15 @@ export class NumberLabel extends Group {
     this.set(value);
   }
 
+  /** Change the colour of plain (non place-coloured) glyphs. */
+  setTint(tint: string) {
+    if (tint === this.opts.tint) return;
+    this.opts.tint = tint;
+    const text = this.text;
+    this.text = '';
+    this.set(text);
+  }
+
   get value(): string {
     return this.text;
   }

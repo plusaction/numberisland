@@ -95,7 +95,9 @@ export function createAdvancedPost(
     disposers.push(glow);
     // number labels write labelMask = 1 (alpha-blended): there the image keeps its original colours,
     // untouched by contact shadows and bloom (P9 place-value colours stay exact)
-    setLabelMask(mrt({ labelMask: vec4(1, 1, 1, output.a) }));
+    // the mask value itself is the glyph's alpha, so the empty part of each glyph quad stays 0 even where the
+    // MRT attachment is not blended (it used to paint the whole quad: grey boxes behind card numbers)
+    setLabelMask(mrt({ labelMask: vec4(output.a, output.a, output.a, output.a) }));
     const mask = scenePass.getTextureNode('labelMask').r;
     pipeline.outputNode = mix(lit.add(glow), colorTex, mask).mul(vig);
   }
